@@ -63,6 +63,7 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 | `[]T` | `T[]`；只读参数优先 `ReadOnlySpan<T>` |
 | nil slice | 语义等同时用 `[]`；Go 区分 nil 与非 nil 的地方用 `T[]?` 并在注释里说明 |
 | `map[K]V` | `Dictionary<K,V>`（顺序敏感处用 `Collections.OrderedMap`） |
+| Go 的 nil 接收者安全方法 | C# 实例方法在 null 上**不可分派**（调用即 NRE）。所以 Go 里 `if s == nil { … }` 的分支在 C# 侧是死代码，直接删；**调用点**必须写成 `s?.Has(k) ?? false` / `s?.Clone()`，移植调用点时要逐个核对（`Collections` 各类型的文件头列了对应写法）。 |
 | `*T` | `T?`（引用类型）或 `ref`/`out`（值类型） |
 | `interface{ M() }` | `interface I { M(); }`，结构性满足改为显式实现 |
 | `(T, error)` | 正常路径 `T`，错误路径抛异常；"查找失败"这类预期分支用 `bool TryX(..., out T)` |
