@@ -34,11 +34,14 @@
 // 2) 未移植流式 API（Go 的 `xxh3.New()` + `Write`/`Sum64`/`Sum128`）：TSGO 里只有 internal/tracing/tracing.go
 //    用流式，而它的多段写入等价于一次性哈希（见上），C# 侧已经用 Hash64 覆盖；`internal/project/
 //    extendedconfigcache.go` 只是持有 `xxh3.Uint128` 字段（用 Hash128），不需要流式。
+namespace TypeScript.Xxh3;
+
+// usings 放在 file-scoped namespace 之后（与 Checker 包、Tracing.cs 同款）：编译单元级的 using
+// 不参与命名空间体内的简单名解析顺序，外层命名空间的同名成员（如 `TypeScript.Encoding` 这类
+// 「命名空间与类同名」的成员）会压过它；放进 namespace 声明体内则不会。
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Text;
-
-namespace TypeScript.Xxh3;
 
 /// <summary>
 /// XXH3（seed = 0）的标量实现：64 位与 128 位入口共用同一份 secret、累加（accumulate/scramble）与混合代码。

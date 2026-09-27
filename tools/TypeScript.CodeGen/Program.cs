@@ -2,15 +2,18 @@
 //
 // 用法：
 //   dotnet run --project tools/TypeScript.CodeGen -- [--tsgo-root <path>] [--out <dir>] [--unicode-out <dir>]
-//     [--diagnostics-out <dir>]
+//     [--diagnostics-out <dir>] [--bundled-libs <dir>]
 //     --tsgo-root        TSGO 仓库根目录；缺省时取环境变量 TSGO_ROOT，再缺省取 D:\Source\GitHub\TypeScript-Go
 //     --out              AST 生成物（*.Generated.cs）的输出目录；缺省 src/TypeScript.Compiler/Ast
 //                        （与 Unicode 生成器的 CLI 形状一致：同一个 --out <dir> 参数名）
 //     --unicode-out      Unicode 表生成物的输出目录；缺省 src/TypeScript.Compiler/StringUtil
 //     --diagnostics-out  诊断消息/本地化表的输出目录；缺省 src/TypeScript.Compiler/Diagnostics
 //                        （该目录下的 loc/*.json.gz 也会从 TSGO 逐字节复制过来）
+//     --bundled-libs     bundled libs 的产出目录；缺省 src/TypeScript.Compiler/Bundled
+//                        （该目录下的 libs/*.d.ts 会从 TSGO 的 tsc/internal/bundled/libs 逐字节复制过来，
+//                          并生成 LibNames / 资源名表；见 BundledGenerator.cs）
 //
-// 生成的文件只在内容变化时被重写（幂等，见 UnicodeTableGenerator / GoAstGenerator / DiagnosticsGenerator）。
+// 生成的文件只在内容变化时被重写（幂等，见 UnicodeTableGenerator / GoAstGenerator / DiagnosticsGenerator / BundledGenerator）。
 namespace TypeScript.CodeGen;
 
 internal static class Program
@@ -20,6 +23,7 @@ internal static class Program
     private static readonly string _defaultAstOutDir = Path.Combine("src", "TypeScript.Compiler", "Ast");
     private static readonly string _defaultUnicodeOutDir = Path.Combine("src", "TypeScript.Compiler", "StringUtil");
     private static readonly string _defaultDiagnosticsOutDir = Path.Combine("src", "TypeScript.Compiler", "Diagnostics");
+    private static readonly string _defaultBundledLibsOutDir = Path.Combine("src", "TypeScript.Compiler", "Bundled");
 
     private static int Main(string[] args)
     {
@@ -27,6 +31,7 @@ internal static class Program
         string? astOutDir = null;
         string? unicodeOutDir = null;
         string? diagnosticsOutDir = null;
+        string? bundledLibsOutDir = null;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -59,6 +64,13 @@ internal static class Program
                     }
 
                     break;
+                case "--bundled-libs":
+                    if (!TryReadValue(args, ref i, out bundledLibsOutDir))
+                    {
+                        return 1;
+                    }
+
+                    break;
                 case "-h":
                 case "--help":
                     PrintUsage();
@@ -79,6 +91,7 @@ internal static class Program
         astOutDir ??= _defaultAstOutDir;
         unicodeOutDir ??= _defaultUnicodeOutDir;
         diagnosticsOutDir ??= _defaultDiagnosticsOutDir;
+        bundledLibsOutDir ??= _defaultBundledLibsOutDir;
 
         try
         {
@@ -86,6 +99,7 @@ internal static class Program
             written.AddRange(UnicodeTableGenerator.Generate(tsgoRoot, unicodeOutDir));
             written.AddRange(GoAstGenerator.Generate(tsgoRoot, astOutDir));
             written.AddRange(DiagnosticsGenerator.Generate(tsgoRoot, diagnosticsOutDir));
+            written.AddRange(BundledGenerator.Generate(tsgoRoot, bundledLibsOutDir));
             if (written.Count == 0)
             {
                 Console.WriteLine("所有生成文件都已是最新，未重写任何文件。");
@@ -123,6 +137,6 @@ internal static class Program
 
     private static void PrintUsage()
     {
-        Console.Error.WriteLine("用法：TypeScript.CodeGen [--tsgo-root <path>] [--out <dir>] [--unicode-out <dir>] [--diagnostics-out <dir>]");
+        Console.Error.WriteLine("用法：TypeScript.CodeGen [--tsgo-root <path>] [--out <dir>] [--unicode-out <dir>] [--diagnostics-out <dir>] [--bundled-libs <dir>]");
     }
 }

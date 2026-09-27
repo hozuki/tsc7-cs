@@ -57,7 +57,6 @@ checker 的 import 面（决定它要等哪些包）：`ast, binder, collections
 6. **M7**：`execute`（tsc CLI/watch/build）+ harness（`docs/harness.md`）。
 
 ### 3.1 M6/M7 的已知前置清单（已勘查，避免重复调研）
-
 | 项 | 规模 | 做法 |
 | --- | --- | --- |
 | `internal/bundled` | 108 个 `lib.*.d.ts`（3.8 MB）+ `bundled.go`/`libs_generated.go` | 按 Diagnostics 的本地化数据那样**作为 `EmbeddedResource` 嵌入**（生成器产出"lib 名 → 资源名"的表 + `LoadLib(name)`），不要生成 3.8MB 的 C# 字符串字面量 |
@@ -132,3 +131,26 @@ C# 的名字解析是「当前命名空间 → using 引入的命名空间」，
 - 已踩：`utilities.go:879` 的未导出 `orderedSet[T]`（Add **不去重**，只有 `contains` 判重）若命名成 `OrderedSet<T>`，会盖住 `collections.OrderedSet`（`Add` **会去重**）→ `Types.cs` 的 `_deferredNodes` 语义会变。**裁决：改名 `SmallOrderedSet<T>`**（未导出类型按 C# 习惯命名，§2）。
 - 包级审计结果（`TypeScript.Checker` 140 个类型 vs 其它包）：`Host`（vs `ContentMapper.Host`）、`ParseFlags`（vs `Parser.ParseFlags`）、`Tracer`（vs `Module.Tracer`）——这三个是 Go **导出**名，按 API 对等必须保留；**引用另一包的那个时写全限定名**（`TypeScript.Module.Tracer`）。
 - 新增任何 C# 侧自造类型名前，先 `grep -rn "class <名字>\b" src/TypeScript.Compiler --include=*.cs` 确认不撞。
+
+## 7. M6 切片（transformers 24,404 行 + compiler 6,695 行；已按文件勘查）
+
+命名空间：`internal/transformers` → `TypeScript.Transformers`，`internal/transformers/estransforms` → `TypeScript.Transformers.EsTransforms`（其余子包同理），`internal/compiler` → `TypeScript.Compiler`（**注意**：`TypeScript.Compiler` 已是程序集名，命名空间仍按 §2 用同名，无冲突）。
+
+| 片 | 文件（行数） | ≈行数 |
+| --- | --- | --- |
+| T1 基础设施 | `transformers/{chain.go,transformer.go,modifiervisitor.go,utilities.go,destructuring.go}`（62/41/28/375/510）+ `transformers/inliners/*`（102） | ~1,100 |
+| T2 class fields | `estransforms/classfields.go`（3,618） | 3,618 |
+| T3 ES 装饰器 | `estransforms/esdecorator.go`（2,751） | 2,751 |
+| T4 async 族 | `estransforms/{async.go,forawait.go,using.go}`（984/856/799） | 2,639 |
+| T5 ES 其余 | `estransforms/{objectrestspread.go,namedevaluation.go,utilities.go,optionalchain.go,taggedtemplate.go,logicalassignment.go,exponentiation.go,usestrict.go,nullishcoalescing.go,definitions.go,optionalcatch.go,classthis.go}`（593/535/289/240/175/113/90/50/49/43/37/28） | 2,242 |
+| T6 声明发射 | `declarations/*`（transform.go 2,995 / diagnostics.go 736 / tracker.go 252 / 其余 2 文件） | 4,223 |
+| T7 TS 转译 | `tstransforms/*`（legacydecorators 1,038 / runtimesyntax 995 / typeserializer 511 / typeeraser 393 / metadata 390 / 其余 2 文件） | 3,509 |
+| T8 模块变换 | `moduletransforms/*`（commonjsmodule 2,162 / externalmoduleinfo 390 / esmodule 372 / 其余 2 文件） | 3,095 |
+| T9 JSX | `jsxtransforms/jsx.go`（1,209） | 1,209 |
+| T10 程序 | `compiler/program.go`（2,468）+ `projectreferencedtsfakinghost.go`（227） | 2,695 |
+| T11 文件加载 | `compiler/{fileloader.go,filesparser.go,fileInclude.go,includeprocessor.go,projectreferencefilemapper.go,projectreferenceparser.go}`（1,114/599/325/184/192/115） | 2,529 |
+| T12 发射与主机 | `compiler/{emitter.go,checkerpool.go,emitHost.go,host.go,processingDiagnostic.go,pkg.go}`（576/493/143/122/135/2） | 1,471 |
+
+依赖：transformers 依赖 `ast`/`core`/`printer`/`factory`(NodeFactory)/`jsnum`/`module`/`tsoptions`/`tspath`/`harness`(无)…；`compiler` 依赖 `bundled`（lib.*.d.ts）、`checker`、`module`、`vfs`、`tsoptions`、`tracing`、`execute`(**仅 tsc/watch 子包**，core program 不需要)。
+
+已知前置：`internal/bundled`（108 个 lib，EmbeddedResource）——已在进行中；`internal/testutil/*` 与 `internal/execute` 属 M7。

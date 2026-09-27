@@ -27,7 +27,7 @@ public interface OutputPathsHost
     bool UseCaseSensitiveFileNames();
 }
 
-public sealed class OutputPaths
+public sealed class OutputPaths : TypeScript.Transformers.Declarations.OutputPaths
 {
     internal string _jsFilePath = "";
     internal string _sourceMapFilePath = "";
