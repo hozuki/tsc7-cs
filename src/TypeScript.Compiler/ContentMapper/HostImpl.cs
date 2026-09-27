@@ -16,6 +16,10 @@
 // 8) `errors.Join(...)`（Close/Refresh 的错误聚合）→ 收集首个错误后继续其余清理，最后抛首个异常（Go 侧调用点
 //    全部只判 err != nil）。`Close()`/`Release()` 在 C# 里返回 void（Go 的 err 只用于 errors.Join）。
 // 9) Go 的 `%q` 与 C# 的 `"\"…\""` 一致；`strings.TrimSpace` → `string.Trim()`。
+// 10) 已删除移植期遗留的**绝对路径调试 trace**（非 Go 代码，Main 授权收口）：`SetLocale`/`Project`/`Release`/
+//     `ProjectLease.Release` 四处共 8 行 `File.AppendAllText(@"D:\…\artifacts\<按进程号命名的调试 trace 文件>", …)`，
+//     纯副作用、`hostimpl.go` 里没有对应物；它们会让并发测试争抢同一绝对路径的文件句柄
+//     （`IOException: … being used by another process`）产生假红。只删这 8 行，其余逻辑一行未动。
 using Stopwatch = System.Diagnostics.Stopwatch;
 using System.Runtime.CompilerServices;
 using TypeScript.Ast;
@@ -1725,6 +1729,7 @@ internal sealed class HostImpl : Host
             }
         }
 
+        var closerCount = closers.Count;
         foreach (var closer in closers)
         {
             // Go: `_ = closer.Close()`（release 明确丢弃关闭错误）。

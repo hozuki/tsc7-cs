@@ -134,6 +134,15 @@ public sealed class ChangeTrackerWriter : EmitTextWriter, IGrowableTextWriter
                 VisitToken = AssignPositionsToNodeWorker,
                 VisitModifiers = (modifiers, v) =>
                 {
+                    // Go: changeTrackerWriter.go:116-124 的 VisitModifiers 有 nil 守卫：
+                    //     `if modifiers != nil { … }; return modifiers`
+                    // 钩子收到 nil 时（Visitor.VisitModifiersWithHooks 会把 null 传进来，见 Ast/Visitor.cs:370）
+                    // 必须原样返回 nil，否则 assignPositionsToNodeArray(nil) 返回 null → newNodeList.Nodes 抛 NRE。
+                    if (modifiers is null)
+                    {
+                        return modifiers;
+                    }
+
                     // Go: ct.assignPositionsToNodeArray(&modifiers.NodeList, v) —— C# 的 ModifierList 本身就是 NodeList（派生）
                     var newNodeList = AssignPositionsToNodeArray(modifiers, v);
                     // Return a new ModifierList so that VisitEachChild/Update detects the

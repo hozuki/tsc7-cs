@@ -1,9 +1,10 @@
 // ported from: internal/ls/lsutil/formatcodeoptions.go
 //
-// **本文件是 `internal/ls/lsutil` 的局部移植**：只搬 `internal/format`（→ `TypeScript.Format`）用到的依赖闭包
-// （本文件 + Asi.cs + Children.cs + CompletedNode.cs）。被省略的是 `FromLSFormatOptions`/`ToLSFormatOptions`，
-// 它们依赖 `internal/lsp/lsproto`（LSP 协议包，属 M8，尚未移植）；`userpreferences.go`/`organizeimports.go`/
-// `symbol_display.go`/`utilities.go` 同样留给 M8。理由与清单见报告。
+// **本文件是 `internal/ls/lsutil` 的一部分**：最初只搬了 `internal/format`（→ `TypeScript.Format`）用到的依赖闭包
+// （本文件 + Asi.cs + Children.cs + CompletedNode.cs）。M8 补缺口时，`lsproto` 已定稿（`TypeScript.LsProto`），
+// 于是把此前因缺 lsproto 而省略的 `FromLSFormatOptions`/`ToLSFormatOptions` 也补上（见本文件末尾的偏离说明）。
+// `userpreferences.go`/`organizeimports.go`/`symbol_display.go`/`utilities.go` 现已在同目录的
+// UserPreferences.cs/OrganizeImports.cs/SymbolDisplay.cs/Utilities.cs 里补齐。
 //
 // 与 Go 的差异（C# 语言特性；依据 docs/architecture.md §2/§3.2/§3.3）：
 // - `type IndentStyle int` + iota 常量 → C# `enum IndentStyle`（成员名去 `IndentStyle` 前缀，数值一致）。
@@ -18,7 +19,11 @@
 // - Go 的未导出函数 `parseIndentStyle`/`parseSemicolonPreference` → `internal static` + PascalCase。
 // - `printer.GetDefaultIndentSize()` → `TypeScript.Printer.Printer.GetDefaultIndentSize()`（命名空间 `TypeScript.Printer`
 //   与外层命名空间同名，裸写 `Printer` 会解析成命名空间，所以这里写全名）。
+// - `ToLSFormatOptions` 是 Go 的方法（值接收者）⇒ C# 的 `readonly` 实例方法；`FromLSFormatOptions` 是包级函数
+//   ⇒ `LsUtil` 的静态方法。`opt.TrimTrailingWhitespace != nil`（`*bool`）⇒ `is { } x` 模式。
 using TypeScript.Core;
+using TypeScript.LsProto;
+using static TypeScript.Core.Core;
 
 namespace TypeScript.LsUtil;
 
@@ -107,6 +112,18 @@ public struct FormatCodeSettings
     public Tristate IndentMultiLineObjectLiteralBeginningOnBlankLine;
     public SemicolonPreference Semicolons;
     public Tristate IndentSwitchCase;
+
+    /// <summary>Go 的 <c>func (settings FormatCodeSettings) ToLSFormatOptions() *lsproto.FormattingOptions</c>。</summary>
+    public readonly FormattingOptions ToLSFormatOptions()
+    {
+        var trimTrailingWhitespace = TrimTrailingWhitespace.IsTrue();
+        return new FormattingOptions
+        {
+            TabSize = (uint)TabSize,
+            InsertSpaces = ConvertTabsToSpaces.IsTrue(),
+            TrimTrailingWhitespace = trimTrailingWhitespace,
+        };
+    }
 }
 
 public static partial class LsUtil
@@ -158,6 +175,21 @@ public static partial class LsUtil
         }
 
         return SemicolonPreferenceIgnore;
+    }
+
+    /// <summary>Go 的 <c>func FromLSFormatOptions(f FormatCodeSettings, opt *lsproto.FormattingOptions) FormatCodeSettings</c>。</summary>
+    public static FormatCodeSettings FromLSFormatOptions(FormatCodeSettings f, FormattingOptions opt)
+    {
+        var updatedSettings = f;
+        updatedSettings.TabSize = (int)opt.TabSize;
+        updatedSettings.IndentSize = (int)opt.TabSize;
+        updatedSettings.ConvertTabsToSpaces = BoolToTristate(opt.InsertSpaces);
+        if (opt.TrimTrailingWhitespace is { } trimTrailingWhitespace)
+        {
+            updatedSettings.TrimTrailingWhitespace = BoolToTristate(trimTrailingWhitespace);
+        }
+
+        return updatedSettings;
     }
 
     /// <summary>Go 的 <c>func GetDefaultFormatCodeSettings() FormatCodeSettings</c>。</summary>

@@ -8,6 +8,14 @@
 // 3) `core.Map(slice, f)`（返回 nil 语义）→ 需要写进 JSON 的字段用 `MapListOrNull`（nil 保持 nil），
 //    `FileInfos`/`ChangeFileSet`/`ReferencedMap` 这类"只要 nil 就该省略"的也用它；`EmitDiagnosticsPerFile`
 //    的元素可能为 nil（Go 的 `[]*T` 可以含 nil）→ 元素类型是 `BuildInfoDiagnosticsOfFile?`。
+//    **空集合 vs nil 是本文件最容易写错的地方**：Go 侧 `slices.Collect(空 iterator)` 返回 nil、`append(nil, …)`
+//    一个元素都没 append 时也保持 nil，而 `core.Map(非 nil 空切片)` 返回**非 nil** 空切片。因此
+//    `ChangeFileSet`/`EmitDiagnosticsPerFile` 必须写成 `files.Length == 0 ? null : …`，
+//    `SemanticDiagnosticsPerFile`/`AffectedFilesPendingEmit`/`EmitSignatures`/`ResolvedRoot` 必须在**真正 append 时**
+//    才 `??= []`（**不能**在方法开头预初始化）。写错成 `[]` 的后果不是"格式不漂亮"而是**行为偏离**：
+//    build 模式的 `getUpToDateStatus` 判的是 `buildInfo.X != nil`（buildtask.go:399-419，读回来 `[]` 也是非 nil），
+//    于是 `tsc -b` 第二次会对每个工程打印 "indicates that program needs to report errors." 并**永远重建**
+//    （与 Go/tsc 的 up-to-date 行为不符）。
 // 4) `t.snapshot.options` 的 reflect 遍历 → `TsOptions.ForEachCompilerOptionValue` + `CompilerOptionFields[i].IsZero`
 //    （C# 侧零值判定在字段表里，见 TsOptions/CompilerOptionFields.cs）。
 // 5) `panic(fmt.Sprintf(...))` → `Debug.Fail(...)`；`slices.Collect(map.Keys)` → `Dictionary.Keys`；
@@ -379,12 +387,20 @@ public static partial class Incremental
         {
             var files = _snapshot._changedFilesSet.Keys().ToArray();
             Array.Sort(files, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
-            _buildInfo.ChangeFileSet = MapListOrNull(ToListOrNull(files), ToFileId);
+            // Go: `toBuildInfo.setChangeFileSet()`（snapshottobuildinfo.go:323-327）：`slices.Collect(...)` 在**空 iterator**
+            // 时返回 **nil**（不是 `[]`）→ `core.Map(nil, …)` = nil（core/core.go:80-89）→ `omitzero` 省略该字段，
+            // 读回来也是 nil。空数组会让 build 模式的 `buildInfo.ChangeFileSet != nil`（buildtask.go:411/417）判成
+            // "有改动" → 第二次 `-b` 永远重建。
+            _buildInfo.ChangeFileSet = files.Length == 0 ? null : MapListOrNull(ToListOrNull(files), ToFileId);
         }
 
         internal void SetSemanticDiagnostics()
         {
-            _buildInfo.SemanticDiagnosticsPerFile ??= [];
+            // Go: `toBuildInfo.setSemanticDiagnostics()`（snapshottobuildinfo.go:329-347）：`SemanticDiagnosticsPerFile` 由
+            // `append(t.buildInfo.SemanticDiagnosticsPerFile, …)` 构造，**一条都没 append 时字段保持 nil**
+            // （JSON 省略，读回来也是 nil）。这里**不能**用 `??= []` 预初始化 —— 那会让空列表变成 `[]`（非 nil），
+            // 于是 build 模式第二次运行会把 `buildInfo.SemanticDiagnosticsPerFile != nil`（buildtask.go:411）判成
+            // "buildinfo 说需要报错"，永远重建；有诊断时则照常 append（`??= []` 只在真正 append 的分支里）。
             foreach (var file in _program.GetSourceFiles())
             {
                 var (value, ok) = _snapshot._semanticDiagnosticsPerFile.Load(file.Path());
@@ -392,7 +408,7 @@ public static partial class Incremental
                 {
                     if (!_snapshot._changedFilesSet.Has(file.Path()))
                     {
-                        _buildInfo.SemanticDiagnosticsPerFile.Add(new BuildInfoSemanticDiagnostic
+                        (_buildInfo.SemanticDiagnosticsPerFile ??= []).Add(new BuildInfoSemanticDiagnostic
                         {
                             FileId = ToFileId(file.Path()),
                         });
@@ -403,7 +419,7 @@ public static partial class Incremental
                     var diagnostics = ToBuildInfoDiagnosticsOfFile(file.Path(), value);
                     if (diagnostics is not null)
                     {
-                        _buildInfo.SemanticDiagnosticsPerFile.Add(new BuildInfoSemanticDiagnostic
+                        (_buildInfo.SemanticDiagnosticsPerFile ??= []).Add(new BuildInfoSemanticDiagnostic
                         {
                             Diagnostics = diagnostics,
                         });
@@ -416,7 +432,11 @@ public static partial class Incremental
         {
             var files = _snapshot._emitDiagnosticsPerFile.Keys().ToArray();
             Array.Sort(files, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
-            _buildInfo.EmitDiagnosticsPerFile = MapListOrNull(ToListOrNull(files), filePath =>
+            // 同 SetChangeFileSet：Go 的 `setEmitDiagnostics()`（snapshottobuildinfo.go:349-356）用
+            // `slices.Collect(...)`（空 → nil）+ `core.Map`，空集合在 Go 里是 nil（JSON 省略），不能写成 `[]`
+            // （会触发 build 模式的 `GetEmitDeclarations() && buildInfo.EmitDiagnosticsPerFile != nil` → 永远重建，
+            // buildtask.go:409-412）。
+            _buildInfo.EmitDiagnosticsPerFile = files.Length == 0 ? null : MapListOrNull(ToListOrNull(files), filePath =>
             {
                 var (value, _) = _snapshot._emitDiagnosticsPerFile.Load(filePath);
                 return ToBuildInfoDiagnosticsOfFile(filePath, value);

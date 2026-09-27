@@ -66,6 +66,21 @@ public sealed class ProgramOptions
     /// <summary>Go: <c>func (p *ProgramOptions) canUseProjectReferenceSource() bool</c>（program.go:52）。</summary>
     internal bool CanUseProjectReferenceSource() =>
         UseSourceOfProjectReference && !Config.CompilerOptions()!.DisableSourceOfProjectReferenceRedirect.IsTrue();
+
+    /// <summary>
+    /// Go 的 `ProgramOptions` 是**结构体**（program.go:37），`newOpts := p.opts` 是**值拷贝**，
+    /// 随后对 `newOpts.Host/CreateCheckerPool/CreateModuleResolver` 的写入**不会**影响旧程序
+    /// （program.go:305-330 的 `UpdateProgram`/`ReuseProgram`）。C# 的 `ProgramOptions` 是 class，
+    /// `var newOpts = _opts;` 只是别名，直接改字段会把**旧程序的 opts.Host 一起改掉** ⇒ 旧程序释放时
+    /// 拿到的是**新 host** 的 content-mapper 租约（`Program.ContentMapperProject()` →
+    /// `_opts.Host.ContentMapperProject()`，program.go:138），于是旧租约永远没人 Close、新租约被提前
+    /// Close（`RetainedProject`/`ProjectLease` 的 once 会把后一次 Close 吞掉）⇒ 引用计数泄漏，
+    /// 进程关不掉（`TestContentMapperRemovalWithOpenFile`）。本方法即 Go 的值拷贝。
+    /// </summary>
+    internal ProgramOptions Clone()
+    {
+        return (ProgramOptions)MemberwiseClone();
+    }
 }
 
 /// <summary>Go: <c>type lazyValue[T any] struct</c>（program.go:56）。</summary>
@@ -354,7 +369,14 @@ public sealed partial class Program : ProcessedFiles, TypeScript.Checker.Program
     private bool CanReplaceFileInProgram(SourceFile file1, SourceFile? file2)
     {
         return file2 is not null &&
-            file1.ParseOptions() == file2.ParseOptions() &&
+            // Go: `file1.ParseOptions() == file2.ParseOptions()`（program.go:457）是**结构体值比较**
+            // （Go 的 SourceFileParseOptions = {FileName string, Path tspath.Path, ExternalModuleIndicatorOptions{JSX,Force bool}}，
+            //  sp/ast/parseoptions.go:8-17 全是可比字段）。C# 的 SourceFileParseOptions 是可变 class（Ast/ParseOptions.cs:22），
+            //  `==` 退化为引用比较；而 parseCache 解析时用的是 key 里 CloneParseOptions 出来的**副本**（Project/ParseCache.cs
+            //  NewParseCacheKey / ParseCache 工厂），新旧文件的 ParseOptions 必然不同引用 ⇒ 引用比较恒 false，
+            //  导致 ReuseProgram 永远返回 (null, file, false)、CreateProgram 永远落到 SameFileNames。
+            //  ParseCacheKey.SourceFileParseOptionsEqual 正是 Go 该结构体 `==` 的移植（同为 parsecache.go 的 key 相等性），直接复用。
+            TypeScript.Project.ParseCacheKey.SourceFileParseOptionsEqual(file1.ParseOptions(), file2.ParseOptions()) &&
             file1.ScriptKind == file2.ScriptKind &&
             IsExternalOrCommonJSModule(file1) == IsExternalOrCommonJSModule(file2) &&
             file1.UsesUriStyleNodeCoreModules == file2.UsesUriStyleNodeCoreModules &&
@@ -563,7 +585,7 @@ public sealed partial class Program : ProcessedFiles, TypeScript.Checker.Program
             return (result!, newFile, true);
         }
 
-        var newOpts = _opts;
+        var newOpts = _opts.Clone();
         newOpts.Host = newHost;
         if (createCheckerPool is not null)
         {
