@@ -45,6 +45,13 @@
 //
 // 13) `commandLine.ConfigFile.SourceFile.Text()` → C# 侧 `ConfigFile` 是 `TsConfigSourceFile?`（可空），
 //     调用点 `!` 断言（Go 的 `entry.commandLine.ConfigFile` 是值指针，可能为 nil —— 这里的判空分支照 Go 保留）。
+//
+// 14) **Go 的 nil 接收者安全方法**：`ParsedCommandLine` 的 `WildcardDirectories`/`LiteralFileNames`/
+//     `ExtendedSourceFiles` 在 Go 里都判了接收者（`tsoptions/parsedcommandline.go:258-261`/`:299-304`/
+//     `:386-391`：`if p == nil { return nil }`），所以 `updateRootFilesWatch`（Go :218-228）在
+//     `entry.commandLine == nil`（本次重载读文件失败，见 `ReloadIfNeeded`）时**不 panic**，三处都退化为空。
+//     C# 的实例方法无法在 null 上调用 ⇒ 调用点用 `commandLine?.X() ?? []` 复刻（同 Execute/Watcher.cs
+//     文件头第 7 条；**不是**额外的防御性判空）。
 namespace TypeScript.Project;
 
 using System;
@@ -334,7 +341,12 @@ internal sealed class ConfigFileRegistryBuilder : TSOpts.ParseConfigHost, TSOpts
         var includeWorkspace = false;
         var includeTsconfigDir = false;
         var tsconfigDir = GetDirectoryPath(fileName);
-        var wildcardDirectories = entry._commandLine!.WildcardDirectories();
+        // Go: entry.commandLine 可能是 nil（本次重载读文件失败时，见 ReloadIfNeeded），而 Go 的
+        // ParsedCommandLine.WildcardDirectories/LiteralFileNames/ExtendedSourceFiles 都是 nil 接收者安全的方法
+        // （parsedcommandline.go:258-261/299-304/386-391：`if p == nil { return nil }`）⇒ 调用点用 `?.`/`?? []`
+        // 复刻同一语义（同 Execute/Watcher.cs 文件头第 7 条）。
+        var commandLine = entry._commandLine;
+        var wildcardDirectories = commandLine?.WildcardDirectories();
         var comparePathsOptions = new TSPath.ComparePathsOptions(
             useCaseSensitiveFileNames: FS().UseCaseSensitiveFileNames(),
             currentDirectory: _sessionOptions.CurrentDirectory);
@@ -357,7 +369,7 @@ internal sealed class ConfigFileRegistryBuilder : TSOpts.ParseConfigHost, TSOpts
             }
         }
 
-        foreach (var literalFileName in entry._commandLine.LiteralFileNames() ?? [])
+        foreach (var literalFileName in commandLine?.LiteralFileNames() ?? [])
         {
             if (ContainsPath(_sessionOptions.CurrentDirectory, literalFileName, comparePathsOptions))
             {
@@ -383,7 +395,7 @@ internal sealed class ConfigFileRegistryBuilder : TSOpts.ParseConfigHost, TSOpts
             globs.Add(Watch.GetRecursiveGlobPattern(tsconfigDir));
         }
 
-        foreach (var extendedFileName in entry._commandLine.ExtendedSourceFiles() ?? [])
+        foreach (var extendedFileName in commandLine?.ExtendedSourceFiles() ?? [])
         {
             if (includeWorkspace && ContainsPath(_sessionOptions.CurrentDirectory, extendedFileName, comparePathsOptions))
             {

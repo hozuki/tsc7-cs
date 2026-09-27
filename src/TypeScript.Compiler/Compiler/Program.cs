@@ -608,7 +608,10 @@ public sealed partial class Program : ProcessedFiles, TypeScript.Checker.Program
         Func<Program, CheckerPool>? createCheckerPool,
         Func<ResolverOptions, Resolver>? createModuleResolver)
     {
-        var newOpts = _opts;
+        // Go: `newOpts := p.opts`（program.go:336）是**结构体值拷贝**，与 UpdateProgram 的 program.go:315 同理：
+        // 不拷贝就会把**旧程序**共享的 `_opts.Host` 一起改成新 host ⇒ 旧程序释放 content-mapper 租约时找的是新 host
+        // （旧 host 的租约成孤儿、两端各有 once 使真实的第二次 close 被吞）。见 `ProgramOptions.Clone()` 的说明。
+        var newOpts = _opts.Clone();
         newOpts.Host = newHost;
         if (createCheckerPool is not null)
         {
