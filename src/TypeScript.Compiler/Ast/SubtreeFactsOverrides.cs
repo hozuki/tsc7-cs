@@ -638,7 +638,14 @@ public sealed partial class BinaryExpression
             Ast.PropagateSubtreeFacts(OperatorToken) |
             Ast.PropagateSubtreeFacts(Right) |
             (OperatorToken!.Kind == Kind.InKeyword && Ast.IsPrivateIdentifier(Left!) ? SubtreeFacts.ContainsClassFields | SubtreeFacts.ContainsPrivateIdentifierInExpression : SubtreeFacts.None);
-        // 以下 Go 分支依赖 utilities.go 的 ContainsObjectRestOrSpread（本轮未移植），见报告：Go ast.go:2052-2056
+        // Go: ast.go:2052-2056（上一轮 ContainsObjectRestOrSpread 未移植时留下的缺口，AstUtilities 已交付该谓词）
+        if (OperatorToken!.Kind == Kind.EqualsToken &&
+            (Ast.IsObjectLiteralExpression(Left!) || Ast.IsArrayLiteralExpression(Left!)) &&
+            Ast.ContainsObjectRestOrSpread(Left!))
+        {
+            facts |= SubtreeFacts.ContainsObjectRestOrSpread;
+        }
+
         return facts;
     }
 }

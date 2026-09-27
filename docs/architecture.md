@@ -41,6 +41,12 @@
   ```csharp
   // ported from: internal/stringutil/js_case.go
   ```
+- **大文件拆分（用户批准）**：Go 里单个超大文件（`parser/parser.go` 6854 行、`ast/utilities.go` 4631 行、`ast/ast.go` 3189 行…）允许按**逻辑段落**拆成多个 C# 文件，用 `partial` 类型落地：
+  * 同一个 Go 类型/静态类 → **同一个** C# 类型（例如 `Parser` 的所有部分都是 `partial class Parser`；包级函数进 `partial class Parser`/`Ast`）；
+  * 文件名 `<GoFilePascal>.<逻辑段>.cs`（如 `Parser.Declarations.cs`、`Parser.Expressions.cs`、`Ast.Utilities.Symbols.cs`），段落划分要能说清（声明/语句/表达式/类型/JSX/JSDoc…）；
+  * 每个分片的**首行写清来源与行范围**：`// ported from: internal/parser/parser.go:1234-2345（声明：类/接口/枚举/函数声明）`；
+  * 不允许跨分片重复定义成员，也不允许把同一段 Go 代码拆到两个分片；
+  * 合并时**分片顺序不影响语义**（C# partial 的类型成员集合与顺序无关；但 Go 里依赖文件内顺序的地方——几乎没有——要照原顺序）。
 - **命名（用户要求）**：**公开 API 与 TSGO 一致**——Go 导出成员的名字原样保留（本来就是 PascalCase：`Identifier.Text`、`NodeFactory.NewIdentifier`、`AsIdentifier`、`Kind`）；**非公开成员一律按 C# 习惯命名**，不要照抄 Go 的小写名：
   * 实例字段（`private`/`internal`/`protected`）：`_camelCase`（Go 的 `name` → `_name`，`facts` → `_facts`，`identifierArena` → `_identifierArena`）。**不要**用 `Name_`/尾下划线这种"照抄 Go 的避让写法"——TSGO 里根本没有这种名字；Go 的 `name` 是未导出字段，公开访问走 `Name()` 方法，C# 里就是 `_name` + `Name()`。
   * 方法/属性（任何可见性）：PascalCase（Go 的 `setModifiers` → `SetModifiers`，`computeSubtreeFacts` → `ComputeSubtreeFacts`）。
@@ -174,8 +180,8 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 | M1a | `Debug`、`StringUtil`（含 Unicode 生成表 + CodeGen 生成器）、`TSPath` | done（200 测试通过；表数据与 Go 源对拍一致） |
 | M1b | `Collections`（含 OrderedMap 的 JSON 钩子）、`Json`、`JsNum` | done（JsNum 的 JS 数字语义与真 Node/V8 交叉验证） |
 | M2 | `Core`（`Text`、枚举、`CompilerOptions`、`Arena`、`Semaphore`、`Workgroup`、`Bfs`、`LinkStore`…） | done |
-| M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | 进行中：Ast 生成物（192 节点）+ 手写核心 + NodeFactory/Visitor/SubtreeFacts/PositionMap 已落地，Kind 352 个数值与 34 个别名经独立脚本全等核对、与 Go 的机械 diff 0 差异；`SourceFile` 完整实现、`utilities.go` 其余部分（4631 行）、`Diagnostics`、`Locale` 待做 |
-| M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | |
+| M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | done（Ast 生成物+核心+`utilities.go`+`SourceFile`+`precedence`/`deepclone`/`diagnostic`；`Diagnostics` 2213 条消息与 Go 生成物逐字段全等；13 个语言的本地化数据按 TSGO 产物嵌入。缺口：`deepclone_test.go` 需 parser 才能跑；`PositionMap` 在 C# 里是恒等映射（§3.1），非 ASCII 用例按 C# 契约改写） |
+| M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | 进行中（前置：`SpanMap`/`SourceFile`/`utilities.go`/`Diagnostics`/`Locale` 已就位） |
 | M5 | `Binder`、`Checker` → 语义错误基线 | |
 | M6 | `Printer` + transformers → emit 基线（`tests/cases/compiler` 通过） | |
 | M7 | `Compiler`/`Program` → `tsc` 可编译真实工程 | |

@@ -18,9 +18,15 @@
 //
 // 需要父 agent 统一的接口：
 // 1) `TypeScript.Core.Context` 这个名字是本轮定的：internal/core/semaphore.go、workgroup.go 的 ctx 参数都用它。
-// 2) locale 包（M3）将来要往同一个上下文里挂 Locale（Go 的 locale.WithLocale(ctx, …) 同样是 WithValue）：
-//    到那时在本类上加一个字段即可，**不要**另起一套上下文类型。
+// 2) locale 包（M3）已经照这条约定把 Locale 挂在同一个上下文里（Go 的 locale.WithLocale(ctx, …) 同样是
+//    WithValue）：见 Locale.cs 的 WithLocale/FromContext/HasLocale 与本类的 `Locale` 属性。**不要**另起一套
+//    上下文类型。
 // 3) Go 的 `ctx.Deadline()`/`ctx.Value(任意键)` 这类语义目前没有调用点；真需要时先在 docs/architecture.md 登记。
+//
+// 注意 `using Loc = TypeScript.Locale.Locale;`：类型 Locale 与命名空间 TypeScript.Locale 同名，本命名空间
+// 里裸写 Locale 会解析到命名空间（见 Locale.cs 的头部说明），所以这里用别名。
+using Loc = TypeScript.Locale.Locale;
+
 namespace TypeScript.Core;
 
 /// <summary>Go 的 <c>type CheckerLifetime int</c>（<c>CheckerLifetimeTemporary</c> 等）。</summary>
@@ -46,13 +52,25 @@ public sealed class Context
     /// <summary>Go 的 <c>ctx.Done()</c> / <c>ctx.Err()</c> 在 C# 里的对应物。</summary>
     public CancellationToken CancellationToken { get; }
 
-    // Go 只能通过 WithValue/WithCancel 派生；C# 的派生入口是 Core 静态类里的 With*（见下）。
+    /// <summary>Go 的 <c>locale.WithLocale(ctx, l)</c> 挂在 ctx 上的值（<c>ctx.Value(contextKey(0))</c>）。
+    /// <c>null</c> = 键不存在（<c>locale.HasLocale</c> 为 false），此时 <c>locale.FromContext</c> 得到
+    /// <c>locale.Default</c>；非 null 时即使值是 Default 也算"挂过"（与 Go 的 HasLocale 一致）。</summary>
+    public Loc? Locale { get; }
+
+    // Go 只能通过 WithValue/WithCancel 派生；C# 的派生入口是 Core 静态类里的 With*（见下）与
+    // Locale.WithLocale（locale 包，Go 侧同样是 locale.WithLocale）。
     // internal 是"同程序集可见"，比 Go 的包可见性宽一点，与 Collections.OrderedMap 的构造器处理一致。
     internal Context(string requestID, CheckerLifetime checkerLifetime, CancellationToken cancellationToken)
+        : this(requestID, checkerLifetime, cancellationToken, null)
+    {
+    }
+
+    internal Context(string requestID, CheckerLifetime checkerLifetime, CancellationToken cancellationToken, Loc? locale)
     {
         RequestID = requestID;
         CheckerLifetime = checkerLifetime;
         CancellationToken = cancellationToken;
+        Locale = locale;
     }
 }
 

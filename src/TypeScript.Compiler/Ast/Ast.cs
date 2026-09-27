@@ -17,7 +17,7 @@ public static partial class Ast
     /// <summary>
     /// Go 的 <c>parseJSDocForNode</c> + <c>SetParseJSDocForNode</c>：由 parser 包注册的懒解析回调。
     /// Go 是包级变量（类型 <c>func(*SourceFile, *Node) []*Node</c>）；C# 用静态字段。
-    /// （JSDoc 的懒解析随 SourceFile 一起推到下一轮，注册点在 parser 包。）
+    /// （JSDoc 的懒解析已在 SourceFile.ResolveJSDoc + Node.JSDoc/EagerJSDoc 落地，注册点在 parser 包。）
     /// </summary>
     internal static Func<SourceFile, Node, Node[]?>? _parseJSDocForNodeCallback;
 
@@ -97,4 +97,360 @@ public static partial class Ast
             tag.IsNameFirst,
             v.VisitNodesWithHooks(tag.Comment));
     }
+
+    // ── 读写访问判定（ast.go:1268-1520，本轮从"推迟"状态落地）──
+
+    /// <summary>
+    /// Go: <c>func IsDeclarationNode(node *Node) bool</c>（ast.go:1515，utilities.go 的 IsDeclaration 直接用它）。
+    /// **偏离**：参数写成 `Node?`（Go 里 nil 会 panic），null 时返回 false —— 调用点（utilities.go 的
+    /// `IsDeclaration(Node?)`）需要可空参数。
+    /// </summary>
+    public static bool IsDeclarationNode(Node? node) => node is not null && node.DeclarationData() is not null;
+
+    /// <summary>Go: <c>func IsLocalsContainer(node *Node) bool</c>（ast.go:1552）。参数可空的理由同上。</summary>
+    public static bool IsLocalsContainer(Node? node) => node is not null && node.LocalsContainerData() is not null;
+
+    /// <summary>Go: <c>func IsWriteOnlyAccess(node *Node) bool</c>。</summary>
+    public static bool IsWriteOnlyAccess(Node node) => AccessKindOf(node) == AccessKind.Write;
+
+    /// <summary>Go: <c>func IsWriteAccess(node *Node) bool</c>。</summary>
+    public static bool IsWriteAccess(Node node) => AccessKindOf(node) != AccessKind.Read;
+
+    /// <summary>Go: <c>func IsWriteAccessForReference(node *Node) bool</c>。</summary>
+    public static bool IsWriteAccessForReference(Node node)
+    {
+        var decl = GetDeclarationFromName(node);
+        return (decl is not null && DeclarationIsWriteAccess(decl)) ||
+            node.Kind == Kind.DefaultKeyword ||
+            IsWriteAccess(node);
+    }
+
+    /// <summary>Go: <c>func GetDeclarationFromName(name *Node) *Declaration</c>（Go 里 <c>Declaration = Node</c> 别名）。</summary>
+    public static Node? GetDeclarationFromName(Node? name)
+    {
+        if (name is null || name.Parent is null)
+        {
+            return null;
+        }
+
+        var parent = name.Parent;
+        switch (name.Kind)
+        {
+            case Kind.StringLiteral:
+            case Kind.NoSubstitutionTemplateLiteral:
+            case Kind.NumericLiteral:
+                if (IsComputedPropertyName(parent))
+                {
+                    return parent.Parent;
+                }
+
+                // Go 的 fallthrough。
+                goto case Kind.Identifier;
+            case Kind.Identifier:
+                if (IsDeclaration(parent))
+                {
+                    if (ReferenceEquals(parent.Name(), name))
+                    {
+                        return parent;
+                    }
+
+                    return null;
+                }
+
+                if (IsQualifiedName(parent))
+                {
+                    var tag = parent.Parent;
+                    if (tag is not null && IsJSDocParameterTag(tag) && ReferenceEquals(tag.Name(), parent))
+                    {
+                        return tag;
+                    }
+
+                    return null;
+                }
+
+                // Go: binExp := parent.Parent（为 nil 时下面的 IsBinaryExpression 会 panic；C# 里 `Is*` 的参数
+                // 是非空的，所以这里显式判空——这是与 Go 唯一的差异，且只在 Go 会崩的畸形输入上体现）。
+                var binExp = parent.Parent;
+                if (binExp is not null && IsBinaryExpression(binExp) && GetAssignmentDeclarationKind(binExp) != JSDeclarationKind.None)
+                {
+                    // Go: (binExp.left as BindableStaticNameExpression).symbol || binExp.symbol
+                    var leftHasSymbol = false;
+                    var left = binExp.AsBinaryExpression()!.Left;
+                    if (left is not null && left.Symbol is not null)
+                    {
+                        leftHasSymbol = true;
+                    }
+
+                    if ((leftHasSymbol || binExp.Symbol is not null) && ReferenceEquals(GetNameOfDeclaration(binExp), name))
+                    {
+                        return binExp;
+                    }
+                }
+
+                break;
+            case Kind.PrivateIdentifier:
+                if (IsDeclaration(parent) && ReferenceEquals(parent.Name(), name))
+                {
+                    return parent;
+                }
+
+                break;
+        }
+
+        return null;
+    }
+
+    /// <summary>Go: <c>func declarationIsWriteAccess(decl *Node) bool</c>（未导出 → C# PascalCase）。</summary>
+    private static bool DeclarationIsWriteAccess(Node? decl)
+    {
+        if (decl is null)
+        {
+            return false;
+        }
+
+        // 环境声明里的任何东西都当作写访问，因为它可能来自 JS。
+        if ((decl.Flags & NodeFlags.Ambient) != 0)
+        {
+            return true;
+        }
+
+        switch (decl.Kind)
+        {
+            case Kind.BinaryExpression:
+            case Kind.BindingElement:
+            case Kind.ClassDeclaration:
+            case Kind.ClassExpression:
+            case Kind.DefaultKeyword:
+            case Kind.EnumDeclaration:
+            case Kind.EnumMember:
+            case Kind.ExportSpecifier:
+            case Kind.ImportClause: // default import
+            case Kind.ImportEqualsDeclaration:
+            case Kind.ImportSpecifier:
+            case Kind.InterfaceDeclaration:
+            case Kind.JSDocCallbackTag:
+            case Kind.JSDocTypedefTag:
+            case Kind.JsxAttribute:
+            case Kind.ModuleDeclaration:
+            case Kind.NamespaceExportDeclaration:
+            case Kind.NamespaceImport:
+            case Kind.NamespaceExport:
+            case Kind.Parameter:
+            case Kind.ShorthandPropertyAssignment:
+            case Kind.TypeAliasDeclaration:
+            case Kind.JSTypeAliasDeclaration:
+            case Kind.TypeParameter:
+                return true;
+
+            case Kind.PropertyAssignment:
+
+                // 在 `({ x: y } = 0);` 里 `x` 不是写访问。
+                return !IsArrayLiteralOrObjectLiteralDestructuringPattern(decl.Parent!);
+
+            case Kind.FunctionDeclaration:
+            case Kind.FunctionExpression:
+            case Kind.Constructor:
+            case Kind.MethodDeclaration:
+            case Kind.GetAccessor:
+            case Kind.SetAccessor:
+
+                // 函数只有在提供值（有 body）时才算写。
+                switch (decl.Kind)
+                {
+                    case Kind.FunctionDeclaration:
+                        return decl.AsFunctionDeclaration()!.Body is not null;
+                    case Kind.FunctionExpression:
+                        return decl.AsFunctionExpression()!.Body is not null;
+                    case Kind.Constructor:
+
+                        // constructor 节点把 body 存在父节点上？这里与其它一样处理。
+                        return decl.AsConstructorDeclaration()!.Body is not null;
+                    case Kind.MethodDeclaration:
+                        return decl.AsMethodDeclaration()!.Body is not null;
+                    case Kind.GetAccessor:
+                        return decl.AsGetAccessorDeclaration()!.Body is not null;
+                    case Kind.SetAccessor:
+                        return decl.AsSetAccessorDeclaration()!.Body is not null;
+                }
+
+                return false;
+
+            case Kind.VariableDeclaration:
+            case Kind.PropertyDeclaration:
+
+                // 变量/属性只有带 initializer、或在 catch 子句里时才算写。
+                var hasInit = false;
+                switch (decl.Kind)
+                {
+                    case Kind.VariableDeclaration:
+                        hasInit = decl.AsVariableDeclaration()!.Initializer is not null;
+                        break;
+                    case Kind.PropertyDeclaration:
+                        hasInit = decl.AsPropertyDeclaration()!.Initializer is not null;
+                        break;
+                }
+
+                return hasInit || IsCatchClause(decl.Parent!);
+
+            case Kind.MethodSignature:
+            case Kind.PropertySignature:
+            case Kind.JSDocPropertyTag:
+            case Kind.JSDocParameterTag:
+                return false;
+
+            default:
+
+                // 保持 TS 的行为：遇到预期外的 kind 就崩。
+                throw new DebugFailureException("Unhandled case in declarationIsWriteAccess");
+        }
+    }
+
+    /// <summary>Go: <c>func IsArrayLiteralOrObjectLiteralDestructuringPattern(node *Node) bool</c>（ast.go:1387-1404）。</summary>
+    public static bool IsArrayLiteralOrObjectLiteralDestructuringPattern(Node node)
+    {
+        if (!(IsArrayLiteralExpression(node) || IsObjectLiteralExpression(node)))
+        {
+            return false;
+        }
+
+        // 参数与 Go 一样不做判空（Go 在这里对 nil parent 会 panic，C# 等价于 NRE）。
+        var parent = node.Parent!;
+
+        // [a, b, c] 来自：[a, b, c] = someExpression;
+        if (IsBinaryExpression(parent) &&
+            ReferenceEquals(parent.AsBinaryExpression()!.Left, node) &&
+            parent.AsBinaryExpression()!.OperatorToken!.Kind == Kind.EqualsToken)
+        {
+            return true;
+        }
+
+        // [a, b, c] 来自：for([a, b, c] of expression)
+        if (IsForOfStatement(parent) && ReferenceEquals(parent.Initializer(), node))
+        {
+            return true;
+        }
+
+        // {x, a: {a, b, c} } = someExpression
+        if (IsPropertyAssignment(parent))
+        {
+            return IsArrayLiteralOrObjectLiteralDestructuringPattern(parent.Parent!);
+        }
+
+        // [a, b, c] of  /  [x, [a, b, c] ] = someExpression
+        return IsArrayLiteralOrObjectLiteralDestructuringPattern(parent);
+    }
+
+    /// <summary>Go: <c>func accessKind(node *Node) AccessKind</c>（未导出 → C# PascalCase）。</summary>
+    private static AccessKind AccessKindOf(Node node)
+    {
+        var parent = node.Parent;
+        if (parent is null)
+        {
+            return AccessKind.Read;
+        }
+
+        switch (parent.Kind)
+        {
+            case Kind.ParenthesizedExpression:
+                return AccessKindOf(parent);
+            case Kind.PrefixUnaryExpression:
+            {
+                var op = parent.AsPrefixUnaryExpression()!.Operator;
+                return op is Kind.PlusPlusToken or Kind.MinusMinusToken ? AccessKind.ReadWrite : AccessKind.Read;
+            }
+
+            case Kind.PostfixUnaryExpression:
+            {
+                var op = parent.AsPostfixUnaryExpression()!.Operator;
+                return op is Kind.PlusPlusToken or Kind.MinusMinusToken ? AccessKind.ReadWrite : AccessKind.Read;
+            }
+
+            case Kind.BinaryExpression:
+                if (ReferenceEquals(parent.AsBinaryExpression()!.Left, node))
+                {
+                    var op = parent.AsBinaryExpression()!.OperatorToken!;
+                    if (IsAssignmentOperator(op.Kind))
+                    {
+                        if (op.Kind == Kind.EqualsToken)
+                        {
+                            return AccessKind.Write;
+                        }
+
+                        return AccessKind.ReadWrite;
+                    }
+                }
+
+                return AccessKind.Read;
+            case Kind.PropertyAccessExpression:
+                if (!ReferenceEquals(parent.AsPropertyAccessExpression()!.Name(), node))
+                {
+                    return AccessKind.Read;
+                }
+
+                return AccessKindOf(parent);
+            case Kind.PropertyAssignment:
+            {
+                var parentAccess = AccessKindOf(parent.Parent!);
+
+                // 在 `({ x: varname }) = { x: 1 }` 里，左边的 `x` 是读、右边的 `x` 是写。
+                if (ReferenceEquals(node, parent.AsPropertyAssignment()!.Name()))
+                {
+                    return ReverseAccessKind(parentAccess);
+                }
+
+                return parentAccess;
+            }
+
+            case Kind.ShorthandPropertyAssignment:
+
+                // 假定访问的是局部变量，因为我们不会为 --noUnusedLocals 检查公开属性。
+                if (ReferenceEquals(node, parent.AsShorthandPropertyAssignment()!.ObjectAssignmentInitializer))
+                {
+                    return AccessKind.Read;
+                }
+
+                return AccessKindOf(parent.Parent!);
+            case Kind.ArrayLiteralExpression:
+                return AccessKindOf(parent);
+            case Kind.ForInStatement:
+            case Kind.ForOfStatement:
+                if (ReferenceEquals(node, parent.AsForInOrOfStatement()!.Initializer))
+                {
+                    return AccessKind.Write;
+                }
+
+                return AccessKind.Read;
+            default:
+                return AccessKind.Read;
+        }
+    }
+
+    /// <summary>Go: <c>func reverseAccessKind(a AccessKind) AccessKind</c>（未导出 → C# PascalCase）。</summary>
+    private static AccessKind ReverseAccessKind(AccessKind a)
+    {
+        switch (a)
+        {
+            case AccessKind.Read:
+                return AccessKind.Write;
+            case AccessKind.Write:
+                return AccessKind.Read;
+            case AccessKind.ReadWrite:
+                return AccessKind.ReadWrite;
+        }
+
+        throw new DebugFailureException("Unhandled case in reverseAccessKind");
+    }
+}
+
+/// <summary>Go: <c>type AccessKind int32</c>（成员名去 <c>AccessKind</c> 前缀，§3.3）。</summary>
+public enum AccessKind
+{
+    /// <summary>只读一个变量。</summary>
+    Read = 0,
+
+    /// <summary>只写、从不读取，例如 `x=1;`。</summary>
+    Write = 1,
+
+    /// <summary>又读又写，例如 `f(x++);`、`x/=1`。</summary>
+    ReadWrite = 2,
 }

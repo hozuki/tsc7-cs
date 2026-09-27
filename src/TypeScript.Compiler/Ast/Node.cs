@@ -1281,6 +1281,46 @@ public abstract partial class Node : IKindString, INodeBase
 
     public bool IsJSDoc() => Kind == Kind.JSDoc;
 
+    /// <summary>
+    /// Go: <c>func (node *Node) JSDoc(file *SourceFile) []*Node</c>（ast.go:1563-1577）。file 为 nil 时沿 Parent 上溯
+    /// 找所属文件；节点没有 JSDoc 标记时返回 nil（与 Go 的 nil 切片一致）。
+    /// </summary>
+    public Node[]? JSDoc(SourceFile? file)
+    {
+        if ((Flags & NodeFlags.HasJSDoc) == 0)
+        {
+            return null;
+        }
+
+        file ??= Ast.GetSourceFileOfNode(this);
+        if (file is null)
+        {
+            return null;
+        }
+
+        return file._hasLazyJSDoc ? file.ResolveJSDoc(this) : file.GetCachedJSDoc(this);
+    }
+
+    /// <summary>
+    /// Go: <c>func (node *Node) EagerJSDoc(file *SourceFile) []*Node</c>（ast.go:1579-1590）：只返回已经解析并缓存的
+    /// JSDoc 节点，不触发懒解析。
+    /// </summary>
+    public Node[]? EagerJSDoc(SourceFile? file)
+    {
+        if ((Flags & NodeFlags.HasJSDoc) == 0)
+        {
+            return null;
+        }
+
+        file ??= Ast.GetSourceFileOfNode(this);
+        if (file is null)
+        {
+            return null;
+        }
+
+        return file._hasLazyJSDoc ? file.GetCachedJSDocUnderLock(this) : file.GetCachedJSDoc(this);
+    }
+
     // ── Node casts（Go 的 type assertion：类型不符时 panic）──
 
     public FlowSwitchClauseData AsFlowSwitchClauseData() =>

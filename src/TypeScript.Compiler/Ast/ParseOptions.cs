@@ -11,11 +11,8 @@
 //   `_isFileForcedToBeModuleByFormatExtensions`（非公开字段 → `_camelCase`）。
 // - Go 的 `*core.CompilerOptions` nil 指针在 C# 里是 `CompilerOptions?`，解引用即 NRE（Go 是 panic）；
 //   此处用局部变量 `opts = options!` 表达"与 Go 一样不做 nil 检查"。
-// - 推迟移植（依赖 SourceFile 的完整实现与其它 utilities.go 函数，见 docs/ast.md 的轮次划分）：
-//   SetExternalModuleIndicator、getExternalModuleIndicator、isFileProbablyExternalModule、
-//   isAnExternalModuleIndicatorNode、getImportMetaIfNecessary、findChildNode、isFileModuleFromUsingJSXTag、
-//   walkTreeForJSXTags。
-// - `GetImpliedNodeFormatForEmitWorker`（Go 里在 utilities.go）由 Utilities.cs 提供，本轮只调用。
+// - 推迟移植（依赖尚未移植的 package/函数，见报告）：无。`SetExternalModuleIndicator` 系列（Go:63-149）本轮已落地，
+//   `GetImpliedNodeFormatForEmitWorker`（Go 里在 utilities.go）由 Utilities.cs 提供，此处只调用。
 using TypeScript.Core;
 using static TypeScript.TSPath.TSPath;
 using Path = TypeScript.TSPath.Path;
@@ -85,5 +82,141 @@ public static partial class Ast
         }
 
         return false;
+    }
+
+    // ── SetExternalModuleIndicator 系列（parseoptions.go:63-149）──
+
+    /// <summary>Go: <c>func SetExternalModuleIndicator(file *SourceFile, opts ExternalModuleIndicatorOptions)</c>。</summary>
+    public static void SetExternalModuleIndicator(SourceFile file, ExternalModuleIndicatorOptions opts) =>
+        file.ExternalModuleIndicator = GetExternalModuleIndicator(file, opts);
+
+    /// <summary>Go: <c>func getExternalModuleIndicator(file *SourceFile, opts ExternalModuleIndicatorOptions) *Node</c>。</summary>
+    private static Node? GetExternalModuleIndicator(SourceFile file, ExternalModuleIndicatorOptions opts)
+    {
+        if (file.ScriptKind == ScriptKind.JSON)
+        {
+            return null;
+        }
+
+        var node = IsFileProbablyExternalModule(file);
+        if (node is not null)
+        {
+            return node;
+        }
+
+        if (file.IsDeclarationFile)
+        {
+            return null;
+        }
+
+        if (opts.JSX)
+        {
+            node = IsFileModuleFromUsingJSXTag(file);
+            if (node is not null)
+            {
+                return node;
+            }
+        }
+
+        if (opts.Force)
+        {
+            return file.AsNode();
+        }
+
+        return null;
+    }
+
+    /// <summary>Go: <c>func isFileProbablyExternalModule(sourceFile *SourceFile) *Node</c>。</summary>
+    private static Node? IsFileProbablyExternalModule(SourceFile sourceFile)
+    {
+        // Go: sourceFile.Statements.Nodes（Statements 为 nil 即 panic；Nodes 为 nil 时 Go 的 range 是空循环）。
+        var statements = sourceFile.Statements!.Nodes;
+        if (statements is not null)
+        {
+            foreach (var statement in statements)
+            {
+                if (IsAnExternalModuleIndicatorNode(statement))
+                {
+                    return statement;
+                }
+            }
+        }
+
+        return GetImportMetaIfNecessary(sourceFile);
+    }
+
+    /// <summary>Go: <c>func isAnExternalModuleIndicatorNode(node *Node) bool</c>。</summary>
+    private static bool IsAnExternalModuleIndicatorNode(Node node) =>
+        HasSyntacticModifier(node, ModifierFlags.Export) ||
+        (IsImportEqualsDeclaration(node) && IsExternalModuleReference(node.AsImportEqualsDeclaration()!.ModuleReference!)) ||
+        IsImportDeclaration(node) ||
+        IsExportAssignment(node) ||
+        IsExportDeclaration(node);
+
+    /// <summary>Go: <c>func getImportMetaIfNecessary(sourceFile *SourceFile) *Node</c>。</summary>
+    private static Node? GetImportMetaIfNecessary(SourceFile sourceFile)
+    {
+        if ((sourceFile.Flags & NodeFlags.PossiblyContainsImportMeta) != 0)
+        {
+            // Go 直接传函数名；C# 传 `IsImportMeta` 方法组会给 Func&lt;Node,bool&gt; 带可空性告警，用 lambda。
+            return FindChildNode(sourceFile.AsNode(), node => IsImportMeta(node));
+        }
+
+        return null;
+    }
+
+    /// <summary>Go: <c>func findChildNode(root *Node, check func(*Node) bool) *Node</c>。</summary>
+    private static Node? FindChildNode(Node root, Func<Node, bool> check)
+    {
+        Node? result = null;
+        bool Visit(Node node)
+        {
+            if (check(node))
+            {
+                result = node;
+                return true;
+            }
+
+            return node.ForEachChild(Visit);
+        }
+
+        Visit(root);
+        return result;
+    }
+
+    /// <summary>Go: <c>func isFileModuleFromUsingJSXTag(file *SourceFile) *Node</c>。</summary>
+    private static Node? IsFileModuleFromUsingJSXTag(SourceFile file) => WalkTreeForJSXTags(file.AsNode());
+
+    /// <summary>
+    /// Go: <c>func walkTreeForJSXTags(node *Node) *Node</c>。为了定位 JSX 标签，这基本无法避免整树遍历
+    /// （`import.meta` 也一样，但那靠 `PossiblyContainsImportMeta` 标记避免了大部分遍历；JSX 没有可用的 NodeFlag 空间）。
+    /// </summary>
+    private static Node? WalkTreeForJSXTags(Node node)
+    {
+        Node? found = null;
+
+        bool Visitor(Node candidate)
+        {
+            if (found is not null)
+            {
+                return true;
+            }
+
+            if ((candidate.SubtreeFacts & SubtreeFacts.ContainsJsx) == 0)
+            {
+                return false;
+            }
+
+            if (IsJsxOpeningLikeElement(candidate) || IsJsxFragment(candidate))
+            {
+                found = candidate;
+                return true;
+            }
+
+            return candidate.ForEachChild(Visitor);
+        }
+
+        Visitor(node);
+        return found;
     }
 }

@@ -12,4 +12,15 @@
     <Description>C# port of the TypeScript compiler (TSGO).</Description>
   </PropertyGroup>
 
+  <!-- 本地化数据（internal/diagnostics/loc/*.json.gz 的已提交产物，由 tools/TypeScript.CodeGen 的
+       DiagnosticsGenerator 逐字节复制到本目录）作为 EmbeddedResource 嵌入。LogicalName 显式固定成
+       "TypeScript.Diagnostics.loc.<语言>.json.gz"，与 Diagnostics/Localizations.Generated.cs 里的常量表逐字一致
+       （运行时用 Assembly.GetManifestResourceStream 取，不用反射枚举资源，AOT 安全）；显式写 LogicalName 是因为
+       MSBuild 的默认资源名会把路径里的 '-' 换成 '_'，那样资源名就和生成物对不上了。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Diagnostics\loc\*.json.gz">
+      <LogicalName>TypeScript.Diagnostics.loc.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>
