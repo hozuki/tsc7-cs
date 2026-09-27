@@ -81,6 +81,9 @@ public sealed class HarnessTest : IHarnessTest
         return false;
     }
 
+    /// <summary>非 Go 源：供 harness 的进度/超时看门狗判断该子测试是否会被执行（见 IHarnessTest.WillRun）。</summary>
+    public bool WillRun(string name) => ShouldRun(name);
+
     public void Run(string name, Action<IHarnessTest> body)
     {
         var childName = Name.Length == 0 ? name : Name + "/" + name;

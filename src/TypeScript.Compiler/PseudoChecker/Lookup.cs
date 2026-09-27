@@ -926,9 +926,11 @@ public sealed partial class PseudoChecker
         if (node.Initializer is not null && IsIdentifier(node.Name()!) && !IsContextuallyTyped(node))
         {
             var expr = TypeFromExpression(node.Initializer);
-            var inferred = expr.AsPseudoTypeInferred();
-            if (expr.Kind == PseudoTypeKind.Inferred && inferred.ErrorNodes.Length == 0)
+            // Go: `if expr != nil && (expr.Kind == PseudoTypeKindInferred && len(expr.AsPseudoTypeInferred().ErrorNodes) == 0)`
+            // The assertion is only valid after the kind check short-circuits, so it must not be evaluated eagerly.
+            if (expr.Kind == PseudoTypeKind.Inferred && expr.AsPseudoTypeInferred().ErrorNodes.Length == 0)
             {
+                var inferred = expr.AsPseudoTypeInferred();
                 expr = PseudoType.NewPseudoTypeInferredWithErrors(inferred.Expression, false, [node]); // Move error up to the parameter
             }
 

@@ -125,7 +125,19 @@ public sealed class TranspileBaselineRunner : Runner
     {
         foreach (var fileName in EnumerateTestFiles())
         {
+            // 仅用于集成进度观测（不属于 Go 原逻辑）：逐用例耗时 + 单用例超时看门狗。
+            var basename = GetBaseFileName(fileName);
+            if (!t.WillRun($"TestTranspile/{basename}") && !t.WillRun(basename))
+            {
+                RunTest(t, fileName);
+                continue;
+            }
+
+            HarnessProgress.BeginCase("transpile", basename);
+            var caseWatch = System.Diagnostics.Stopwatch.StartNew();
             RunTest(t, fileName);
+            caseWatch.Stop();
+            HarnessProgress.EndCase("transpile", basename, caseWatch.Elapsed.TotalMilliseconds);
         }
     }
 

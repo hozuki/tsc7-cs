@@ -60,16 +60,20 @@ public sealed partial class Checker
         var countLengthOverOne = 0;
         for (var i = 0; i < signatureLists.Length; i++)
         {
-            if (signatureLists[i].Length == 0)
+            // Go 的 `if len(signatureLists[i]) == 0 { return nil }`：元素本身可以是 nil 切片
+            // （`getSignaturesOfType` 对没有签名的类型返回 nil），C# 侧对应 `null`（文件头注 15），
+            // 先 `?? []` 归一 —— 与 `len(nil) == 0` 等价。
+            var signatures = signatureLists[i] ?? [];
+            if (signatures.Length == 0)
             {
                 return null;
             }
-            if (signatureLists[i].Length > 1)
+            if (signatures.Length > 1)
             {
                 indexWithLengthOverOne = i;
                 countLengthOverOne++;
             }
-            foreach (var signature in signatureLists[i])
+            foreach (var signature in signatures)
             {
                 // Only process signatures with parameter lists that aren't already in the result list
                 if (result is null || FindMatchingSignature(result, signature, false /*partialMatch*/, false /*ignoreThisTypes*/, true /*ignoreReturnTypes*/) == null)
@@ -543,7 +547,9 @@ public sealed partial class Checker
                             // If we merged instantiations of a generic type, we replicate the symbol parent resetting behavior we used
                             // to do when we recorded multiple distinct symbols so that we still get, eg, `Array<T>.length` printed
                             // back and not `Array<string>.length` when we're looking at a `.length` access on a `string[] | number[]`
-                            mergedInstantiations = singleProp.Parent != null && GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker(singleProp.Parent).Length != 0;
+                            // Go: `len(c.getLocalTypeParametersOfClassOrInterfaceOrTypeAlias(singleProp.Parent)) != 0`
+                            // —— 该函数在没有匹配声明时返回 nil 切片，`?? []` 归一后等价（文件头注 15）。
+                            mergedInstantiations = singleProp.Parent != null && (GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker(singleProp.Parent) ?? []).Length != 0;
                         }
                         else
                         {

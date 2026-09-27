@@ -111,7 +111,12 @@ public sealed partial class Checker
             Diagnostic? lastError = null;
             if (_regExpScanner is null)
             {
-                _regExpScanner = new TsScanner();
+                // Go: `c.regExpScanner = scanner.NewScanner()` —— NewScanner 等价于 defaultScanner()，
+                // 其中 **skipTrivia = true**（C# 的默认构造是 false）。这里必须跳过前导 trivia：
+                // ResetTokenState(node.Pos()) 的 node.Pos() 是 TokenFullStart()（含前导空白/换行），
+                // 若不跳 trivia，Scan() 首个 token 是 WhitespaceTrivia，ReScanSlashToken() 原样返回，
+                // 下面的 `tokenIsRegularExpressionLiteral` 断言必然失败。
+                _regExpScanner = TsScanner.NewScanner();
             }
 
             _regExpScanner.SetScriptTarget(_languageVersion);

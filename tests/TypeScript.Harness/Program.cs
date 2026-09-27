@@ -28,6 +28,7 @@ internal static class Program
         var cases = new List<string>();
         var limit = int.MaxValue;
         var maxDiffs = 10;
+        var caseTimeoutSeconds = 0;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -44,6 +45,10 @@ internal static class Program
                 case "--diff":
                     maxDiffs = int.Parse(args[++i], CultureInfo.InvariantCulture);
                     break;
+                case "--case-timeout":
+                    // 0（缺省）表示不启用，与 Go harness 行为一致；>0 时单用例超时即中止整轮（同 `go test -timeout` 语义）。
+                    caseTimeoutSeconds = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    break;
                 default:
                     Console.Error.WriteLine($"unknown argument: {args[i]}");
                     return 2;
@@ -59,6 +64,12 @@ internal static class Program
         }
 
         var trackingDir = Environment.GetEnvironmentVariable("TSGO_BASELINE_TRACKING_DIR") ?? "";
+        if (trackingDir.Length > 0 && !Directory.Exists(trackingDir))
+        {
+            // 健壮性（非 Go 原逻辑）：Go 侧 tracking 目录由测试基建保证存在；C# 入口自己建，避免首次运行
+            // 因为"目录不存在"而在写 tracking 文件时才炸（现象是一次难看的 IOException）。
+            Directory.CreateDirectory(trackingDir);
+        }
 
         Console.WriteLine($"TSGO_ROOT       = {Repo.RootPath()}");
         Console.WriteLine($"TestDataPath    = {Repo.TestDataPath()}");
@@ -80,6 +91,9 @@ internal static class Program
         }
 
         AssertUniqueBasenames(selectedBySuite);
+
+        // 进度与单用例超时看门狗（仅集成观测；--case-timeout 0 表示不启用）。
+        HarnessProgress.Configure(caseTimeoutSeconds, selectedBySuite.Sum(kv => kv.Value.Count));
 
         // Go: TestMain 里的 `defer baseline.Track()()`。
         var trackingCleanup = Baseline.Track();

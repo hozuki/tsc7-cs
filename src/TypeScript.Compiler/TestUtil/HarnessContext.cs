@@ -54,4 +54,10 @@ public interface IHarnessTest
 
     /// <summary>Go: <c>t.Error(args...)</c>（标记失败但不终止）。</summary>
     void Error(string message);
+
+    /// <summary>
+    /// 非 Go 源：该子测试名是否会被本次运行选中（用于 harness 的进度/超时看门狗，避免为被过滤掉的用例打印噪音）。
+    /// 默认实现返回 true（等价于"没有过滤"）。
+    /// </summary>
+    bool WillRun(string name) => true;
 }

@@ -934,7 +934,9 @@ public sealed partial class Printer
         }
 
         Node? previousStatement = null;
-        foreach (var statement in statements.Nodes!)
+        // Go: `body.Statements.Nodes` 是切片，nil 时 `range nil` 合法（parser 为无 body 的 accessor 合成空 Block →
+        // NodeList.Nodes == null）。C# 的 `!` 只是编译期注解，foreach null 会抛 NRE。
+        foreach (var statement in statements.Nodes ?? Array.Empty<Node>())
         {
             if (GetSeparatingLineTerminatorCount(previousStatement, statement, ListFormat.PreserveLines) > 0)
             {

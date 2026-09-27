@@ -46,7 +46,10 @@ public sealed partial class Checker
         var baseTypeNode = GetClassExtendsHeritageElement(node);
         if (baseTypeNode != null)
         {
-            CheckSourceElements(baseTypeNode.TypeArguments() ?? []);
+            // Go: `baseTypeNode.TypeArguments()` 为 nil 时 `len(...)` 为 0；C# 返回 null（等价空数组），
+            // 原先 `TypeArguments()!` 只是编译期注解 → 运行期 NRE（ClassLike.cs:59）。
+            var baseTypeArguments = baseTypeNode.TypeArguments() ?? [];
+            CheckSourceElements(baseTypeArguments);
             var baseTypes = GetBaseTypesWorker(classType) ?? [];
             if (baseTypes.Length != 0)
             {
@@ -56,10 +59,10 @@ public sealed partial class Checker
                 var staticBaseType = GetApparentTypeWorker(baseConstructorType);
                 CheckBaseTypeAccessibility(staticBaseType, baseTypeNode);
                 CheckSourceElement(baseTypeNode.Expression()!);
-                if (baseTypeNode.TypeArguments()!.Length != 0)
+                if (baseTypeArguments.Length != 0)
                 {
-                    CheckSourceElements(baseTypeNode.TypeArguments() ?? []);
-                    foreach (var constructor in GetConstructorsForTypeArguments(staticBaseType, baseTypeNode.TypeArguments()!, baseTypeNode))
+                    CheckSourceElements(baseTypeArguments);
+                    foreach (var constructor in GetConstructorsForTypeArguments(staticBaseType, baseTypeArguments, baseTypeNode))
                     {
                         if (!CheckTypeArgumentConstraints(baseTypeNode, constructor._typeParameters))
                         {

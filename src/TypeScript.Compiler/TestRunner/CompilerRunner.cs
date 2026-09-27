@@ -396,7 +396,20 @@ public sealed class CompilerBaselineRunner : Runner
             {
                 continue;
             }
+            // 仅用于集成进度观测（不属于 Go 原逻辑）：逐用例耗时 + 单用例超时看门狗。
+            // 用全限定名而非 `using System.Diagnostics;`（全仓硬规则：那会让 Debug.Fail 绑到 BCL 的 FailFast 版本）。
+            // 只对"本次运行真正会执行"的用例计数/看门狗（被 --case 过滤掉的用例在 Go 里只是空跑 t.Run）。
+            if (!t.WillRun($"{_testSuitName}/{basename}") && !t.WillRun(basename))
+            {
+                RunTest(t, filename);
+                continue;
+            }
+
+            HarnessProgress.BeginCase(_testSuitName, basename);
+            var caseWatch = System.Diagnostics.Stopwatch.StartNew();
             RunTest(t, filename);
+            caseWatch.Stop();
+            HarnessProgress.EndCase(_testSuitName, basename, caseWatch.Elapsed.TotalMilliseconds);
         }
     }
 

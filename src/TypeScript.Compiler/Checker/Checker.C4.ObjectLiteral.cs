@@ -373,7 +373,9 @@ public sealed partial class Checker
         }
 
         var prop = GetPropertyOfTypeWorker(contextualType, name.Text());
-        if (prop is null || prop.Declarations!.Length == 0)
+        // Go: `prop == nil || len(prop.Declarations) == 0` —— Go 的 nil slice 长度为 0，C# 的 null 数组不是。
+        // 合成的 transient 符号（GetPropertyOfType 在对象字面量上下文里产生的）Declarations 就是 nil。
+        if (prop is null || (prop.Declarations?.Length ?? 0) == 0)
         {
             return;
         }

@@ -56,7 +56,10 @@ public sealed partial class NodeBuilderImpl
             typeElements.Add(SignatureToSignatureDeclarationHelper(signature, Kind.ConstructSignature, null)!);
         }
 
-        foreach (var info in resolvedType._indexInfos!)
+        // Go: `for _, info := range resolvedType.indexInfos`（nodebuilderimpl.go:2737）—— 切片可为 nil，
+        // `range nil` 合法（0 次迭代）；C# 的 `IndexInfo[]` 为 null 时 `foreach` 会抛 NRE（setStructuredTypeMembers
+        // 在无 index signature 时把 `slices.Clip(nil)` 存回，即 nil），故按 Go 语义判空。
+        foreach (var info in resolvedType._indexInfos ?? [])
         {
             typeElements.AddRange(IndexInfoToObjectComputedNamesOrSignatureDeclaration(info, IfElse((resolvedType._objectFlags & ObjectFlags.ReverseMapped) != 0, CreateElidedInformationPlaceholder(), null)));
         }
