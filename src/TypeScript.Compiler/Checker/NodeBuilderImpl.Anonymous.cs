@@ -133,7 +133,11 @@ public sealed partial class NodeBuilderImpl
         var resolved = _ch.ResolveStructuredTypeMembers(t);
         var callSigs = resolved.CallSignatures();
         var ctorSigs = resolved.ConstructSignatures();
-        if (resolved._properties!.Length == 0 && resolved._indexInfos!.Length == 0)
+        // Go: `len(resolved.properties)` / `len(resolved.indexInfos)` —— 二者都是切片，nil 与空等价
+        // （setStructuredTypeMembers 置 nil 的两处：getNamedMembers 对空成员表返回 nil、slices.Clip(nil)）。
+        var resolvedProperties = resolved._properties ?? [];
+        var resolvedIndexInfos = resolved._indexInfos ?? [];
+        if (resolvedProperties.Length == 0 && resolvedIndexInfos.Length == 0)
         {
             if (callSigs.Length == 0 && ctorSigs.Length == 0)
             {
@@ -166,7 +170,7 @@ public sealed partial class NodeBuilderImpl
             }
 
             // count the number of type elements excluding abstract constructors
-            var typeElementCount = callSigs.Length + (ctorSigs.Length - abstractSignatures.Length) + resolved._indexInfos!.Length + IfElse((_ctx!._flags & NodeBuilderFlags.WriteClassExpressionAsTypeLiteral) != 0, CountWhere(resolved._properties, p => (p.Flags & SymbolFlags.Prototype) == 0), resolved._properties!.Length);
+            var typeElementCount = callSigs.Length + (ctorSigs.Length - abstractSignatures.Length) + resolvedIndexInfos.Length + IfElse((_ctx!._flags & NodeBuilderFlags.WriteClassExpressionAsTypeLiteral) != 0, CountWhere(resolvedProperties, p => (p.Flags & SymbolFlags.Prototype) == 0), resolvedProperties.Length);
 
             // don't include an empty object literal if there were no other static-side
             // properties to write, i.e. `abstract class C { }` becomes `abstract new () => {}`

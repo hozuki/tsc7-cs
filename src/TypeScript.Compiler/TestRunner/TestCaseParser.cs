@@ -23,12 +23,13 @@
 //    `strings.TrimSuffix(s, ";")` → `EndsWith(';')` + `s[..^1]`；`strings.SplitSeq` → `ReadOnlySpan<char>.Split`
 //    （§3.8 零分配）；`slices.Delete` → `List.RemoveAt`；`slices.Contains` → `Array.IndexOf(...) >= 0`。
 // 6) `panic` → `Debug.Fail`（§3.2）。
-// 7) **依赖缺失（尚未移植，本文件因此不可单独编译；调用点按 §2 的目录/命名规则写出期望名）**：
+// 7) 依赖现状（M7 收尾时更新；三个符号**都已落地**，本文件可编译）：
 //    * `tsoptionstest.NewVFSParseConfigHostWithSymlinks`（internal/tsoptions/tsoptionstest/vfsparseconfighost.go:36）
-//      → `TypeScript.TsOptions.TsOptionsTest.TsOptionsTest`；
+//      → `TypeScript.TsOptions.TsOptionsTest.TsOptionsTest`（已落地）；
 //    * `harnessutil.GetConfigNameFromFileName`（internal/testutil/harnessutil/harnessutil.go:1228）
-//      → `TypeScript.TestUtil.HarnessUtil.HarnessUtil`；
-//    * `srcFolder`（internal/testrunner/compiler_runner.go:34，同包另一文件）→ `TestRunner.srcFolder`。
+//      → `TypeScript.TestUtil.HarnessUtil.HarnessUtil`（已落地）；
+//    * `srcFolder`（internal/testrunner/compiler_runner.go:34，同包另一文件）→ `TestRunner.SrcFolder`（已落地，
+//      见本目录 CompilerRunner.cs）。
 using System.Text;
 using System.Text.RegularExpressions;
 using TypeScript.Ast;

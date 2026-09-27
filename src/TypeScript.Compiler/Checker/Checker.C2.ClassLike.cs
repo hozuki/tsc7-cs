@@ -256,8 +256,10 @@ public sealed partial class Checker
         foreach (var declaration in declarations)
         {
             // If this declaration has too few or too many type parameters, we report an error
-            var sourceParameters = getTypeParameterDeclarations(declaration);
-            if (sourceParameters == null || sourceParameters.Length < minTypeArgumentCount || sourceParameters.Length > maxTypeArgumentCount)
+            // Go: `len(getTypeParameterDeclarations(declaration))` —— 无类型参数时是 nil 切片，len 为 0；
+            // C# 的 `TypeParameters()` 返回 null，等价于空数组（原实现把 null 直接当"不合格"误报 TS2428）。
+            var sourceParameters = getTypeParameterDeclarations(declaration) ?? [];
+            if (sourceParameters.Length < minTypeArgumentCount || sourceParameters.Length > maxTypeArgumentCount)
             {
                 return false;
             }

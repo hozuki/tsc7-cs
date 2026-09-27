@@ -258,12 +258,13 @@ public sealed partial class Checker
         // module 'a' can 'export * from "b"' and 'b' can 'export * from "a"' without error.
         SymbolTable? Visit(Symbol? symbol, Node? exportStar, bool isTypeOnly)
         {
-            if (!isTypeOnly && symbol is not null)
+            if (!isTypeOnly && symbol is not null && symbol.Exports is not null)
             {
                 // Add non-type-only names before checking if we've visited this module,
                 // because we might have visited it via an 'export type *', and visiting
                 // again with 'export *' will override the type-onlyness of its exports.
-                foreach (var name in symbol.Exports!.Keys)
+                // Go: `for name := range symbol.Exports` —— nil map 的 range 是空循环。
+                foreach (var name in symbol.Exports.Keys)
                 {
                     nonTypeOnlyNames.Add(name);
                 }

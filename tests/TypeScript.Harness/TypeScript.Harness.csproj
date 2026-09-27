@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- M7 验收 harness：在 C# 里重跑 TSGO 的 `tsc/testdata/tests/cases/**`，与
+       `TSGO_ROOT/tsc/testdata/baselines/reference/**` 逐字节比较（契约见 docs/harness.md）。
+       这是一个**可独立运行的入口**（Exe），不依赖 xunit：用例枚举 / 编译 / baseline 生成走
+       `src/TypeScript.Compiler` 的 TestRunner 与 TestUtil（Go 侧 internal/testrunner）。
+       跑法：设置 TSGO_ROOT 后 `dotnet run -p tests/TypeScript.Harness`，命令行参数（均带两个连字符前缀，
+       在 XML 注释里不能写出来，故此处只用名字）：
+         suite = compiler | conformance | transpile | all（缺省 all）
+         case  = 用例名子串，可重复；等价于 Go 侧 `go test run` 的单用例过滤（只跑命中的用例）
+         limit = 最多跑 N 个用例
+         diff  = 最多打印 N 处首个差异（缺省 10） -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TypeScript.Harness</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TypeScript.Compiler/TypeScript.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

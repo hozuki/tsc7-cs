@@ -57,6 +57,16 @@ public sealed class Context
     /// <c>locale.Default</c>；非 null 时即使值是 Default 也算"挂过"（与 Go 的 HasLocale 一致）。</summary>
     public Loc? Locale { get; }
 
+    /// <summary>
+    /// Go 的 <c>format.WithFormatCodeSettings</c> 用 <c>context.WithValue(ctx, formatOptionsKey, …)</c> 挂的值。
+    /// Go 的 context 携带 <c>any</c>、core 包不认识 format/lsutil 包，所以这里保持 <c>object?</c>（format 包读取时
+    /// 做类型转换，即 Go 的类型断言）；<c>null</c> = 键不存在。
+    /// </summary>
+    public object? FormatCodeSettings { get; }
+
+    /// <summary>Go 的 <c>ctx.Value(formatNewlineKey)</c>（编辑器/宿主设定的换行符，string）。<c>null</c> = 键不存在。</summary>
+    public string? FormatNewLine { get; }
+
     // Go 只能通过 WithValue/WithCancel 派生；C# 的派生入口是 Core 静态类里的 With*（见下）与
     // Locale.WithLocale（locale 包，Go 侧同样是 locale.WithLocale）。
     // internal 是"同程序集可见"，比 Go 的包可见性宽一点，与 Collections.OrderedMap 的构造器处理一致。
@@ -66,11 +76,25 @@ public sealed class Context
     }
 
     internal Context(string requestID, CheckerLifetime checkerLifetime, CancellationToken cancellationToken, Loc? locale)
+        : this(requestID, checkerLifetime, cancellationToken, locale, null, null)
+    {
+    }
+
+    /// <summary>format 包（M7）的派生入口（Go 的 <c>format.WithFormatCodeSettings</c> 走 WithValue）。</summary>
+    internal Context(
+        string requestID,
+        CheckerLifetime checkerLifetime,
+        CancellationToken cancellationToken,
+        Loc? locale,
+        object? formatCodeSettings,
+        string? formatNewLine)
     {
         RequestID = requestID;
         CheckerLifetime = checkerLifetime;
         CancellationToken = cancellationToken;
         Locale = locale;
+        FormatCodeSettings = formatCodeSettings;
+        FormatNewLine = formatNewLine;
     }
 }
 
