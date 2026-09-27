@@ -68,6 +68,8 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 | `interface{ M() }` | `interface I { M(); }`，结构性满足改为显式实现 |
 | `(T, error)` | 正常路径 `T`，错误路径抛异常；"查找失败"这类预期分支用 `bool TryX(..., out T)` |
 | `panic` / `debug.Fail` | `Debug.Fail(...)`，抛 `DebugFailureException` |
+| `Arena[T].New() *T` | `ref T New()`——只在 **T 是 struct** 时有意义（返回 arena 内部槽位的稳定引用）。引用类型的"稳定指针"在 C# 里就是对象引用本身。AST 节点是 class（与 Go 的 `*Node` 身份/相等语义一致），所以 NodeFactory 不使用 arena。 |
+| `LinkStore[K,V]` / `PagedLinkStore[V]` 的 `*V` | `where V : class, new()` + `new V()`；`null` = Go 的 `*V == nil`（`Has`/`TryGet` 语义完全一致）。Go 里 V 常是结构体（紧凑存储），C# 移植成 class：每个槽位一次分配、页是引用数组（性能偏离，待实测）。 |
 | Go 用 `reflect` 做**浅拷贝**（如 `CompilerOptions.Clone` 逐字段 `reflect.Value.Set`，Go 源码里自己标了 "could be generated code instead of reflection"） | `MemberwiseClone()`：同样是逐字段浅拷贝、无反射、AOT 安全，不需要生成 150 行赋值 |
 | `iota` 枚举 | C# `enum`，**数值与 TS/Go 保持一致**（`ast.Kind` 等值会出现在 baseline 里） |
 | `String()` stringer | `ToString()` 覆写 |
@@ -77,6 +79,13 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 | `go f()` / channel | `Task` / `Channel<T>`；结构性并发要先在本文登记 |
 
 泛型：C# 泛型比 Go 强，移植时**可以更激进**（Go 里为了绕开泛型而写的 `any` + type switch，在 C# 里直接上泛型或接口）。
+
+### 3.3 枚举与 stringer
+
+- 枚举**数值必须与 Go/TS 一致**（会出现在 baseline、JSON、诊断里）。
+- 枚举成员名 = Go 常量名去掉类型前缀：`core.ModuleKindNode16` → `ModuleKind.Node16`，`core.TristateTSUnknown` → `Tristate.TSUnknown`，`core.ScriptTargetES2022` → `ScriptTarget.ES2022`。
+- C# 的 enum 不能覆写 `ToString()`，所以 Go 的 stringer（`*_stringer_generated.go`）落成**静态类 `Core` 里的扩展方法** `public static string String(this X value)`：合法值时与 `value.ToString()` 相同（成员名就是 Go 的 stringer 文本），越界值（`ModuleKind(55)`）与 panic 情形（`ModuleResolutionKind` 的 0）由扩展方法复刻。**移植调用点照写 `x.String()`**。
+- 包级别名常量（`ScriptTargetLatest`、`LatestStandard`）放静态类里的 `const`，不要塞进枚举（会污染 `ToString()`）。
 
 ### 3.4 大小写映射
 
