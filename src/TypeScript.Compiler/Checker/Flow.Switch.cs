@@ -88,7 +88,10 @@ public sealed partial class Checker
         {
             var clauses = node.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes ?? [];
             // Go 用 `witnesses = nil` 表示"不是全部 case 都是字符串字面量"；C# 里用非空局部数组写入、可空别名对外。
+            // Go 的 make([]string, n) 零值是 ""（default 子句/重复类型名以 "" 表示）；C# 的 new string[n] 元素是 null，
+            // 会绕过下游 `witness != ""` / `text != ""` 判定并让 Dictionary.TryGetValue(null) 抛 ArgumentNullException。
             var witnessesArray = new string[clauses.Length];
+            Array.Fill(witnessesArray, "");
             string[]? witnesses = witnessesArray;
             for (var i = 0; i < clauses.Length; i++)
             {

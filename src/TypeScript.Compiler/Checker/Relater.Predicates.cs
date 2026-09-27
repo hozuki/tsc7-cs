@@ -220,10 +220,14 @@ public sealed partial class Checker
         return result;
     }
 
-    internal Signature? FindMatchingSignature(Signature[] signatureList, Signature signature, bool partialMatch, bool ignoreThisTypes, bool ignoreReturnTypes)
+    // Go: `findMatchingSignature(signatureList []*Signature, ...)`。`signatureList` 允许是 nil 切片
+    // （`range nil` 合法，零次迭代；`getSignaturesOfType` 对没有签名的类型就返回 nil），
+    // 所以参数声明为可空并按 `len(nil) == 0` 归一 —— `GetUnionSignatures` 传给
+    // `FindMatchingSignatures` 的矩阵里，尚未做非空校验的靠后元素仍可能是 nil。
+    internal Signature? FindMatchingSignature(Signature[]? signatureList, Signature signature, bool partialMatch, bool ignoreThisTypes, bool ignoreReturnTypes)
     {
         TypeRelatedComparer compareTypes = partialMatch ? CompareTypesSubtypeOf : CompareTypesIdentical;
-        foreach (var s in signatureList)
+        foreach (var s in signatureList ?? [])
         {
             if (CompareSignaturesIdentical(s, signature, partialMatch, ignoreThisTypes, ignoreReturnTypes, compareTypes) != Ternary.False)
             {

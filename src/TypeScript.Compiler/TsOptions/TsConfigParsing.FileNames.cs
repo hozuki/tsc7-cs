@@ -836,8 +836,16 @@ public static partial class TsOptions
     }
 
     // Go: func getSubstitutedStringArrayWithConfigDirTemplate(list []string, basePath string) []string
-    internal static string[]? GetSubstitutedStringArrayWithConfigDirTemplate(string[] list, string basePath)
+    internal static string[]? GetSubstitutedStringArrayWithConfigDirTemplate(string[]? list, string basePath)
     {
+        // Go 的 `range` 遍历 nil 切片合法（零次迭代）→ nil 进、nil 出。
+        // 实参可能是 `compilerOptions.Paths` 里值为 nil 的条目：parseStringMap/ParseStringArray 对
+        // `"paths": { "*": "*" }` 这种非数组值返回 nil（Go: parsinghelpers.go:47-56 的 parseStringMap）。
+        if (list is null)
+        {
+            return null;
+        }
+
         string[]? result = null;
         for (var i = 0; i < list.Length; i++)
         {
@@ -867,7 +875,8 @@ public static partial class TsOptions
         {
             foreach (var (k, v) in compilerOptions.Paths.Entries())
             {
-                if (GetSubstitutedStringArrayWithConfigDirTemplate(v!, basePath) is { } substitution)
+                // Go: `for k, v := range compilerOptions.Paths.Entries()` —— v 可为 nil 切片（见 parseStringMap）。
+                if (GetSubstitutedStringArrayWithConfigDirTemplate(v, basePath) is { } substitution)
                 {
                     if (paths is null)
                     {
