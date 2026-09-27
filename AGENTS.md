@@ -1,6 +1,8 @@
 Use Git for version control. After each meaningful step, and milestone, make Git commit with proper messages. (format: "[AI-(name of the LLM)] (one-line description)\n\n(a little more detailed)")
 C# source, testing harness are required. Use .NET 11 for development and testing. SDK is preinstalled.
 
+File edits: use the `write` tool for new/whole files and the `edit` tool for in-place changes. NEVER rewrite source files in place with shell tools (`perl -0pi`, `sed -i`, etc.); shell is for facts, builds, tests.
+
 .NET and C# langauge skills reference: `D:\Source\GitHub\dotnet-skills`.
 TSGO (TSC 7.0) is in its main branch, or can be directly accessed at `D:\Source\GitHub\TypeScript-Go`. The language feature is the same as TSC 6.0.
   * Its implementation is recommended when porting to a static type system. However, Go's generics is not well-designed; use of generics can be more aggressive when porting to C#.
