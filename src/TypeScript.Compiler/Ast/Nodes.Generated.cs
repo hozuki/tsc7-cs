@@ -771,7 +771,7 @@ public partial class NodeFactory
         data._name = name;
         data.TypeParameters = typeParameters;
         data.Type = typeNode;
-        return NewNode(Kind.TypeAliasDeclaration, data);
+        return NewNode(Kind.JSTypeAliasDeclaration, data);
     }
 
     public Node UpdateTypeAliasDeclaration(TypeAliasDeclaration node, ModifierList? modifiers, Node? name, NodeList? typeParameters, Node? typeNode)
@@ -887,7 +887,7 @@ public partial class NodeFactory
         data.ImportClause = importClause;
         data.ModuleSpecifier = moduleSpecifier;
         data.Attributes = attributes;
-        return NewNode(Kind.ImportDeclaration, data);
+        return NewNode(Kind.JSImportDeclaration, data);
     }
 
     public Node UpdateImportDeclaration(ImportDeclaration node, ModifierList? modifiers, Node? importClause, Node? moduleSpecifier, Node? attributes)

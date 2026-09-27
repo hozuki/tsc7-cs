@@ -164,4 +164,28 @@ public class AstGeneratedCodeTests
         Assert.True(new PragmaSpecification { Kind = PragmaKind.TripleSlashXML }.IsTripleSlash());
         Assert.NotSame(NewSourceFileDataKey<int>(), NewSourceFileDataKey<int>());
     }
+
+    [Fact]
+    public void KindAliasFactoriesProduceAliasKind()
+    {
+        // 回归哨兵（对应工具链缺陷）：生成器曾让别名工厂发射**基类** kind，于是
+        // UpdateXxx 里 `case Kind.JSTypeAliasDeclaration` 永远不可达、IsJSTypeAliasDeclaration 恒 false。
+        // 期望值来自 Go 的 ast_generated.go（NewJSTypeAliasDeclaration → newNode(KindJSTypeAliasDeclaration, …)、
+        // NewJSImportDeclaration → newNode(KindJSImportDeclaration, …)）；全量 186 个工厂的 kind
+        // 已由 artifacts/ast-diff/factory-kinds.mjs 与 Go 机械核对（别名工厂 33 个）。
+        var (f, _, _, _) = NewFactory();
+
+        var jsTypeAlias = f.NewJSTypeAliasDeclaration(null, f.NewIdentifier("Foo"), null, null);
+        Assert.Equal(Kind.JSTypeAliasDeclaration, jsTypeAlias.Kind);
+        Assert.True(IsJSTypeAliasDeclaration(jsTypeAlias));
+        // 普通工厂给基类 kind
+        Assert.Equal(Kind.TypeAliasDeclaration, f.NewTypeAliasDeclaration(null, f.NewIdentifier("Bar"), null, null).Kind);
+
+        var jsImport = f.NewJSImportDeclaration(null, null, f.NewStringLiteral("x", TokenFlags.None), null);
+        Assert.Equal(Kind.JSImportDeclaration, jsImport.Kind);
+        Assert.Equal(Kind.ImportDeclaration, f.NewImportDeclaration(null, null, f.NewStringLiteral("y", TokenFlags.None), null).Kind);
+
+        // Update 的 kind 分派必须与工厂一致（否则 update 会退化成 default 分支抛异常）
+        Assert.Equal(Kind.JSTypeAliasDeclaration, f.UpdateTypeAliasDeclaration((TypeAliasDeclaration)jsTypeAlias, null, f.NewIdentifier("Baz"), null, null).Kind);
+    }
 }

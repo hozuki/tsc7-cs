@@ -197,7 +197,13 @@ internal static class GoAstGenerator
         EmitNewFactoryCore(schema, w, $"New{node.Key}", node, members, kindArg: null);
         for (var i = 1; i < node.Kinds.Count; i++)
         {
-            EmitNewFactoryCore(schema, w, $"New{node.Kinds[i]}", node, members, kindArg: null);
+            // Go 的 generate-go-ast.ts 给每个 kind 都发射一个工厂，别名工厂用的是**别名自己的 kind**
+            // （ast_generated.go:2272 `NewJSTypeAliasDeclaration` → `newNode(KindJSTypeAliasDeclaration, …)`）。
+            // 这里之前漏传 kindArg，导致别名工厂造出基类 kind 的节点（Update 的 `case Kind.别名` 分支因此不可达）。
+            // 节点自己有 kind 参数（Kind 成员）时仍以参数为准，与 Go 的该形态工厂一致。
+            var hasKindMember = members.Any(m => schema.IsKindMember(m, node));
+            EmitNewFactoryCore(schema, w, $"New{node.Kinds[i]}", node, members,
+                kindArg: hasKindMember ? null : $"Kind.{node.Kinds[i]}");
         }
     }
 
