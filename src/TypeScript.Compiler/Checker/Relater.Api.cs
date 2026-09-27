@@ -338,7 +338,10 @@ public sealed partial class Checker
 
     internal bool CheckTypeAssignableToEx(Type source, Type target, Node? errorNode, Message? headMessage, out Diagnostic[]? diagnosticOutput)
     {
-        Diagnostic[]? output = null;
+        // Go: checkTypeAssignableToEx 的调用点都传 `&diags`（非 nil 指针指向可能为 nil 的切片）→ 诊断进缓冲区，
+        // 不落全局。C# 用 `ref Diagnostic[]?` 表示 `*[]*Diagnostic`，null 表示 **nil 指针**（→ AddDiagnostic），
+        // 所以这里的"指针"必须用非 null 的空数组起步，否则诊断会被 AddDiagnostic 而 out 仍是 null。
+        Diagnostic[]? output = [];
         var result = CheckTypeRelatedToEx(source, target, _assignableRelation, errorNode, headMessage, ref output);
         diagnosticOutput = output;
         return result;
@@ -520,7 +523,8 @@ public sealed partial class Checker
             return (returnType._flags & (TypeFlags.Any | TypeFlags.Never)) == 0 && CheckTypeRelatedTo(returnType, target, relation, null /*errorNode*/);
         }))
         {
-            Diagnostic[]? diags = null;
+            // Go: `var diags []*ast.Diagnostic; … &diags` → 指针非 nil、切片为 nil ⇒ 这里用非 null 空数组起步。
+            Diagnostic[]? diags = [];
             if (!CheckTypeRelatedToEx(source, target, relation, node, headMessage, ref diags))
             {
                 var diagnostic = diags![0];
@@ -620,7 +624,8 @@ public sealed partial class Checker
             return true;
         }
         // Issue error on the prop itself, since the prop couldn't elaborate the error
-        Diagnostic[]? diags = null;
+        // Go: `var diags []*ast.Diagnostic; … &diags` → 指针非 nil、切片为 nil ⇒ 这里用非 null 空数组起步。
+        Diagnostic[]? diags = [];
         // Use the expression type, if available
         var specificSource = sourcePropType;
         if (next != null)
@@ -754,7 +759,8 @@ public sealed partial class Checker
         {
             return true;
         }
-        Diagnostic[]? diags = null;
+        // Go: `var diags []*ast.Diagnostic; … &diags` → 指针非 nil、切片为 nil ⇒ 这里用非 null 空数组起步。
+        Diagnostic[]? diags = [];
         CheckTypeRelatedToEx(sourceReturn, targetReturn, relation, returnExpression, null /*headMessage*/, ref diags);
         if (diags != null && diags.Length != 0)
         {

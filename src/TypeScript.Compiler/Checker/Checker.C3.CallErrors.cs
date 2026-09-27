@@ -32,7 +32,10 @@ public sealed partial class Checker
         if (s._candidatesForArgumentError != null && s._candidatesForArgumentError.Length != 0)
         {
             var last = s._candidatesForArgumentError[^1];
-            Diagnostic[]? diags = null;
+            // Go: `var diags []*ast.Diagnostic; c.isSignatureApplicable(..., &diags)` → 指针非 nil、切片为 nil。
+            // C# 里 null 表示 Go 的 nil 指针（→ AddDiagnostic），所以收集器必须以非 null 空数组起步，
+            // 否则下面 `foreach (var initialDiagnostic in diags ?? [])` 拿不到诊断，headMessage/重载包装全部丢失。
+            Diagnostic[]? diags = [];
             IsSignatureApplicable(s._node!, s._args, last, _assignableRelation!, CheckMode.Normal, true /*reportErrors*/, ref diags);
             foreach (var initialDiagnostic in diags ?? [])
             {

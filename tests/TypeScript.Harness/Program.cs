@@ -37,7 +37,12 @@ internal static class Program
                     suites.Add(args[++i]);
                     break;
                 case "--case":
-                    cases.Add(args[++i]);
+                    // 允许 `--case a.ts,b.ts` 逗号分隔（与 TSGO/tsc 命令行习惯一致）；同时保留重复 `--case` 的写法。
+                    foreach (var part in args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    {
+                        cases.Add(part);
+                    }
+
                     break;
                 case "--limit":
                     limit = int.Parse(args[++i], CultureInfo.InvariantCulture);
@@ -91,6 +96,13 @@ internal static class Program
         }
 
         AssertUniqueBasenames(selectedBySuite);
+
+        // 用法护栏：显式给了 `--case` 却一个都没选中 → 明确报错退出（否则会被当成"全跑但全被过滤"而给出令人误解的 FAIL）。
+        if (cases.Count > 0 && selectedBySuite.Values.Sum(v => v.Count) == 0)
+        {
+            Console.Error.WriteLine($"no test case matched --case filter(s): {string.Join(", ", cases)}");
+            return 2;
+        }
 
         // 进度与单用例超时看门狗（仅集成观测；--case-timeout 0 表示不启用）。
         HarnessProgress.Configure(caseTimeoutSeconds, selectedBySuite.Sum(kv => kv.Value.Count));

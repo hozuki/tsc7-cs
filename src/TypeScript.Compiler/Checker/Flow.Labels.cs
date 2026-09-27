@@ -103,7 +103,12 @@ public sealed partial class Checker
             return GetEvolvingArrayType(GetUnionTypeWorker(Map(types, GetElementTypeOfEvolvingArrayType)));
         }
         var result = RecombineUnknownType(GetUnionTypeExWorker(SameMap(types, FinalizeEvolvingArrayType), subtypeReduction, null, null));
-        if (result != f._declaredType && (result._flags & f._declaredType!._flags & TypeFlags.Union) != 0 && Same(result.AsUnionType()!._types, f._declaredType!.AsUnionType()!._types))
+        // Go: flow.go:1319 `slices.Equal(result.AsUnionType().types, f.declaredType.AsUnionType().types)` —— 逐元素
+        // 比较（同一类型对象），不是"同一底层数组"。Core.Same 对应 Go 的 core.Same（指针/底层数组同一性），
+        // 用在这里会让"内容相同但不同数组"的联合类型丢掉声明类型（连带丢掉类型别名，打印成展开形式）。
+        if (result != f._declaredType
+            && (result._flags & f._declaredType!._flags & TypeFlags.Union) != 0
+            && (result.AsUnionType()!._types ?? []).SequenceEqual(f._declaredType!.AsUnionType()!._types ?? []))
         {
             return f._declaredType!;
         }

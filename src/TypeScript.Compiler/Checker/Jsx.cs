@@ -241,7 +241,10 @@ public sealed partial class Checker
                 {
                     tagType = CheckExpression(tagName);
                 }
-                Diagnostic[]? diags = null;
+                // Go: jsx.go:151 的 `&diags` —— 指针非 nil、切片长度为 0 的收集器。
+                // C# 的 `ref Diagnostic[]?` 用**值** null 表示 Go 的 nil 指针（→ addDiagnostic），
+                // 所以 Go 的 `&nilSlice` 必须写成非 null 的空数组，否则诊断会绕过收集器直接落进 checker。
+                Diagnostic[]? diags = [];
                 if (!CheckTypeRelatedToEx(tagType, elementTypeConstraint, _assignableRelation, tagName, Its_type_0_is_not_a_valid_JSX_element_type, ref diags))
                 {
                     AddDiagnostic(NewDiagnosticChain(diags![0], X_0_cannot_be_used_as_a_JSX_component, GetTextOfNode(tagName))!);
@@ -271,7 +274,8 @@ public sealed partial class Checker
     /// <summary>Go: <c>func (c *Checker) checkJsxReturnAssignableToAppropriateBound(refKind JsxReferenceKind, elemInstanceType *Type, openingLikeElement *ast.Node)</c>（jsx.go:170-196）。</summary>
     internal void CheckJsxReturnAssignableToAppropriateBound(JsxReferenceKind refKind, Type elemInstanceType, Node openingLikeElement)
     {
-        Diagnostic[]? diags = null;
+        // Go: jsx.go:176/182/191 的 `&diags`（指针非 nil、切片长度为 0）→ C# 侧必须是非 null 空数组。
+        Diagnostic[]? diags = [];
         switch (refKind)
         {
             case JsxReferenceKind.Function:
@@ -306,7 +310,7 @@ public sealed partial class Checker
                     break;
                 }
         }
-        if (diags is not null && diags.Length != 0)
+        if (diags!.Length != 0)   // Go: jsx.go:195 `if len(diags) != 0`
         {
             AddDiagnostic(NewDiagnosticChain(diags[0], X_0_cannot_be_used_as_a_JSX_component, GetTextOfNode(openingLikeElement.TagName()!))!);
         }
