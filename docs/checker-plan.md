@@ -79,7 +79,7 @@ Go 的 `types.go` 把「数据」和「断言」分成三层：`Type` 结构体�
 `TypeData` 接口（7 个 `As*()`）、`TypeBase` 结构体（`struct{ Type }`，7 个 `AsX()` 默认返回 nil）。
 C# 里**合并**：
 
-- `abstract class Type`：字段照抄 Go 的 `Type`（`internal TypeFlags flags; internal ObjectFlags objectFlags; internal TypeId id; internal Symbol? symbol; internal TypeAlias? alias; internal Checker checker;`）；**`data TypeData` 不移植**。
+- `abstract class Type`：字段照抄 Go 的 `Type`（Go 未导出字段 → `_camelCase`，跨 partial/跨类访问用 `internal`：`internal TypeFlags _flags; internal ObjectFlags _objectFlags; internal TypeId _id; internal Symbol? _symbol; internal TypeAlias? _alias; internal Checker _checker;`）；**`data TypeData` 不移植**。
 - `TypeData`、`TypeBase` 两个名字在 C# 里**不出现**；具体类型（`IntrinsicType`/`LiteralType`/`TupleType`/`StructuredType`/`ObjectType`/`UnionType`/…）直接**继承 `Type`**（Go 的 `TypeBase` 嵌入 → C# 基类）。
 - `AsX()`：在 `Type` 上 `internal virtual X? AsX() => null;`，Go 里 override 的那些在 C# 里 `override` 返回 `this`（与 Go 的「TypeBase 返回 nil、具体类型返回 t」逐一对齐）。
 - 改写：`t.data.(*X)` → `(X)t`；`x, ok := t.data.(*X)` → `t as X` + null 判断；`TypeData` 型的参数/字段/返回 → `Type`；`.AsType()` → 该对象本身（`AsType` 不移植）。
@@ -91,7 +91,7 @@ C# 里**合并**：
 | `Checker` 结构体的**全部字段**（checker.go:586 起） | **C1 独有**。其它片只读，不改其定义；缺字段 → 报告 |
 | `NodeLinks`/`SymbolLinks`/`ValueSymbolLinks`/`MappedSymbolLinks`/`Signature`/`IndexInfo`/`TypeFlags`/`ObjectFlags`/`TypeId`/`TypeAlias`/… | `types.go`（B1a） |
 | `nodeLinkStore[V]`/`symbolArenaLinkStore[V]` | `links.go`（B1b）→ C# 命名 `NodeLinkStore<V>`/`SymbolLinkStore<V>`（§2「未导出类型按 C# 习惯命名，不必同名」） |
-| 包级函数（Go 无接收者） | 与包同名的 `public static partial class Checker`，调用点 `using static TypeScript.Checker.Checker;` |
+| 包级函数（Go 无接收者） | **同一个非 static `public sealed partial class Checker`** 里的 `internal static`/`private static` 成员（先例：`Parser`/`Binder`/`Printer`；`public static partial class Checker` 与实例类会 CS0708）。调用点可 `using static TypeScript.Checker.Checker;`（只导入静态成员） |
 | `partial class Checker` 的实例方法 | 各片各写自己那段；**一个方法只能有一处定义** |
 
 Go 里同时存在 `func (c *Checker) foo()` 与包级 `func foo()` → C# 方法名冲突，包级那个加 `Worker` 后缀（§2 先例，如 `EmitSourceFileWorker`）。
@@ -111,3 +111,17 @@ checker 是紧耦合单包：C1–C8 互相调用，还依赖 `relater`/`flow`/`
 - **调用 C# 侧已有 API 前先 grep 确认真实签名**（`Ast.Node.Kind`、`NodeFactory.*`、`Ast.GetNodeId`、`Core.PagedLinkStore.Get(ulong)`…），不要按 Go 猜。
 - 已知坑：命名空间与类同名（`TypeScript.Checker` 命名空间 + `Checker` 类 → 类内引用同包类型直接写裸名，**不要**写 `Checker.Foo`，会解析到命名空间）；`Dictionary` 索引器读缺失键抛异常（Go 的 map 读返回零值）→ 用 `TryGetValue`/`GetValueOrDefault`；实例方法组不能直接转委托（用 lambda）；语句内的 `goto`/`fallthrough`/`break loop` 要逐处对齐（Go 的 `break loop` → C# `goto` 或提取局部函数）。
 - 只改你负责的文件。**不要**碰 `.editorconfig`/csproj/docs/别人的文件；跨包缺符号一律"报告"，不要就地发明。
+
+### 5.5 命名裁决（2026-09-28，实测先例；checker 各片必须统一）
+| Go 侧 | C# 侧 | 仓库先例（实测） |
+| --- | --- | --- |
+| **未导出**字段（`c.unknownSymbol`、`Type.flags`、`c.mu`） | `_camelCase`；本类内用 `private`，跨 partial 文件/跨类用 `internal _camelCase` | `Binder`：`internal Node? _node;`、`private FlowNode? _unreachableFlow;`；`Printer`：`private SourceFile? _currentSourceFile;` |
+| **导出**字段（`ResolvedModule.Path`） | `internal`/`public` + PascalCase **原名、不加前缀**（属于要镜像的公开 API） | `Module/Resolver.cs`：`internal string Path = "";` |
+| 未导出字段的访问器 `func (x *X) Name() T` | `internal T Name() => _name;` | 同上 |
+| Go 包级函数 | 同一个 `public sealed partial class Checker` 里的 `internal static`/`private static` 成员（**禁止** `public static partial class Checker` → CS0708） | `Parser`/`Binder`/`Printer` |
+| `func (c *Checker) foo()` 与包级 `func foo()` 同名 | 包级那个加 `Worker` 后缀 | `EmitSourceFileWorker` |
+| `func(source, target *Type) Ternary`（Go 无名函数类型） | `internal delegate Ternary TypeRelatedComparer(Type source, Type target);`（**relater.go 所有**，`checker.go` 的 `compareProperties` 用它） | 新增 |
+| `relater.go:87` 的 `ErrorReporter` | `internal delegate void ErrorReporter(Message message, params object?[] args);`（**relater.go 所有**，逐字对应 `args ...any`；热路径传 `null`） | 新增 |
+| `TypeComparer`（types.go:1447） | 归 `types.go` 片 | 新增 |
+
+→ 一句话：**`_camelCase` 只针对 Go 未导出字段；Go 导出名一律原样 PascalCase、不加前缀。**
