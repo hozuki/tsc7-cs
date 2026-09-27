@@ -174,7 +174,7 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 | M1a | `Debug`、`StringUtil`（含 Unicode 生成表 + CodeGen 生成器）、`TSPath` | done（200 测试通过；表数据与 Go 源对拍一致） |
 | M1b | `Collections`（含 OrderedMap 的 JSON 钩子）、`Json`、`JsNum` | done（JsNum 的 JS 数字语义与真 Node/V8 交叉验证） |
 | M2 | `Core`（`Text`、枚举、`CompilerOptions`、`Arena`、`Semaphore`、`Workgroup`、`Bfs`、`LinkStore`…） | done |
-| M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | |
+| M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | 进行中：Ast 生成物（192 节点）+ 手写核心 + NodeFactory/Visitor/SubtreeFacts/PositionMap 已落地，Kind 352 个数值与 34 个别名经独立脚本全等核对、与 Go 的机械 diff 0 差异；`SourceFile` 完整实现、`utilities.go` 其余部分（4631 行）、`Diagnostics`、`Locale` 待做 |
 | M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | |
 | M5 | `Binder`、`Checker` → 语义错误基线 | |
 | M6 | `Printer` + transformers → emit 基线（`tests/cases/compiler` 通过） | |
