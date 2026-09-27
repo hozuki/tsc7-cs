@@ -39,9 +39,13 @@
 //    这类可空引用类型当 key（Go 允许 nil 指针/接口当 key），见"unverified"。V 不加约束，判等用
 //    EqualityComparer<V>.Default，对应 Go 的 `==`。
 //
-// JSON：MarshalJSONTo / UnmarshalJSONFrom 依赖尚未移植的 TypeScript.Json（M2），本轮跳过；只服务
-// MarshalJSONTo 的私有辅助函数 resolveKeyName（Go ordered_map.go:158-174，reflect/strconv/encoding
-// 把 map key 转成 JSON 键名）一并跳过。详见文件末尾注释。
+// JSON（Go ordered_map.go:157-268）：MarshalJSONTo / UnmarshalJSONFrom 已实现。Go 的
+// resolveKeyName 用 reflect 判键类型，AOT 下不允许反射（docs §3.6），改成显式分派（见方法处的注释）。
+// `Json.X` 在 `TypeScript.*` 命名空间里会被同名命名空间遮蔽（docs §2），所以按约定用
+// `using static` + 裸名，与 Go 的 `json.MarshalEncode`/`json.BeginObject` 一一对应。
+using System.Globalization;
+using TypeScript.Json;
+using static TypeScript.Json.Json;
 
 namespace TypeScript.Collections;
 
@@ -61,7 +65,7 @@ public struct MapEntry<K, V>
 /// <summary>
 /// Go 的 <c>OrderedMap[K,V]</c>：插入有序的 map（用 keys 维护插入顺序 + mp 做 O(1) 查找）。
 /// </summary>
-public sealed class OrderedMap<K, V> where K : notnull
+public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K : notnull
 {
     private readonly List<K> keys;
     private readonly Dictionary<K, V> mp;
@@ -212,12 +216,76 @@ public sealed class OrderedMap<K, V> where K : notnull
         return new OrderedMap<K, V>(new List<K>(keys), new Dictionary<K, V>(mp));
     }
 
-    // 等 Json 包（M2）落地后补（Go ordered_map.go:157-268）：
-    //   * public void MarshalJSONTo(TypeScript.Json.Encoder enc)
-    //   * public void UnmarshalJSONFrom(TypeScript.Json.Decoder dec)
-    //   * 以及只服务 MarshalJSONTo 的私有辅助函数 resolveKeyName（Go ordered_map.go:158-174：
-    //     reflect/strconv/encoding.TextMarshaler → JSON 键名）。
-    // 对应测试 ordered_map_test.go:104-129 的 TestOrderedMapUnmarshalJSON 同样不在本轮。
+    // Go: var _ json.MarshalerTo = (*OrderedMap[string, string])(nil)
+    /// <summary>Go 的 <c>MarshalJSONTo</c>：按插入顺序把键值写成 JSON 对象。</summary>
+    public void MarshalJSONTo(Encoder enc)
+    {
+        enc.WriteToken(BeginObject);
+        foreach (var k in keys)
+        {
+            // Go: 先 resolveKeyName(k) 把键转成字符串，再 MarshalEncode 键与值
+            MarshalEncode(enc, JsonKeyName(k));
+            MarshalEncode(enc, mp[k]);
+        }
+
+        enc.WriteToken(EndObject);
+    }
+
+    // Go: var _ json.UnmarshalerFrom = (*OrderedMap[string, string])(nil)
+    /// <summary>
+    /// Go 的 <c>UnmarshalJSONFrom</c>：JSON <c>null</c> 按 <c>Unmarshaler</c> 约定当 no-op；
+    /// 非对象值报错（错误文本与 Go 一致，见 ordered_map.go:275-277）。
+    /// </summary>
+    public void UnmarshalJSONFrom(Decoder dec)
+    {
+        var token = dec.ReadToken();
+        if (token.Kind == JsonKind.Null)
+        {
+            return;
+        }
+
+        if (token.Kind != JsonKind.BeginObject)
+        {
+            throw new JsonException("cannot unmarshal non-object JSON value into Map");
+        }
+
+        while (dec.PeekKind() != JsonKind.EndObject)
+        {
+            // Go: json.UnmarshalDecode(dec, &key) / (dec, &value) —— 对象里的成员名本身就是一个字符串
+            // token，所以这样一对一对读。
+            var key = dec.Decode<K>();
+            if (key is null)
+            {
+                throw new JsonException("json: cannot unmarshal null into a map key");
+            }
+
+            var value = dec.Decode<V>();
+            Set(key, value!);
+        }
+
+        dec.ReadToken(); // 消费 ObjectEnd
+    }
+
+    // Go 的 resolveKeyName（ordered_map.go:158-174）用 reflect 判 Kind、strconv 转数字、encoding.TextMarshaler
+    // 取名字。AOT 下不允许反射（docs §3.6），改成对可用键型的显式分派：字符串键原样（Go 的 reflect.String），
+    // 整数键按 strconv.FormatInt/FormatUint 的十进制语义。Go 对不支持的类型 panic，这里抛 JsonException，
+    // 语义一致。TSGO 只对 OrderedMap[string, ...] 断言了 MarshalerTo，所以字符串是实际用到的唯一键型。
+    // Go 支持的 encoding.TextMarshaler 键在移植时用字符串包装表达（用到时再补显式接口）。
+    private static string JsonKeyName(K key) => key switch
+    {
+        string s => s,
+        sbyte v => v.ToString(CultureInfo.InvariantCulture),
+        byte v => v.ToString(CultureInfo.InvariantCulture),
+        short v => v.ToString(CultureInfo.InvariantCulture),
+        ushort v => v.ToString(CultureInfo.InvariantCulture),
+        int v => v.ToString(CultureInfo.InvariantCulture),
+        uint v => v.ToString(CultureInfo.InvariantCulture),
+        long v => v.ToString(CultureInfo.InvariantCulture),
+        ulong v => v.ToString(CultureInfo.InvariantCulture),
+        nint v => v.ToString(CultureInfo.InvariantCulture),
+        nuint v => v.ToString(CultureInfo.InvariantCulture),
+        _ => throw new JsonException($"unexpected map key type {typeof(K)}"),
+    };
 }
 
 public static partial class Collections

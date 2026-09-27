@@ -2,8 +2,8 @@
 //
 // 与 Go 测试的差异（逐条说明）：
 //
-// - **未移植** TestOrderedMapUnmarshalJSON（ordered_map_test.go:104-129）：它依赖尚未移植的
-//   OrderedMap.UnmarshalJSONFrom / TypeScript.Json，等 Json 包（M2）落地后补。
+// - TestOrderedMapUnmarshalJSON（ordered_map_test.go:104-129）放在文件末尾的 CollectionsOrderedMapJsonTests
+//   （它需要 TypeScript.Json，而本类只依赖 Collections）。
 // - TestOrderedMapWithSizeHint（ordered_map_test.go:90-101）在 Go 里断言 testing.AllocsPerRun 数出来的
 //   **分配次数** < 10；C# 没有"分配次数"这个 API（只有 GC.GetAllocatedBytesForCurrentThread 的字节数），
 //   阈值无法 1:1 搬运，这里退化为功能检查：用尺寸提示构造、塞满 N 个元素、验证结果（覆盖
@@ -16,7 +16,10 @@
 // - Go 的 string 零值是 ""，C# 的 default(string) 是 null：Get/Delete 未命中时 Go 断言 `v == ""`，
 //   这里写成 `Assert.Equal("", v ?? "")`，两者表达的都是"返回 V 的零值"。
 using System.Globalization;
+using System.Text;
 using TypeScript.Collections;
+using TypeScript.Json;
+using static TypeScript.Json.Json;
 using Xunit;
 using static TypeScript.Collections.Collections;
 
@@ -198,5 +201,53 @@ public class CollectionsOrderedMapTests
     private static string PadInt(int n)
     {
         return n.ToString(CultureInfo.InvariantCulture).PadLeft(10);
+    }
+}
+
+// ported from: internal/collections/ordered_map_test.go:104-129（TestOrderedMapUnmarshalJSON）
+// 独立一个类：它需要 TypeScript.Json，而 OrderedMapTests 只依赖 Collections。
+public class CollectionsOrderedMapJsonTests
+{
+    [Fact]
+    public void TestOrderedMapUnmarshalJSON()
+    {
+        // Go: var m collections.OrderedMap[string, any]; unmarshal(`{"a": 1, "b": "two", "c": { "d": 4 } }`, &m)
+        var m = UnmarshalNew<OrderedMap<string, object?>>(Encoding.UTF8.GetBytes("""{"a": 1, "b": "two", "c": { "d": 4 } }"""));
+
+        Assert.Equal(3, m.Size());
+        // Go 的 any 解出来是 float64(1)
+        Assert.Equal(1.0, m.GetOrZero("a"));
+
+        // Go: err = unmarshal([]byte(`null`), &m); assert.NilError(t, err)
+        // Unmarshaler 约定：null 是 no-op，已有内容保留。
+        UnmarshalInto(Encoding.UTF8.GetBytes("null"), ref m);
+        Assert.Equal(3, m.Size());
+
+        // Go: err = unmarshal([]byte(`"foo"`), &m); assert.ErrorContains(t, err, "cannot unmarshal non-object JSON value into Map")
+        var ex = Assert.Throws<JsonException>(() => UnmarshalInto(Encoding.UTF8.GetBytes("\"foo\""), ref m));
+        Assert.Contains("cannot unmarshal non-object JSON value into Map", ex.Message);
+
+        // Go: var invalidMap collections.OrderedMap[int, any]; err = unmarshal(`{"a": 1, ...}`, &invalidMap);
+        //     assert.ErrorContains(t, err, "unmarshal")
+        var invalidMap = new OrderedMap<int, object?>();
+        var ex2 = Assert.Throws<JsonException>(() => UnmarshalInto(Encoding.UTF8.GetBytes("""{"a": 1, "b": "two"}"""), ref invalidMap));
+        Assert.Contains("unmarshal", ex2.Message);
+    }
+
+    [Fact]
+    public void TestOrderedMapMarshalJSONKeepsInsertionOrder()
+    {
+        // Go 的 MarshalJSONTo 逐键写 key/value，因而输出是插入顺序的紧凑 JSON（go 侧无对应测试，
+        // 期望值来自 ordered_map.go:217-239 的实现语义 + docs/json.md §1 的紧凑形状）。
+        var m = new OrderedMap<string, object?>();
+        m.Set("b", "two");
+        m.Set("a", 1);
+        var nested = new OrderedMap<string, object?>();
+        nested.Set("d", 4);
+        m.Set("c", nested);
+
+        Assert.Equal(
+            """{"b":"two","a":1,"c":{"d":4}}""",
+            Encoding.UTF8.GetString(Marshal(m)));
     }
 }

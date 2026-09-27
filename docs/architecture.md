@@ -68,6 +68,7 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 | `interface{ M() }` | `interface I { M(); }`，结构性满足改为显式实现 |
 | `(T, error)` | 正常路径 `T`，错误路径抛异常；"查找失败"这类预期分支用 `bool TryX(..., out T)` |
 | `panic` / `debug.Fail` | `Debug.Fail(...)`，抛 `DebugFailureException` |
+| Go 用 `reflect` 做**浅拷贝**（如 `CompilerOptions.Clone` 逐字段 `reflect.Value.Set`，Go 源码里自己标了 "could be generated code instead of reflection"） | `MemberwiseClone()`：同样是逐字段浅拷贝、无反射、AOT 安全，不需要生成 150 行赋值 |
 | `iota` 枚举 | C# `enum`，**数值与 TS/Go 保持一致**（`ast.Kind` 等值会出现在 baseline 里） |
 | `String()` stringer | `ToString()` 覆写 |
 | `atomic.*` | `Interlocked` / `Volatile` |
@@ -136,7 +137,7 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 | --- | --- | --- |
 | M0 | 工程骨架：slnx、编译器库、测试工程、CodeGen 工具；移植规范定稿 | done |
 | M1a | `Debug`、`StringUtil`（含 Unicode 生成表 + CodeGen 生成器）、`TSPath` | done（200 测试通过；表数据与 Go 源对拍一致） |
-| M1b | `Collections`、`Json`、`JsNum` | 进行中 |
+| M1b | `Collections`（含 OrderedMap 的 JSON 钩子）、`Json`、`JsNum` | Collections+Json 完成；JsNum 进行中 |
 | M2 | `Core`（`Text`、枚举、`CompilerOptions`…） | |
 | M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | |
 | M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | |
@@ -144,5 +145,3 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 | M6 | `Printer` + transformers → emit 基线（`tests/cases/compiler` 通过） | |
 | M7 | `Compiler`/`Program` → `tsc` 可编译真实工程 | |
 | M8 | `tsoptions`、`execute`、`watch`、`project`、`ls`/`lsp` | |
-
-已知缺口（本轮有意留下，必须在后续补齐）：`Collections.OrderedMap` 的 `MarshalJSONTo`/`UnmarshalJSONFrom` 与对应测试，等 `Json` 包（M1b）落地后补。
