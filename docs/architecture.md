@@ -69,6 +69,7 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 | `(T, error)` | 正常路径 `T`，错误路径抛异常；"查找失败"这类预期分支用 `bool TryX(..., out T)` |
 | `panic` / `debug.Fail` | `Debug.Fail(...)`，抛 `DebugFailureException` |
 | `Arena[T].New() *T` | `ref T New()`——只在 **T 是 struct** 时有意义（返回 arena 内部槽位的稳定引用）。引用类型的"稳定指针"在 C# 里就是对象引用本身。AST 节点是 class（与 Go 的 `*Node` 身份/相等语义一致），所以 NodeFactory 不使用 arena。 |
+| `Arena[T].NewSlice/NewSlice1/Clone` | 返回 `T[]`（Go 调用点会把结果存进字段，`Span<T>` 存不了）。**偏离**：C# 数组无法是"从 slab 切出的视图"，这三个方法退化成普通分配，只有 `ref T New()` 保留 slab 语义。Go 里 `arena.NewSlice(n)[:0]` + append 的预占容量写法（parser/binder/printer 有多处）在 C# 要改成 `List<T>`/数组 + 长度计数器。 |
 | `LinkStore[K,V]` / `PagedLinkStore[V]` 的 `*V` | `where V : class, new()` + `new V()`；`null` = Go 的 `*V == nil`（`Has`/`TryGet` 语义完全一致）。Go 里 V 常是结构体（紧凑存储），C# 移植成 class：每个槽位一次分配、页是引用数组（性能偏离，待实测）。 |
 | Go 用 `reflect` 做**浅拷贝**（如 `CompilerOptions.Clone` 逐字段 `reflect.Value.Set`，Go 源码里自己标了 "could be generated code instead of reflection"） | `MemberwiseClone()`：同样是逐字段浅拷贝、无反射、AOT 安全，不需要生成 150 行赋值 |
 | `iota` 枚举 | C# `enum`，**数值与 TS/Go 保持一致**（`ast.Kind` 等值会出现在 baseline 里） |
