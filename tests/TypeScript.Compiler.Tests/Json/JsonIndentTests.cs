@@ -18,20 +18,20 @@ public class JsonIndentTests
         ["a"] = new List<object?> { 1, 2 },
     };
 
-    private const string SampleCompact = "{\"k\":\"v\",\"a\":[1,2]}";
-    private const string SampleIndented4 = "{\n    \"k\": \"v\",\n    \"a\": [\n        1,\n        2\n    ]\n}";
+    private const string _sampleCompact = "{\"k\":\"v\",\"a\":[1,2]}";
+    private const string _sampleIndented4 = "{\n    \"k\": \"v\",\n    \"a\": [\n        1,\n        2\n    ]\n}";
 
     [Fact]
     public void TestCompactShape()
     {
-        Assert.Equal(SampleCompact, Text(Marshal(Sample())));
+        Assert.Equal(_sampleCompact, Text(Marshal(Sample())));
     }
 
     [Fact]
     public void TestMarshalIndentFourSpaces()
     {
         var text = Text(MarshalIndent(Sample(), "", "    "));
-        Assert.Equal(SampleIndented4, text);
+        Assert.Equal(_sampleIndented4, text);
         Assert.DoesNotContain('\r', text);
         Assert.False(text.EndsWith('\n'));
     }
@@ -40,7 +40,7 @@ public class JsonIndentTests
     public void TestMarshalIndentEmptyIndentFallsBackToCompact()
     {
         // json.go 的特判：prefix 和 indent 都空 → 直接 compact（否则 WithIndent 会开多行）。
-        Assert.Equal(SampleCompact, Text(MarshalIndent(Sample(), "", "")));
+        Assert.Equal(_sampleCompact, Text(MarshalIndent(Sample(), "", "")));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class JsonIndentTests
     {
         var stream = new MemoryStream();
         MarshalIndentWrite(stream, Sample(), "", "    ");
-        Assert.Equal(SampleIndented4, System.Text.Encoding.UTF8.GetString(stream.ToArray()));
+        Assert.Equal(_sampleIndented4, System.Text.Encoding.UTF8.GetString(stream.ToArray()));
     }
 
     [Fact]

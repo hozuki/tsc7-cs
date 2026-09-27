@@ -12,7 +12,7 @@ public class TspathStartsWithDirectoryTests
         public override string ToString() => Name;
     }
 
-    private static readonly Case[] startsWithDirectoryTests =
+    private static readonly Case[] _startsWithDirectoryTests =
     [
         new("exact match case sensitive", "/project/src/file.ts", "/project/src", true, true),
         new("exact match case insensitive", "/project/src/file.ts", "/PROJECT/SRC", false, true),
@@ -31,7 +31,7 @@ public class TspathStartsWithDirectoryTests
         new("unicode case insensitive", "/project/测试/file.ts", "/PROJECT/测试", false, true),
     ];
 
-    private static readonly Case[] startsWithDirectoryEdgeCaseTests =
+    private static readonly Case[] _startsWithDirectoryEdgeCaseTests =
     [
         new("file name shorter than directory", "/proj", "/project", true, false),
         new("file name starts with directory but no separator", "/projectsrc/file.ts", "/project", true, false),
@@ -39,9 +39,9 @@ public class TspathStartsWithDirectoryTests
         new("absolute vs relative", "/project/src/file.ts", "project/src", true, false),
     ];
 
-    public static IEnumerable<object[]> StartsWithDirectoryData() => AsRows(startsWithDirectoryTests);
+    public static IEnumerable<object[]> StartsWithDirectoryData() => AsRows(_startsWithDirectoryTests);
 
-    public static IEnumerable<object[]> StartsWithDirectoryEdgeCaseData() => AsRows(startsWithDirectoryEdgeCaseTests);
+    public static IEnumerable<object[]> StartsWithDirectoryEdgeCaseData() => AsRows(_startsWithDirectoryEdgeCaseTests);
 
     private static IEnumerable<object[]> AsRows(Case[] cases)
     {

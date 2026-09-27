@@ -19,7 +19,7 @@ namespace TypeScript.Tests;
 
 public class StringTests(ITestOutputHelper output)
 {
-    private const ulong maxMantissa = (1UL << 53) - 1;
+    private const ulong _maxMantissa = (1UL << 53) - 1;
 
     // Go: ryu_test.go 的 ieeeParts2Double（若入参越界则 panic → Debug.Fail）。
     private static double IeeeParts2Double(bool sign, uint ieeeExponent, ulong ieeeMantissa)
@@ -29,7 +29,7 @@ public class StringTests(ITestOutputHelper output)
             Debug.Fail("ieeeExponent > 2047");
         }
 
-        if (ieeeMantissa > maxMantissa)
+        if (ieeeMantissa > _maxMantissa)
         {
             Debug.Fail("ieeeMantissa > maxMantissa");
         }
@@ -44,15 +44,15 @@ public class StringTests(ITestOutputHelper output)
     }
 
     // Go: jsnum_test.go 的 negativeZero（package 私有变量）。
-    private static readonly double negativeZeroValue = (double)negativeZero;
+    private static readonly double _negativeZeroValue = (double)_negativeZero;
 
-    private static readonly (double Number, string Str)[] stringTests =
+    private static readonly (double Number, string Str)[] _stringTests =
     [
         (double.NaN, "NaN"),
         (double.PositiveInfinity, "Infinity"),
         (double.NegativeInfinity, "-Infinity"),
         (0, "0"),
-        (negativeZeroValue, "0"),
+        (_negativeZeroValue, "0"),
         (1, "1"),
         (-1, "-1"),
         (0.3, "0.3"),
@@ -116,13 +116,13 @@ public class StringTests(ITestOutputHelper output)
         (4.294967297, "4.294967297"),
         (4.294967298, "4.294967298"),
         (IeeeParts2Double(false, 4, 0), "1.7800590868057611e-307"),
-        (IeeeParts2Double(false, 6, maxMantissa), "2.8480945388892175e-306"),
+        (IeeeParts2Double(false, 6, _maxMantissa), "2.8480945388892175e-306"),
         (IeeeParts2Double(false, 41, 0), "2.446494580089078e-296"),
-        (IeeeParts2Double(false, 40, maxMantissa), "4.8929891601781557e-296"),
+        (IeeeParts2Double(false, 40, _maxMantissa), "4.8929891601781557e-296"),
         (IeeeParts2Double(false, 1077, 0), "18014398509481984"),
-        (IeeeParts2Double(false, 1076, maxMantissa), "36028797018963964"),
+        (IeeeParts2Double(false, 1076, _maxMantissa), "36028797018963964"),
         (IeeeParts2Double(false, 307, 0), "2.900835519859558e-216"),
-        (IeeeParts2Double(false, 306, maxMantissa), "5.801671039719115e-216"),
+        (IeeeParts2Double(false, 306, _maxMantissa), "5.801671039719115e-216"),
         (IeeeParts2Double(false, 934, 0x000FA7161A4D6E0CUL), "3.196104012172126e-27"),
         (9007199254740991.0, "9007199254740991"),
         (9007199254740992.0, "9007199254740992"),
@@ -205,7 +205,7 @@ public class StringTests(ITestOutputHelper output)
         (8796093022208.0e+3, "8796093022208000"),
     ];
 
-    private static readonly (double Number, string Str)[] fromStringTests =
+    private static readonly (double Number, string Str)[] _fromStringTests =
     [
         (double.NaN, "    NaN"),
         (double.PositiveInfinity, "Infinity    "),
@@ -222,10 +222,10 @@ public class StringTests(ITestOutputHelper output)
         (0, "0.0"),
         (0, "0.0000"),
         (0, ".0000"),
-        (negativeZeroValue, "-0"),
-        (negativeZeroValue, "-0."),
-        (negativeZeroValue, "-0.0"),
-        (negativeZeroValue, "-.0"),
+        (_negativeZeroValue, "-0"),
+        (_negativeZeroValue, "-0."),
+        (_negativeZeroValue, "-0.0"),
+        (_negativeZeroValue, "-.0"),
         (double.NaN, "."),
         (double.NaN, "e"),
         (double.NaN, ".e"),
@@ -304,9 +304,9 @@ public class StringTests(ITestOutputHelper output)
         (double.NaN, "a.0e"),
     ];
 
-    public static TheoryData<double, string> StringTestsData => ToTheoryData(stringTests);
+    public static TheoryData<double, string> StringTestsData => ToTheoryData(_stringTests);
 
-    public static TheoryData<double, string> FromStringTestsData => ToTheoryData(fromStringTests);
+    public static TheoryData<double, string> FromStringTestsData => ToTheoryData(_fromStringTests);
 
     private static TheoryData<double, string> ToTheoryData((double Number, string Str)[] tests)
     {
@@ -359,13 +359,13 @@ public class StringTests(ITestOutputHelper output)
         JsTest.SkipIfNoNodeJS();
 
         // These tests should roundtrip both ways.
-        var results = JsTest.GetStringResultsFromJS(stringTests);
-        Assert.Equal(stringTests.Length, results.Length);
-        for (var i = 0; i < stringTests.Length; i++)
+        var results = JsTest.GetStringResultsFromJS(_stringTests);
+        Assert.Equal(_stringTests.Length, results.Length);
+        for (var i = 0; i < _stringTests.Length; i++)
         {
-            output.WriteLine($"{stringTests[i].Number}");
-            JsTest.AssertEqualNumber(results[i].Number, (Number)stringTests[i].Number);
-            Assert.Equal(stringTests[i].Str, results[i].Str);
+            output.WriteLine($"{_stringTests[i].Number}");
+            JsTest.AssertEqualNumber(results[i].Number, (Number)_stringTests[i].Number);
+            Assert.Equal(_stringTests[i].Str, results[i].Str);
         }
     }
 
@@ -375,12 +375,12 @@ public class StringTests(ITestOutputHelper output)
         JsTest.SkipIfNoNodeJS();
 
         // These tests should convert the string to the same number.
-        var results = JsTest.GetStringResultsFromJS(fromStringTests);
-        Assert.Equal(fromStringTests.Length, results.Length);
-        for (var i = 0; i < fromStringTests.Length; i++)
+        var results = JsTest.GetStringResultsFromJS(_fromStringTests);
+        Assert.Equal(_fromStringTests.Length, results.Length);
+        for (var i = 0; i < _fromStringTests.Length; i++)
         {
-            output.WriteLine($"fromString \"{fromStringTests[i].Str}\"");
-            JsTest.AssertEqualNumber(results[i].Number, (Number)fromStringTests[i].Number);
+            output.WriteLine($"fromString \"{_fromStringTests[i].Str}\"");
+            JsTest.AssertEqualNumber(results[i].Number, (Number)_fromStringTests[i].Number);
         }
     }
 
@@ -390,7 +390,7 @@ public class StringTests(ITestOutputHelper output)
     {
         JsTest.SkipIfNoNodeJS();
 
-        var seeds = stringTests.Concat(fromStringTests)
+        var seeds = _stringTests.Concat(_fromStringTests)
             .Select(static test => (Number: test.Number, Str: ((Number)test.Number).String()))
             .ToArray();
         var results = JsTest.GetStringResultsFromJS(seeds);
@@ -414,7 +414,7 @@ public class StringTests(ITestOutputHelper output)
     {
         JsTest.SkipIfNoNodeJS();
 
-        var seeds = stringTests.Concat(fromStringTests)
+        var seeds = _stringTests.Concat(_fromStringTests)
             .Select(static test => (Number: 0d, Str: test.Str))
             .ToArray();
         var results = JsTest.GetStringResultsFromJS(seeds);

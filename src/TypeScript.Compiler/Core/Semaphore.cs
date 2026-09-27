@@ -37,28 +37,28 @@ public interface Semaphore
 /// <summary>Go 的 <c>UnlimitedSemaphore</c>：不限制并发（Acquire 总是立即成功）。</summary>
 public sealed class UnlimitedSemaphore : Semaphore
 {
-    private static readonly Action noop = static () => { };
+    private static readonly Action _noop = static () => { };
 
     public Action Acquire()
     {
-        return noop;
+        return _noop;
     }
 
     public (Action Release, bool Acquired) TryAcquire(Context ctx)
     {
-        return (noop, true);
+        return (_noop, true);
     }
 }
 
 /// <summary>Go 的 <c>LimitedSemaphore</c>：容量 maxConcurrency 的信号量。</summary>
 public sealed class LimitedSemaphore : Semaphore
 {
-    private static readonly Action noop = static () => { };
+    private static readonly Action _noop = static () => { };
 
     // Go: `ch chan struct{}`
-    private readonly SemaphoreSlim ch;
+    private readonly SemaphoreSlim _ch;
     // Go: `release func()`
-    private readonly Action release;
+    private readonly Action _release;
 
     internal LimitedSemaphore(int maxConcurrency)
     {
@@ -67,14 +67,14 @@ public sealed class LimitedSemaphore : Semaphore
             Debug.Fail("maxConcurrency must be positive");
         }
 
-        ch = new SemaphoreSlim(maxConcurrency, maxConcurrency);
-        release = () => ch.Release();
+        _ch = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+        _release = () => _ch.Release();
     }
 
     public Action Acquire()
     {
-        ch.Wait();
-        return release;
+        _ch.Wait();
+        return _release;
     }
 
     public (Action Release, bool Acquired) TryAcquire(Context ctx)
@@ -82,12 +82,12 @@ public sealed class LimitedSemaphore : Semaphore
         // Go: select { case s.ch <- struct{}{}: return s.release, true; case <-ctx.Done(): return func(){}, false }
         try
         {
-            ch.Wait(ctx.CancellationToken);
-            return (release, true);
+            _ch.Wait(ctx.CancellationToken);
+            return (_release, true);
         }
         catch (OperationCanceledException)
         {
-            return (noop, false);
+            return (_noop, false);
         }
     }
 }

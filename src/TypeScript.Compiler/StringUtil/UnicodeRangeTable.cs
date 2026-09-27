@@ -38,9 +38,9 @@ public sealed class UnicodeRangeTable(Range16[] r16, Range32[] r32, int latinOff
 
     // Go 标准库 unicode 包里的两个常量（unicode/tables.go）：R16 项数不超过它、或码点在 Latin-1 内时，
     // is16 改走线性扫描。两条分支结果完全相同，这里照搬只是为了与 Go 逐行对应。
-    private const int LinearMax = 18;
+    private const int _linearMax = 18;
 
-    private const int MaxLatin1 = 0xFF;
+    private const int _maxLatin1 = 0xFF;
 
     /// <summary>Go 标准库 <c>unicode.Is(rangeTab, r)</c> 的等价物。</summary>
     public bool Contains(int codePoint)
@@ -63,7 +63,7 @@ public sealed class UnicodeRangeTable(Range16[] r16, Range32[] r32, int latinOff
 
     private static bool Contains16(Range16[] ranges, int r)
     {
-        if (ranges.Length <= LinearMax || r <= MaxLatin1)
+        if (ranges.Length <= _linearMax || r <= _maxLatin1)
         {
             foreach (var range in ranges)
             {
@@ -109,7 +109,7 @@ public sealed class UnicodeRangeTable(Range16[] r16, Range32[] r32, int latinOff
     private static bool Contains32(Range32[] ranges, int r)
     {
         var u = (uint)r;
-        if (ranges.Length <= LinearMax)
+        if (ranges.Length <= _linearMax)
         {
             foreach (var range in ranges)
             {

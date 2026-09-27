@@ -37,20 +37,20 @@ namespace TypeScript.Collections;
 /// </summary>
 public sealed class CopyOnWriteMap<K, V> where K : notnull
 {
-    private Dictionary<K, V> m;
-    private bool owned;
+    private Dictionary<K, V> _m;
+    private bool _owned;
 
     /// <summary>Go 的零值 <c>CopyOnWriteMap[K,V]{}</c>；C# 里对应 <c>new CopyOnWriteMap&lt;K,V&gt;()</c>。</summary>
     public CopyOnWriteMap()
     {
-        m = new Dictionary<K, V>();
-        owned = true;
+        _m = new Dictionary<K, V>();
+        _owned = true;
     }
 
     /// <summary>Get returns the value for k and whether it was present.</summary>
     public (V? Value, bool Ok) Get(K k)
     {
-        if (m.TryGetValue(k, out var value))
+        if (_m.TryGetValue(k, out var value))
         {
             return (value, true);
         }
@@ -61,26 +61,26 @@ public sealed class CopyOnWriteMap<K, V> where K : notnull
     /// <summary>Has reports whether k is in the map.</summary>
     public bool Has(K k)
     {
-        return m.ContainsKey(k);
+        return _m.ContainsKey(k);
     }
 
     /// <summary>Set assigns v to k, cloning the inherited backing map first if necessary.</summary>
     public void Set(K k, V v)
     {
         EnsureOwned();
-        m[k] = v;
+        _m[k] = v;
     }
 
     private void EnsureOwned()
     {
-        if (owned)
+        if (_owned)
         {
             return;
         }
 
         // Go: if c.m == nil { c.m = make(map[K]V) } else { c.m = maps.Clone(c.m) }（见文件头第 3 条）
-        m = new Dictionary<K, V>(m);
-        owned = true;
+        _m = new Dictionary<K, V>(_m);
+        _owned = true;
     }
 
     /// <summary>
@@ -93,13 +93,13 @@ public sealed class CopyOnWriteMap<K, V> where K : notnull
     public Action EnterScope()
     {
         // Go: saved := *c; c.owned = false; return func() { *c = saved }
-        var savedMap = m;
-        var savedOwned = owned;
-        owned = false;
+        var savedMap = _m;
+        var savedOwned = _owned;
+        _owned = false;
         return () =>
         {
-            m = savedMap;
-            owned = savedOwned;
+            _m = savedMap;
+            _owned = savedOwned;
         };
     }
 }
@@ -108,23 +108,23 @@ public sealed class CopyOnWriteMap<K, V> where K : notnull
 public sealed class CopyOnWriteSet<K> where K : notnull
 {
     // Go: `m CopyOnWriteMap[K, struct{}]`（C# 没有零尺寸类型，用 byte 占位）
-    private readonly CopyOnWriteMap<K, byte> m = new();
+    private readonly CopyOnWriteMap<K, byte> _m = new();
 
     /// <summary>Has reports whether k is in the set.</summary>
     public bool Has(K k)
     {
-        return m.Has(k);
+        return _m.Has(k);
     }
 
     /// <summary>Set adds k to the set, cloning the inherited backing map first if necessary.</summary>
     public void Add(K k)
     {
-        m.Set(k, 0);
+        _m.Set(k, 0);
     }
 
     /// <summary>EnterScope returns a function that restores this set to its current state.</summary>
     public Action EnterScope()
     {
-        return m.EnterScope();
+        return _m.EnterScope();
     }
 }

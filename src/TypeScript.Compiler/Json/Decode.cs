@@ -150,7 +150,7 @@ internal static class JsonDecode
     {
         decoder.Read();
         var map = new Dictionary<string, object?>(StringComparer.Ordinal);
-        HashSet<string>? seen = settings.AllowDuplicateNames ? null : new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string>? seen = settings._allowDuplicateNames ? null : new HashSet<string>(StringComparer.Ordinal);
         while (decoder.PeekKind() != JsonKind.EndObject)
         {
             var name = decoder.ReadName();
@@ -193,7 +193,7 @@ internal static class JsonDecode
         decoder.Read();
         var (keyType, valueType) = DictionaryTypes(target.GetType());
         target.Clear();
-        HashSet<string>? seen = settings.AllowDuplicateNames ? null : new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string>? seen = settings._allowDuplicateNames ? null : new HashSet<string>(StringComparer.Ordinal);
         while (decoder.PeekKind() != JsonKind.EndObject)
         {
             var name = decoder.ReadName();

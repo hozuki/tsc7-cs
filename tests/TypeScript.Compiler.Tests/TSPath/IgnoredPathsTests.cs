@@ -12,7 +12,7 @@ public class TspathIgnoredPathsTests
         public override string ToString() => Name;
     }
 
-    private static readonly Case[] tests =
+    private static readonly Case[] _tests =
     [
         new("node_modules dot path", "/project/node_modules/.pnpm/file.ts", true),
         new("git directory", "/project/.git/hooks/pre-commit", true),
@@ -27,7 +27,7 @@ public class TspathIgnoredPathsTests
         new("path with ignored pattern at end", "/project/src/file.ts.#", true),
     ];
 
-    private static readonly Case[] edgeCases =
+    private static readonly Case[] _edgeCases =
     [
         // Pattern is "/node_modules/." not "/node_modules."
         new("pattern at start", "/node_modules./file.ts", false),
@@ -37,9 +37,9 @@ public class TspathIgnoredPathsTests
         new("single slash", "/file.ts", false),
     ];
 
-    public static IEnumerable<object[]> ContainsIgnoredPathData() => AsRows(tests);
+    public static IEnumerable<object[]> ContainsIgnoredPathData() => AsRows(_tests);
 
-    public static IEnumerable<object[]> IgnoredPathsEdgeCaseData() => AsRows(edgeCases);
+    public static IEnumerable<object[]> IgnoredPathsEdgeCaseData() => AsRows(_edgeCases);
 
     private static IEnumerable<object[]> AsRows(Case[] cases)
     {

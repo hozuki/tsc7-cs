@@ -165,8 +165,8 @@ public static partial class StringUtil
 
     public static int GuessIndentation(string[] lines)
     {
-        const int MAX_SMI_X86 = 0x3fff_ffff;
-        var indentation = MAX_SMI_X86;
+        const int maxSmiX86 = 0x3fff_ffff;
+        var indentation = maxSmiX86;
         foreach (var line in lines)
         {
             if (line.Length == 0)
@@ -197,7 +197,7 @@ public static partial class StringUtil
             }
         }
 
-        if (indentation == MAX_SMI_X86)
+        if (indentation == maxSmiX86)
         {
             return 0;
         }
@@ -222,14 +222,14 @@ public static partial class StringUtil
             }
 
             builder.Append('%');
-            builder.Append(upperhex[b >> 4]);
-            builder.Append(upperhex[b & 0x0f]);
+            builder.Append(_upperhex[b >> 4]);
+            builder.Append(_upperhex[b & 0x0f]);
         }
 
         return builder.ToString();
     }
 
-    private const string upperhex = "0123456789ABCDEF";
+    private const string _upperhex = "0123456789ABCDEF";
 
     private static bool ShouldEscapeForEncodeURI(byte b)
     {
@@ -327,7 +327,7 @@ public static partial class StringUtil
         return name;
     }
 
-    private static readonly Regex matchSlashSomething = new(@"\\.", RegexOptions.CultureInvariant);
+    private static readonly Regex _matchSlashSomething = new(@"\\.", RegexOptions.CultureInvariant);
 
     // Go: func matchSlashReplacer(in string) string —— 取匹配串去掉第一个字符（反斜杠）之后的部分。
     // C# 的 Regex.Replace 只接受 MatchEvaluator（参数是 Match），所以这里多一步 match.Value。
@@ -342,7 +342,7 @@ public static partial class StringUtil
         var inner = StripQuotes(str);
         // In strada we do str.replace(/\\./g, s => s.substring(1)) - which is to say, replace all backslash-something with just something
         // That's replicated here faithfully, but it seems wrong! This should probably be an actual unquote operation?
-        return matchSlashSomething.Replace(inner, MatchSlashReplacer);
+        return _matchSlashSomething.Replace(inner, MatchSlashReplacer);
     }
 
     public static string LowerFirstChar(string str)

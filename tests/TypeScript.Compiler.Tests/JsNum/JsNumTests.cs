@@ -16,12 +16,12 @@ namespace TypeScript.Tests;
 
 public class JsNumTests(ITestOutputHelper output)
 {
-    private static readonly double negativeZeroValue = (double)negativeZero;
+    private static readonly double _negativeZeroValue = (double)_negativeZero;
 
     public static TheoryData<string, double, int> ToInt32Tests => new()
     {
         { "0.0", 0, 0 },
-        { "-0.0", negativeZeroValue, 0 },
+        { "-0.0", _negativeZeroValue, 0 },
         { "NaN", double.NaN, 0 },
         { "+Inf", double.PositiveInfinity, 0 },
         { "-Inf", double.NegativeInfinity, 0 },
@@ -340,9 +340,9 @@ public class JsNumTests(ITestOutputHelper output)
         { 123, double.PositiveInfinity, 123 },
         { 123, double.NegativeInfinity, 123 },
         { 123, 0, double.NaN },
-        { 123, negativeZeroValue, double.NaN },
+        { 123, _negativeZeroValue, double.NaN },
         { 0, 123, 0 },
-        { negativeZeroValue, 123, negativeZeroValue },
+        { _negativeZeroValue, 123, _negativeZeroValue },
         // Normal cases
         { 10, 3, 1 },
         { -10, 3, -1 },
@@ -351,7 +351,7 @@ public class JsNumTests(ITestOutputHelper output)
         { 5.5, 2, 1.5 },
         { -5.5, 2, -1.5 },
         { 1, 0.5, 0 },
-        { -1, 0.5, negativeZeroValue },
+        { -1, 0.5, _negativeZeroValue },
         { 1.5, 1, 0.5 },
         { -1.5, 1, -0.5 },
         // Edge cases that prove the bug in the manual formula:
@@ -392,14 +392,14 @@ public class JsNumTests(ITestOutputHelper output)
         { double.PositiveInfinity, -5, 0 },
         { double.NegativeInfinity, 3, double.NegativeInfinity },
         { double.NegativeInfinity, 4, double.PositiveInfinity },
-        { double.NegativeInfinity, -3, negativeZeroValue },
+        { double.NegativeInfinity, -3, _negativeZeroValue },
         { double.NegativeInfinity, -4, 0 },
         { 0, 3, 0 },
         { 0, -10, double.PositiveInfinity },
-        { negativeZeroValue, 3, negativeZeroValue },
-        { negativeZeroValue, 4, 0 },
-        { negativeZeroValue, -3, double.NegativeInfinity },
-        { negativeZeroValue, -4, double.PositiveInfinity },
+        { _negativeZeroValue, 3, _negativeZeroValue },
+        { _negativeZeroValue, 4, 0 },
+        { _negativeZeroValue, -3, double.NegativeInfinity },
+        { _negativeZeroValue, -4, double.PositiveInfinity },
         { 3, double.PositiveInfinity, double.PositiveInfinity },
         { -3, double.PositiveInfinity, double.PositiveInfinity },
         { 3, double.NegativeInfinity, 0 },

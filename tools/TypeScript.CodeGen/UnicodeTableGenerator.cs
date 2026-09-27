@@ -20,24 +20,24 @@ namespace TypeScript.CodeGen;
 internal static class UnicodeTableGenerator
 {
     // 输入：TSGO 里已提交的生成文件（相对 TSGO 根目录）。
-    private const string IdentifierGoPath = "tsc/internal/stringutil/identifier_parts_generated.go";
-    private const string JsCaseGoPath = "tsc/internal/stringutil/js_case_generated.go";
+    private const string _identifierGoPath = "tsc/internal/stringutil/identifier_parts_generated.go";
+    private const string _jsCaseGoPath = "tsc/internal/stringutil/js_case_generated.go";
 
     // 对应 TSGO 仓库内路径（写进生成文件头部与 // ported from:）。
-    private const string IdentifierPortedFrom = "internal/stringutil/identifier_parts_generated.go";
-    private const string JsCasePortedFrom = "internal/stringutil/js_case_generated.go";
+    private const string _identifierPortedFrom = "internal/stringutil/identifier_parts_generated.go";
+    private const string _jsCasePortedFrom = "internal/stringutil/js_case_generated.go";
 
-    private static readonly Regex RangeEntryRegex = new(
+    private static readonly Regex _rangeEntryRegex = new(
         @"\{\s*0x([0-9A-Fa-f]+)\s*,\s*0x([0-9A-Fa-f]+)\s*,\s*([0-9]+)\s*\}",
         RegexOptions.CultureInvariant);
 
-    private static readonly Regex LatinOffsetRegex = new(@"LatinOffset:\s*([0-9]+)", RegexOptions.CultureInvariant);
+    private static readonly Regex _latinOffsetRegex = new(@"LatinOffset:\s*([0-9]+)", RegexOptions.CultureInvariant);
 
-    private static readonly Regex MapEntryRegex = new(
+    private static readonly Regex _mapEntryRegex = new(
         @"^0x([0-9A-Fa-f]+):\s*\{(.*)\},?$",
         RegexOptions.CultureInvariant);
 
-    private static readonly Regex MapFieldRegex = new(
+    private static readonly Regex _mapFieldRegex = new(
         @"([A-Za-z_][A-Za-z0-9_]*):\s*(""(?:[^""\\]|\\.)*""|[A-Za-z_][A-Za-z0-9_]*)",
         RegexOptions.CultureInvariant);
 
@@ -48,8 +48,8 @@ internal static class UnicodeTableGenerator
         var identifierOutput = Path.Combine(outDir, "IdentifierParts.Generated.cs");
         var jsCaseOutput = Path.Combine(outDir, "SpecialCasing.Generated.cs");
 
-        var identifierText = RenderIdentifierFile(ReadInput(tsgoRoot, IdentifierGoPath));
-        var jsCaseText = RenderJsCaseFile(ReadInput(tsgoRoot, JsCaseGoPath));
+        var identifierText = RenderIdentifierFile(ReadInput(tsgoRoot, _identifierGoPath));
+        var jsCaseText = RenderJsCaseFile(ReadInput(tsgoRoot, _jsCaseGoPath));
 
         var written = new List<string>();
         if (WriteIfChanged(identifierOutput, identifierText))
@@ -96,7 +96,7 @@ internal static class UnicodeTableGenerator
         var part = ParseRangeTable(goText, "unicodeESNextIdentifierPart");
 
         var sb = new StringBuilder();
-        AppendHeader(sb, IdentifierGoPath, IdentifierPortedFrom);
+        AppendHeader(sb, _identifierGoPath, _identifierPortedFrom);
         sb.Append("namespace TypeScript.StringUtil;\n\n");
         sb.Append("public static partial class StringUtil\n{\n");
         AppendRangeTable(sb, "UnicodeESNextIdentifierStart", start);
@@ -113,7 +113,7 @@ internal static class UnicodeTableGenerator
         var caseIgnorable = ParseRangeTable(goText, "unicodeCaseIgnorableRanges");
 
         var sb = new StringBuilder();
-        AppendHeader(sb, JsCaseGoPath, JsCasePortedFrom);
+        AppendHeader(sb, _jsCaseGoPath, _jsCasePortedFrom);
         sb.Append("namespace TypeScript.StringUtil;\n\n");
         // Go: type specialCasingCondition uint8
         sb.Append("internal enum SpecialCasingCondition : byte\n{\n");
@@ -186,7 +186,7 @@ internal static class UnicodeTableGenerator
         var table = new RangeTable();
         ParseRanges(SliceBracedBlock(tableBody, "R16: []unicode.Range16{"), table.R16);
         ParseRanges(SliceBracedBlock(tableBody, "R32: []unicode.Range32{"), table.R32);
-        var latinOffsetMatch = LatinOffsetRegex.Match(tableBody);
+        var latinOffsetMatch = _latinOffsetRegex.Match(tableBody);
         if (!latinOffsetMatch.Success)
         {
             throw new InvalidDataException($"{variableName}: 找不到 LatinOffset。");
@@ -198,7 +198,7 @@ internal static class UnicodeTableGenerator
 
     private static void ParseRanges(string body, List<RangeEntry> ranges)
     {
-        foreach (Match match in RangeEntryRegex.Matches(body))
+        foreach (Match match in _rangeEntryRegex.Matches(body))
         {
             ranges.Add(new RangeEntry(
                 ParseHex(match.Groups[1].Value),
@@ -219,7 +219,7 @@ internal static class UnicodeTableGenerator
                 continue;
             }
 
-            var entryMatch = MapEntryRegex.Match(line);
+            var entryMatch = _mapEntryRegex.Match(line);
             if (!entryMatch.Success)
             {
                 throw new InvalidDataException($"无法解析 specialCasingMappings 条目：{line}");
@@ -234,7 +234,7 @@ internal static class UnicodeTableGenerator
                 Condition = "None", // Go 的零值是 specialCasingConditionNone
             };
 
-            foreach (Match field in MapFieldRegex.Matches(entryMatch.Groups[2].Value))
+            foreach (Match field in _mapFieldRegex.Matches(entryMatch.Groups[2].Value))
             {
                 var value = field.Groups[2].Value;
                 switch (field.Groups[1].Value)

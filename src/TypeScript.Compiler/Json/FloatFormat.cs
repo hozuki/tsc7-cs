@@ -15,7 +15,7 @@ namespace TypeScript.Json;
 
 internal static class FloatFormat
 {
-    private const string HexDigits = "0123456789abcdef";
+    private const string _hexDigits = "0123456789abcdef";
 
     // Go 的 strconv.FormatFloat(f, 'f'|'e', -1, 64) + json 的 'f'/'e' 选择。
     internal static string Format(double value)
@@ -169,7 +169,7 @@ internal static class FloatFormat
         var count = 0;
         do
         {
-            reverse[count++] = HexDigits[exponent % 10];
+            reverse[count++] = _hexDigits[exponent % 10];
             exponent /= 10;
         }
         while (exponent > 0);

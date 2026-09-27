@@ -197,7 +197,7 @@ public static partial class JsNum
     //
     // Go 里声明后从未被使用（tryParseInt 的三个分支都不用它）；C# 侧保留同名对应物以免将来同步 Go 时
     // 丢失这个符号。error 值在 C# 里的对应物是消息字符串（这里没有任何抛出点），所以类型是 string。
-    internal static readonly string errUnknownPrefix = "unknown number prefix";
+    internal static readonly string _errUnknownPrefix = "unknown number prefix";
 
     internal static bool TryParseInt(string s, out Number value)
     {

@@ -14,27 +14,27 @@ namespace TypeScript.Json;
 
 public sealed class Encoder : IDisposable
 {
-    private readonly Utf8JsonWriter writer;
-    private readonly OutputFilterStream filter;
-    private readonly JsonSettings settings;
+    private readonly Utf8JsonWriter _writer;
+    private readonly OutputFilterStream _filter;
+    private readonly JsonSettings _settings;
 
-    private byte[] stack = new byte[16];
-    private int depth;
-    private bool expectName;
-    private bool disposed;
+    private byte[] _stack = new byte[16];
+    private int _depth;
+    private bool _expectName;
+    private bool _disposed;
 
     public Encoder(Stream output, params JsonOptions[] options)
     {
-        settings = JsonSettings.From(options);
-        filter = new OutputFilterStream(output, settings);
-        writer = new Utf8JsonWriter(filter, CreateWriterOptions(settings));
+        _settings = JsonSettings.From(options);
+        _filter = new OutputFilterStream(output, _settings);
+        _writer = new Utf8JsonWriter(_filter, CreateWriterOptions(_settings));
     }
 
     // 编码期选项（Deterministic 等）；MarshalEncode 在没给 opts 时沿用这里的配置。
-    internal JsonSettings Settings => settings;
+    internal JsonSettings Settings => _settings;
 
     // Go 的 jsontext.Encoder.StackDepth()：当前容器的嵌套深度（顶层值时为 0）。
-    public int StackDepth => depth;
+    public int StackDepth => _depth;
 
     // Go 的 jsontext.Encoder.WriteToken(Token)：写一个 token。
     // 与 Go 一样，String token 在对象里处于“等属性名”位置时写成属性名，否则写成字符串值。
@@ -64,7 +64,7 @@ public sealed class Encoder : IDisposable
                 WriteBoolValue(false);
                 break;
             case JsonKind.String:
-                if (expectName)
+                if (_expectName)
                 {
                     WriteName(token.StringValue);
                 }
@@ -89,7 +89,7 @@ public sealed class Encoder : IDisposable
         var indent = RawValueIndent();
         if (indent.Length == 0)
         {
-            writer.WriteRawValue(json);
+            _writer.WriteRawValue(json);
         }
         else
         {
@@ -97,7 +97,7 @@ public sealed class Encoder : IDisposable
             var buffer = new byte[prefix.Length + json.Length];
             prefix.CopyTo(buffer, 0);
             json.CopyTo(buffer.AsSpan(prefix.Length));
-            writer.WriteRawValue(buffer);
+            _writer.WriteRawValue(buffer);
         }
 
         AfterValue();
@@ -107,28 +107,28 @@ public sealed class Encoder : IDisposable
     {
         EnsureCanWriteValue();
         var indent = RawValueIndent();
-        writer.WriteRawValue(indent.Length == 0 ? json : indent + json);
+        _writer.WriteRawValue(indent.Length == 0 ? json : indent + json);
         AfterValue();
     }
 
     // Go 的 jsontext.Encoder：Flush 把缓冲的字节写到底层 writer（io.Writer → C# Stream）。
     public void Flush()
     {
-        writer.Flush();
-        filter.Flush();
+        _writer.Flush();
+        _filter.Flush();
     }
 
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
 
-        disposed = true;
-        writer.Flush();
-        writer.Dispose();
-        filter.Flush();
+        _disposed = true;
+        _writer.Flush();
+        _writer.Dispose();
+        _filter.Flush();
     }
 
     // ---- 映射层（Encode.cs）用的写入原语；同时维护 token 级状态 ----
@@ -136,14 +136,14 @@ public sealed class Encoder : IDisposable
     internal void StartObject()
     {
         EnsureCanWriteValue();
-        writer.WriteStartObject();
+        _writer.WriteStartObject();
         Push((byte)'{');
-        expectName = true;
+        _expectName = true;
     }
 
     internal void EndObject()
     {
-        writer.WriteEndObject();
+        _writer.WriteEndObject();
         Pop();
         AfterValue();
     }
@@ -151,49 +151,49 @@ public sealed class Encoder : IDisposable
     internal void StartArray()
     {
         EnsureCanWriteValue();
-        writer.WriteStartArray();
+        _writer.WriteStartArray();
         Push((byte)'[');
-        expectName = false;
+        _expectName = false;
     }
 
     internal void EndArray()
     {
-        writer.WriteEndArray();
+        _writer.WriteEndArray();
         Pop();
         AfterValue();
     }
 
     internal void WriteName(string name)
     {
-        writer.WritePropertyName(name);
-        expectName = false;
+        _writer.WritePropertyName(name);
+        _expectName = false;
     }
 
     internal void WriteStringValue(string value)
     {
         // 与 Go 的 jsontext 一致：String token 落在“等属性名”位置时写成属性名
         //（internal/collections/ordered_map.go 的 `json.MarshalEncode(enc, key)` 依赖这一点）。
-        if (expectName)
+        if (_expectName)
         {
             WriteName(value);
             return;
         }
 
-        writer.WriteStringValue(value);
+        _writer.WriteStringValue(value);
         AfterValue();
     }
 
     internal void WriteBoolValue(bool value)
     {
         EnsureCanWriteValue();
-        writer.WriteBooleanValue(value);
+        _writer.WriteBooleanValue(value);
         AfterValue();
     }
 
     internal void WriteNullValue()
     {
         EnsureCanWriteValue();
-        writer.WriteNullValue();
+        _writer.WriteNullValue();
         AfterValue();
     }
 
@@ -202,7 +202,7 @@ public sealed class Encoder : IDisposable
     {
         EnsureCanWriteValue();
         var indent = RawValueIndent();
-        writer.WriteRawValue(indent.Length == 0 ? json : indent + json);
+        _writer.WriteRawValue(indent.Length == 0 ? json : indent + json);
         AfterValue();
     }
 
@@ -211,22 +211,22 @@ public sealed class Encoder : IDisposable
     // NeedsReindent（非空格/制表符缩进或带 prefix）时 writer 用 IndentSize=1，交给 OutputFilterStream 重排。
     private string RawValueIndent()
     {
-        if (!settings.HasIndent || depth == 0 || stack[depth - 1] != (byte)'[')
+        if (!_settings._hasIndent || _depth == 0 || _stack[_depth - 1] != (byte)'[')
         {
             return "";
         }
 
         var builder = new StringBuilder();
         builder.Append('\n');
-        if (settings.NeedsReindent)
+        if (_settings.NeedsReindent)
         {
-            builder.Append(' ', depth);
+            builder.Append(' ', _depth);
         }
         else
         {
-            for (var i = 0; i < depth; i++)
+            for (var i = 0; i < _depth; i++)
             {
-                builder.Append(settings.Indent);
+                builder.Append(_settings._indent);
             }
         }
 
@@ -237,12 +237,12 @@ public sealed class Encoder : IDisposable
     {
         var options = new JsonWriterOptions
         {
-            Indented = settings.HasIndent,
+            Indented = settings._hasIndent,
             NewLine = "\n",
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
 
-        if (settings.HasIndent)
+        if (settings._hasIndent)
         {
             if (settings.NeedsReindent)
             {
@@ -253,12 +253,12 @@ public sealed class Encoder : IDisposable
             else if (settings.IndentIsTab)
             {
                 options.IndentCharacter = '\t';
-                options.IndentSize = settings.Indent.Length;
+                options.IndentSize = settings._indent.Length;
             }
             else
             {
                 options.IndentCharacter = ' ';
-                options.IndentSize = Math.Max(settings.Indent.Length, 1);
+                options.IndentSize = Math.Max(settings._indent.Length, 1);
             }
         }
 
@@ -267,27 +267,27 @@ public sealed class Encoder : IDisposable
 
     private void Push(byte container)
     {
-        if (depth == stack.Length)
+        if (_depth == _stack.Length)
         {
-            Array.Resize(ref stack, stack.Length * 2);
+            Array.Resize(ref _stack, _stack.Length * 2);
         }
 
-        stack[depth++] = container;
+        _stack[_depth++] = container;
     }
 
     private void Pop()
     {
-        if (depth == 0)
+        if (_depth == 0)
         {
             throw new JsonException("json: unbalanced end of object/array");
         }
 
-        depth--;
+        _depth--;
     }
 
     private void EnsureCanWriteValue()
     {
-        if (expectName)
+        if (_expectName)
         {
             throw new JsonException("json: cannot write a value when a property name is expected");
         }
@@ -295,6 +295,6 @@ public sealed class Encoder : IDisposable
 
     private void AfterValue()
     {
-        expectName = depth > 0 && stack[depth - 1] == (byte)'{';
+        _expectName = _depth > 0 && _stack[_depth - 1] == (byte)'{';
     }
 }

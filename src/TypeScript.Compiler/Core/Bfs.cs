@@ -44,44 +44,44 @@ public struct BreadthFirstSearchResult<N>
 
 internal sealed class BreadthFirstSearchJob<N>
 {
-    internal readonly N node;
-    internal readonly BreadthFirstSearchJob<N>? parent;
+    internal readonly N _node;
+    internal readonly BreadthFirstSearchJob<N>? _parent;
 
     internal BreadthFirstSearchJob(N node, BreadthFirstSearchJob<N>? parent)
     {
-        this.node = node;
-        this.parent = parent;
+        this._node = node;
+        this._parent = parent;
     }
 }
 
 public sealed class BreadthFirstSearchLevel<K, N> where K : notnull
 {
     // Go: `jobs *collections.OrderedMap[K, *breadthFirstSearchJob[N]]`
-    internal readonly OrderedMap<K, BreadthFirstSearchJob<N>> jobs;
+    internal readonly OrderedMap<K, BreadthFirstSearchJob<N>> _jobs;
 
     internal BreadthFirstSearchLevel(OrderedMap<K, BreadthFirstSearchJob<N>> jobs)
     {
-        this.jobs = jobs;
+        this._jobs = jobs;
     }
 
     public bool Has(K key)
     {
-        return jobs.Has(key);
+        return _jobs.Has(key);
     }
 
     public void Delete(K key)
     {
-        jobs.Delete(key);
+        _jobs.Delete(key);
     }
 
     public void Range(Func<N, bool> f)
     {
-        foreach (var job in jobs.Values())
+        foreach (var job in _jobs.Values())
         {
             // OrderedMap.Values() 的元素类型是 V?（Go 零值语义的注解）；本文件构造的 jobs 里每个值都是
             // `new BreadthFirstSearchJob<N>(...)`（BreadthFirstSearchLevel 的构造器是 internal，只有本文件用），
             // 永不为 null，故这里的非空断言在同一文件内是可证的。
-            if (!f(job!.node))
+            if (!f(job!._node))
             {
                 return;
             }
@@ -172,7 +172,7 @@ public static partial class Core
                     }
 
                     // If we have already visited this node, skip it.
-                    if (!visited.AddIfAbsent(getKey(j.node)))
+                    if (!visited.AddIfAbsent(getKey(j._node)))
                     {
                         // Note that if we are here, we already visited this node at a
                         // previous *level*, which means `visit` must have returned false,
@@ -181,7 +181,7 @@ public static partial class Core
                         return;
                     }
 
-                    var (isResult, stop) = visit(j.node);
+                    var (isResult, stop) = visit(j._node);
                     if (isResult)
                     {
                         // We found a result, so we will stop at this level, but an
@@ -207,7 +207,7 @@ public static partial class Core
                     }
 
                     // Add the next level jobs
-                    var neighborNodes = neighbors(j.node);
+                    var neighborNodes = neighbors(j._node);
                     if (neighborNodes.Length > 0)
                     {
                         Interlocked.Add(ref nextJobCount, neighborNodes.Length);
@@ -247,11 +247,11 @@ public static partial class Core
 
                 foreach (var j in jobsAtSlot)
                 {
-                    if (!nextJobs.Has(getKey(j.node)))
+                    if (!nextJobs.Has(getKey(j._node)))
                     {
                         // Deduplicate synchronously to avoid messy locks and spawning
                         // unnecessary goroutines.
-                        nextJobs.Set(getKey(j.node), j);
+                        nextJobs.Set(getKey(j._node), j);
                     }
                 }
             }
@@ -270,8 +270,8 @@ public static partial class Core
             var path = new List<N>();
             while (job is not null)
             {
-                path.Add(job.node);
-                job = job.parent;
+                path.Add(job._node);
+                job = job._parent;
             }
 
             return path.ToArray();

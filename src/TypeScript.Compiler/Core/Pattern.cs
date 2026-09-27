@@ -17,13 +17,13 @@ namespace TypeScript.Core;
 
 public struct Pattern
 {
-    private string? text;
+    private string? _text;
 
     /// <summary>Go 的 <c>Pattern.Text</c>（Go 的零值是空串，这里把 null 归一成空串）。</summary>
     public string Text
     {
-        get => text ?? "";
-        set => text = value;
+        get => _text ?? "";
+        set => _text = value;
     }
 
     public int StarIndex; // -1 for exact match

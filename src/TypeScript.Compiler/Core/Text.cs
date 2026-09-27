@@ -76,72 +76,72 @@ public readonly struct ECMALineStarts(TextPos[] items)
 /// <summary>Go 的 <c>type TextRange struct { pos, end TextPos }</c>。</summary>
 public readonly struct TextRange : IEquatable<TextRange>
 {
-    private readonly TextPos pos;
-    private readonly TextPos end;
+    private readonly TextPos _pos;
+    private readonly TextPos _end;
 
     // Go 的复合字面量 TextRange{pos: …, end: …} 只在 core 包内可用；C# 的 internal 是程序集可见，
     // 比 Go 的包可见性宽一点（同程序集的其它 package 也能构造），与 Collections.OrderedMap 一致。
     internal TextRange(int pos, int end)
     {
-        this.pos = new TextPos(pos);
-        this.end = new TextPos(end);
+        this._pos = new TextPos(pos);
+        this._end = new TextPos(end);
     }
 
     public int Pos()
     {
-        return pos.Value;
+        return _pos.Value;
     }
 
     public int End()
     {
-        return end.Value;
+        return _end.Value;
     }
 
     public int Len()
     {
-        return end.Value - pos.Value;
+        return _end.Value - _pos.Value;
     }
 
     public bool IsValid()
     {
-        return pos.Value >= 0 || end.Value >= 0;
+        return _pos.Value >= 0 || _end.Value >= 0;
     }
 
     public bool Contains(int pos)
     {
-        return pos >= this.pos.Value && pos < end.Value;
+        return pos >= this._pos.Value && pos < _end.Value;
     }
 
     public bool ContainsInclusive(int pos)
     {
-        return pos >= this.pos.Value && pos <= end.Value;
+        return pos >= this._pos.Value && pos <= _end.Value;
     }
 
     public bool ContainsExclusive(int pos)
     {
-        return this.pos.Value < pos && pos < end.Value;
+        return this._pos.Value < pos && pos < _end.Value;
     }
 
     public TextRange WithPos(int pos)
     {
-        return new TextRange(pos, end.Value);
+        return new TextRange(pos, _end.Value);
     }
 
     public TextRange WithEnd(int end)
     {
-        return new TextRange(pos.Value, end);
+        return new TextRange(_pos.Value, end);
     }
 
     public bool ContainedBy(TextRange t2)
     {
-        return t2.pos.Value <= pos.Value && t2.end.Value >= end.Value;
+        return t2._pos.Value <= _pos.Value && t2._end.Value >= _end.Value;
     }
 
     public bool Overlaps(TextRange t2)
     {
         // Go 的 max/min 内建在这里换成分支，避免 Math.Max/Min 的重载在 TextPos 上做隐式转换解析。
-        var start = pos.Value > t2.pos.Value ? pos.Value : t2.pos.Value;
-        var stop = end.Value < t2.end.Value ? end.Value : t2.end.Value;
+        var start = _pos.Value > t2._pos.Value ? _pos.Value : t2._pos.Value;
+        var stop = _end.Value < t2._end.Value ? _end.Value : t2._end.Value;
         return start < stop;
     }
 
@@ -149,16 +149,16 @@ public readonly struct TextRange : IEquatable<TextRange>
     // For example, [0, 5) intersects [5, 10).
     public bool Intersects(TextRange t2)
     {
-        var start = pos.Value > t2.pos.Value ? pos.Value : t2.pos.Value;
-        var stop = end.Value < t2.end.Value ? end.Value : t2.end.Value;
+        var start = _pos.Value > t2._pos.Value ? _pos.Value : t2._pos.Value;
+        var stop = _end.Value < t2._end.Value ? _end.Value : t2._end.Value;
         return start <= stop;
     }
 
-    public bool Equals(TextRange other) => pos.Value == other.pos.Value && end.Value == other.end.Value;
+    public bool Equals(TextRange other) => _pos.Value == other._pos.Value && _end.Value == other._end.Value;
 
     public override bool Equals(object? obj) => obj is TextRange other && Equals(other);
 
-    public override int GetHashCode() => HashCode.Combine(pos.Value, end.Value);
+    public override int GetHashCode() => HashCode.Combine(_pos.Value, _end.Value);
 
     public static bool operator ==(TextRange left, TextRange right) => left.Equals(right);
 

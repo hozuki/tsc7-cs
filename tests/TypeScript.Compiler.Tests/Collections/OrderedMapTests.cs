@@ -34,9 +34,9 @@ public class CollectionsOrderedMapTests
 
         Assert.False(m.Has(1));
 
-        const int N = 1000;
+        const int n = 1000;
         const int start = 1;
-        const int end = start + N;
+        const int end = start + n;
 
         // Seed the map with ascending keys and values for easier testing.
         for (var i = start; i < end; i++)
@@ -44,7 +44,7 @@ public class CollectionsOrderedMapTests
             m.Set(i, PadInt(i));
         }
 
-        Assert.Equal(N, m.Size());
+        Assert.Equal(n, m.Size());
 
         // Attempt to overwrite existing keys in reverse order.
         for (var i = end - 1; i >= start; i--)
@@ -52,7 +52,7 @@ public class CollectionsOrderedMapTests
             m.Set(i, PadInt(i));
         }
 
-        Assert.Equal(N, m.Size());
+        Assert.Equal(n, m.Size());
 
         for (var i = start; i < end; i++)
         {
@@ -67,11 +67,11 @@ public class CollectionsOrderedMapTests
         }
 
         var keys = m.Keys().ToArray(); // Go: slices.Collect(m.Keys())
-        Assert.Equal(N, keys.Length);
+        Assert.Equal(n, keys.Length);
         Assert.True(IsSorted(keys)); // Go: slices.IsSorted(keys)
 
         var values = m.Values().ToArray(); // Go: slices.Collect(m.Values())
-        Assert.Equal(N, values.Length);
+        Assert.Equal(n, values.Length);
         Assert.True(IsSorted(values));
 
         var firstKey = 0;
@@ -171,15 +171,15 @@ public class CollectionsOrderedMapTests
     [Fact]
     public void TestOrderedMapWithSizeHint()
     {
-        const int N = 1024;
+        const int n = 1024;
 
-        var m = NewOrderedMapWithSizeHint<int, int>(N);
-        for (var i = 0; i < N; i++)
+        var m = NewOrderedMapWithSizeHint<int, int>(n);
+        for (var i = 0; i < n; i++)
         {
             m.Set(i, i);
         }
 
-        Assert.Equal(N, m.Size());
+        Assert.Equal(n, m.Size());
     }
 
     // Go: slices.IsSorted（用默认比较器，等价于 Go 的 `<`）。

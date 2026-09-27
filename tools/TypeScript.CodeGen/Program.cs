@@ -1,21 +1,27 @@
 // tools/TypeScript.CodeGen 的入口。
 //
 // 用法：
-//   dotnet run --project tools/TypeScript.CodeGen -- [--tsgo-root <path>] [--out <dir>]
-//     --tsgo-root  TSGO 仓库根目录；缺省时取环境变量 TSGO_ROOT，再缺省取 D:\Source\GitHub\TypeScript-Go
-//     --out        生成的 .cs 输出目录；缺省 src/TypeScript.Compiler/StringUtil
+//   dotnet run --project tools/TypeScript.CodeGen -- [--tsgo-root <path>] [--out <dir>] [--unicode-out <dir>]
+//     --tsgo-root    TSGO 仓库根目录；缺省时取环境变量 TSGO_ROOT，再缺省取 D:\Source\GitHub\TypeScript-Go
+//     --out          AST 生成物（*.Generated.cs）的输出目录；缺省 src/TypeScript.Compiler/Ast
+//                    （与 Unicode 生成器的 CLI 形状一致：同一个 --out <dir> 参数名）
+//     --unicode-out  Unicode 表生成物的输出目录；缺省 src/TypeScript.Compiler/StringUtil
 //
-// 生成的文件只在内容变化时被重写（幂等，见 UnicodeTableGenerator）。
+// 生成的文件只在内容变化时被重写（幂等，见 UnicodeTableGenerator / GoAstGenerator）。
 namespace TypeScript.CodeGen;
 
 internal static class Program
 {
-    private const string DefaultTsgoRoot = @"D:\Source\GitHub\TypeScript-Go";
+    private const string _defaultTsgoRoot = @"D:\Source\GitHub\TypeScript-Go";
+
+    private static readonly string _defaultAstOutDir = Path.Combine("src", "TypeScript.Compiler", "Ast");
+    private static readonly string _defaultUnicodeOutDir = Path.Combine("src", "TypeScript.Compiler", "StringUtil");
 
     private static int Main(string[] args)
     {
         string? tsgoRoot = null;
-        string? outDir = null;
+        string? astOutDir = null;
+        string? unicodeOutDir = null;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -28,7 +34,14 @@ internal static class Program
 
                     break;
                 case "--out":
-                    if (!TryReadValue(args, ref i, out outDir))
+                    if (!TryReadValue(args, ref i, out astOutDir))
+                    {
+                        return 1;
+                    }
+
+                    break;
+                case "--unicode-out":
+                    if (!TryReadValue(args, ref i, out unicodeOutDir))
                     {
                         return 1;
                     }
@@ -48,17 +61,20 @@ internal static class Program
         tsgoRoot ??= Environment.GetEnvironmentVariable("TSGO_ROOT");
         if (string.IsNullOrEmpty(tsgoRoot))
         {
-            tsgoRoot = DefaultTsgoRoot;
+            tsgoRoot = _defaultTsgoRoot;
         }
 
-        outDir ??= Path.Combine("src", "TypeScript.Compiler", "StringUtil");
+        astOutDir ??= _defaultAstOutDir;
+        unicodeOutDir ??= _defaultUnicodeOutDir;
 
         try
         {
-            var written = UnicodeTableGenerator.Generate(tsgoRoot, outDir);
+            var written = new List<string>();
+            written.AddRange(UnicodeTableGenerator.Generate(tsgoRoot, unicodeOutDir));
+            written.AddRange(GoAstGenerator.Generate(tsgoRoot, astOutDir));
             if (written.Count == 0)
             {
-                Console.WriteLine("Unicode 表已是最新，未重写任何文件。");
+                Console.WriteLine("所有生成文件都已是最新，未重写任何文件。");
             }
             else
             {
@@ -93,6 +109,6 @@ internal static class Program
 
     private static void PrintUsage()
     {
-        Console.Error.WriteLine("用法：TypeScript.CodeGen [--tsgo-root <path>] [--out <dir>]");
+        Console.Error.WriteLine("用法：TypeScript.CodeGen [--tsgo-root <path>] [--out <dir>] [--unicode-out <dir>]");
     }
 }

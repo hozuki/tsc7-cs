@@ -25,15 +25,15 @@ public readonly struct PseudoBigInt : IEquatable<PseudoBigInt>
 
     // The absolute value in base 10 with no leading zeros. The value zero is represented as an empty string.
     // Go 里是导出字段；C# 用属性归一 null → ""（见文件头第 1 条）。
-    private readonly string? base10Value;
+    private readonly string? _base10Value;
 
     internal PseudoBigInt(bool negative, string? base10Value)
     {
         Negative = negative;
-        this.base10Value = base10Value;
+        this._base10Value = base10Value;
     }
 
-    public string Base10Value => base10Value ?? "";
+    public string Base10Value => _base10Value ?? "";
 
     public override string ToString()
     {

@@ -18,35 +18,35 @@ namespace TypeScript.Json;
 
 public sealed class Decoder
 {
-    private readonly byte[] utf8;
-    private int position;
-    private JsonReaderState state;
+    private readonly byte[] _utf8;
+    private int _position;
+    private JsonReaderState _state;
 
-    private JsonKind currentKind;
-    private string? currentString;
-    private string? currentNumber;
-    private string? currentName;
+    private JsonKind _currentKind;
+    private string? _currentString;
+    private string? _currentNumber;
+    private string? _currentName;
 
     public Decoder(Stream input)
     {
-        utf8 = ReadAll(input);
+        _utf8 = ReadAll(input);
     }
 
     public Decoder(byte[] input)
     {
-        utf8 = input;
+        _utf8 = input;
     }
 
     public Decoder(ReadOnlySpan<byte> input)
     {
-        utf8 = input.ToArray();
+        _utf8 = input.ToArray();
     }
 
     // Go 的 jsontext.Decoder.StackDepth()：当前 token 的嵌套深度。
     public int StackDepth { get; private set; }
 
     // Go 的 jsontext.Decoder.InputOffset()：已消费的字节数。
-    public long InputOffset => position;
+    public long InputOffset => _position;
 
     // Go 的 jsontext.Decoder.PeekKind()：看下一个 token 的种类（不消费）。
     // 对象成员名按 Go 的约定返回 JsonKind.String。
@@ -68,8 +68,8 @@ public sealed class Decoder
         var kind = Read();
         return kind switch
         {
-            JsonKind.String => new JsonToken(kind, currentString, false),
-            JsonKind.Number => new JsonToken(kind, currentNumber, false),
+            JsonKind.String => new JsonToken(kind, _currentString, false),
+            JsonKind.Number => new JsonToken(kind, _currentNumber, false),
             JsonKind.True => new JsonToken(kind, null, true),
             _ => new JsonToken(kind, null, false),
         };
@@ -79,7 +79,7 @@ public sealed class Decoder
     public string ReadName()
     {
         var reader = CreateReader();
-        currentName = null;
+        _currentName = null;
         if (!reader.Read())
         {
             throw new JsonException("json: unexpected end of input");
@@ -124,13 +124,13 @@ public sealed class Decoder
             }
 
             end = (int)reader.BytesConsumed;
-            while (end > start && IsWhiteSpace(utf8[position + end - 1]))
+            while (end > start && IsWhiteSpace(_utf8[_position + end - 1]))
             {
                 end--;
             }
         }
 
-        var value = utf8.AsSpan(position + start, end - start).ToArray();
+        var value = _utf8.AsSpan(_position + start, end - start).ToArray();
         Update(ref reader);
         return value;
     }
@@ -180,7 +180,7 @@ public sealed class Decoder
     internal JsonKind Read()
     {
         var reader = CreateReader();
-        currentName = null;
+        _currentName = null;
         if (!reader.Read())
         {
             throw new JsonException("json: unexpected end of input");
@@ -188,56 +188,56 @@ public sealed class Decoder
 
         if (reader.TokenType == JsonTokenType.PropertyName)
         {
-            currentName = reader.GetString() ?? "";
+            _currentName = reader.GetString() ?? "";
         }
 
         Capture(ref reader);
         Update(ref reader);
-        return currentKind;
+        return _currentKind;
     }
 
     // 刚读到的成员名（ReadName 之外，Read 读到名字 token 时也会设置）。
-    internal string? LastName => currentName;
+    internal string? LastName => _currentName;
 
-    internal string CurrentString => currentString ?? "";
+    internal string CurrentString => _currentString ?? "";
 
-    internal string CurrentNumber => currentNumber ?? "";
+    internal string CurrentNumber => _currentNumber ?? "";
 
     private void Capture(ref Utf8JsonReader reader)
     {
-        currentString = null;
-        currentNumber = null;
+        _currentString = null;
+        _currentNumber = null;
         switch (reader.TokenType)
         {
             case JsonTokenType.StartObject:
-                currentKind = JsonKind.BeginObject;
+                _currentKind = JsonKind.BeginObject;
                 break;
             case JsonTokenType.EndObject:
-                currentKind = JsonKind.EndObject;
+                _currentKind = JsonKind.EndObject;
                 break;
             case JsonTokenType.StartArray:
-                currentKind = JsonKind.BeginArray;
+                _currentKind = JsonKind.BeginArray;
                 break;
             case JsonTokenType.EndArray:
-                currentKind = JsonKind.EndArray;
+                _currentKind = JsonKind.EndArray;
                 break;
             case JsonTokenType.Null:
-                currentKind = JsonKind.Null;
+                _currentKind = JsonKind.Null;
                 break;
             case JsonTokenType.True:
-                currentKind = JsonKind.True;
+                _currentKind = JsonKind.True;
                 break;
             case JsonTokenType.False:
-                currentKind = JsonKind.False;
+                _currentKind = JsonKind.False;
                 break;
             case JsonTokenType.PropertyName:
             case JsonTokenType.String:
-                currentKind = JsonKind.String;
-                currentString = reader.GetString() ?? "";
+                _currentKind = JsonKind.String;
+                _currentString = reader.GetString() ?? "";
                 break;
             case JsonTokenType.Number:
-                currentKind = JsonKind.Number;
-                currentNumber = Encoding.UTF8.GetString(reader.ValueSpan);
+                _currentKind = JsonKind.Number;
+                _currentNumber = Encoding.UTF8.GetString(reader.ValueSpan);
                 break;
             default:
                 throw new JsonException($"json: unsupported token type: {reader.TokenType}");
@@ -248,13 +248,13 @@ public sealed class Decoder
 
     private Utf8JsonReader CreateReader()
     {
-        return new Utf8JsonReader(utf8.AsSpan(position), isFinalBlock: true, state);
+        return new Utf8JsonReader(_utf8.AsSpan(_position), isFinalBlock: true, _state);
     }
 
     private void Update(ref Utf8JsonReader reader)
     {
-        position += (int)reader.BytesConsumed;
-        state = reader.CurrentState;
+        _position += (int)reader.BytesConsumed;
+        _state = reader.CurrentState;
     }
 
     private static JsonKind ToKind(JsonTokenType tokenType)

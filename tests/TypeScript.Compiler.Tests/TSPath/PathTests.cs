@@ -439,7 +439,7 @@ public class TspathPathTests
 
     // path_test.go 的 getNormalizedAbsolutePathTests：Go 只把它用在 Benchmark/Fuzz 上，
     // 这里作为 FuzzGetNormalizedAbsolutePath 的种子语料。
-    private static readonly (string Group, string Path, string CurrentDirectory)[] getNormalizedAbsolutePathTests =
+    private static readonly (string Group, string Path, string CurrentDirectory)[] _getNormalizedAbsolutePathTests =
     [
         ("non-normalized inputs", "/.", ""),
         ("non-normalized inputs", "/./", ""),
@@ -472,7 +472,7 @@ public class TspathPathTests
 
     public static IEnumerable<object[]> GetNormalizedAbsolutePathSeeds()
     {
-        foreach (var (_, path, currentDirectory) in getNormalizedAbsolutePathTests)
+        foreach (var (_, path, currentDirectory) in _getNormalizedAbsolutePathTests)
         {
             yield return new object[] { path, currentDirectory };
         }
@@ -532,10 +532,10 @@ public class TspathPathTests
     //
     // To avoid having to do string building for most common cases, also ignore
     // a-z, 0-9, \u0131, \u00DF, \, /, ., : and space
-    private static readonly Regex fileNameLowerCaseRegExp = new(@"[^\u0130\u0131\u00DFa-z0-9\\/:\-_. ]+");
+    private static readonly Regex _fileNameLowerCaseRegExp = new(@"[^\u0130\u0131\u00DFa-z0-9\\/:\-_. ]+");
 
     // path_test.go 的 toFileNameLowerCaseTests：Go 用作 Benchmark/Fuzz 的种子语料。
-    private static readonly string[] toFileNameLowerCaseTests =
+    private static readonly string[] _toFileNameLowerCaseTests =
     [
         "/path/to/file.ext",
         "/PATH/TO/FILE.EXT",
@@ -549,11 +549,11 @@ public class TspathPathTests
 
     // Go 测试文件里的 oldToFileNameLowerCase（正则版参考实现）。
     private static string OldToFileNameLowerCase(string fileName)
-        => fileNameLowerCaseRegExp.Replace(fileName, static m => m.Value.ToLowerInvariant());
+        => _fileNameLowerCaseRegExp.Replace(fileName, static m => m.Value.ToLowerInvariant());
 
     public static IEnumerable<object[]> ToFileNameLowerCaseSeeds()
     {
-        foreach (var test in toFileNameLowerCaseTests)
+        foreach (var test in _toFileNameLowerCaseTests)
         {
             yield return new object[] { test };
         }
@@ -642,10 +642,10 @@ public class TspathPathTests
         Assert.Equal("/path/file.ext", (string)ToPath("/path/to/../file.ext", "path/to", true /*useCaseSensitiveFileNames*/));
     }
 
-    private static readonly Regex relativePathSegmentRegExp = new(@"//|(?:^|/)\.\.?(?:$|/)");
+    private static readonly Regex _relativePathSegmentRegExp = new(@"//|(?:^|/)\.\.?(?:$|/)");
 
     // Go 测试文件里的 oldHasRelativePathSegment（正则版参考实现）。
-    private static bool OldHasRelativePathSegment(string p) => relativePathSegmentRegExp.IsMatch(p);
+    private static bool OldHasRelativePathSegment(string p) => _relativePathSegmentRegExp.IsMatch(p);
 
     // path_test.go 的 hasRelativePathSegmentTests（去掉了只用于 Benchmark 的 bench 列）。
     // 用 record 承载 Go 的子测试名（ToString 即 name），避免 xUnit1026（Theory 未使用参数）。
@@ -654,7 +654,7 @@ public class TspathPathTests
         public override string ToString() => Name;
     }
 
-    private static readonly string[] hasRelativePathSegmentTests =
+    private static readonly string[] _hasRelativePathSegmentTests =
     [
         "//",
         "foo/bar/baz",
@@ -669,7 +669,7 @@ public class TspathPathTests
 
     public static IEnumerable<object[]> HasRelativePathSegmentSeeds()
     {
-        foreach (var test in hasRelativePathSegmentTests)
+        foreach (var test in _hasRelativePathSegmentTests)
         {
             yield return new object[] { new HasRelativePathSegmentCase(ShortenName(test), test) };
         }
@@ -688,7 +688,7 @@ public class TspathPathTests
 
     // path_test.go 的 pathIsRelativeTests；Go 的 init() 会把每一条的 "/" 换成 "\" 再追加一份。
     // （benchmark 列只服务 BenchmarkPathIsRelative，未搬运。）
-    private static readonly (string P, bool IsRelative)[] pathIsRelativeTests = BuildPathIsRelativeTests();
+    private static readonly (string P, bool IsRelative)[] _pathIsRelativeTests = BuildPathIsRelativeTests();
 
     private static (string P, bool IsRelative)[] BuildPathIsRelativeTests()
     {
@@ -727,7 +727,7 @@ public class TspathPathTests
 
     public static IEnumerable<object[]> PathIsRelativeSeeds()
     {
-        foreach (var (p, isRelative) in pathIsRelativeTests)
+        foreach (var (p, isRelative) in _pathIsRelativeTests)
         {
             yield return new object[] { new PathIsRelativeCase(ShortenName(p), p, isRelative) };
         }

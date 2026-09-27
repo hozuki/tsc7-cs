@@ -101,7 +101,7 @@ internal static class JsonEncode
     private static void EncodeDictionary(Encoder encoder, IDictionary dictionary, JsonSettings settings)
     {
         encoder.StartObject();
-        if (settings.Deterministic)
+        if (settings._deterministic)
         {
             // Go 的 json.Deterministic(true)：map 键排序后输出（默认是枚举顺序）。
             var entries = new List<KeyValuePair<object, object?>>(dictionary.Count);

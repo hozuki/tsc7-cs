@@ -26,19 +26,19 @@ public enum JsonKind : byte
 //   * True/False：布尔值
 public readonly struct JsonToken
 {
-    private readonly string? stringValue;
+    private readonly string? _stringValue;
 
     internal JsonToken(JsonKind kind, string? stringValue, bool boolValue)
     {
         Kind = kind;
-        this.stringValue = stringValue;
+        this._stringValue = stringValue;
         BoolValue = boolValue;
     }
 
     public JsonKind Kind { get; }
 
     // String → 字符串值；Number → 原始文本；其它 kind → ""。
-    public string StringValue => stringValue ?? "";
+    public string StringValue => _stringValue ?? "";
 
     // True → true，False → false，其它 kind → false。
     public bool BoolValue { get; }

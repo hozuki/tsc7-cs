@@ -27,7 +27,7 @@ public class CoreBfsTests
 {
     // Test basic functionality with a simple DAG
     // Graph: A -> B, A -> C, B -> D, C -> D
-    private static readonly Dictionary<string, string[]> basicGraph = new()
+    private static readonly Dictionary<string, string[]> _basicGraph = new()
     {
         ["A"] = ["B", "C"],
         ["B"] = ["D"],
@@ -38,7 +38,7 @@ public class CoreBfsTests
     [Fact]
     public void TestBreadthFirstSearchParallel_FindSpecificNode()
     {
-        var result = BreadthFirstSearchParallel("A", node => basicGraph[node], node => (node == "D", true));
+        var result = BreadthFirstSearchParallel("A", node => _basicGraph[node], node => (node == "D", true));
         Assert.True(result.Stopped, "Expected search to stop at D");
         Assert.Equal(new[] { "D", "B", "A" }, result.Path);
     }
@@ -48,7 +48,7 @@ public class CoreBfsTests
     {
         var mu = new object();
         var visitedNodes = new List<string>();
-        var result = BreadthFirstSearchParallel("A", node => basicGraph[node], node =>
+        var result = BreadthFirstSearchParallel("A", node => _basicGraph[node], node =>
         {
             lock (mu)
             {
@@ -109,7 +109,7 @@ public class CoreBfsTests
         var visited = new SyncSet<string>();
         var result = BreadthFirstSearchParallelEx(
             "A",
-            node => basicGraph[node],
+            node => _basicGraph[node],
             node => (node == "A", false), // Record A as a fallback, but do not stop
             new BreadthFirstSearchOptions<string, string>
             {
@@ -128,7 +128,7 @@ public class CoreBfsTests
     public void TestBreadthFirstSearchParallel_ReturnsAStopResultOverAFallback()
     {
         // Test that a stop result is preferred over a fallback
-        var result = BreadthFirstSearchParallel("A", node => basicGraph[node], node =>
+        var result = BreadthFirstSearchParallel("A", node => _basicGraph[node], node =>
         {
             switch (node)
             {

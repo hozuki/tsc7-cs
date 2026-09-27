@@ -1035,23 +1035,23 @@ public static partial class Core
     // Go 的 sync.Pool（每线程一份、取用期间独占）。取出时把线程槽位置空：重入调用会另分配一份，
     // 而不是和调用方共用同一对缓冲区（对应 sync.Pool.Get 的独占语义）。
     [ThreadStatic]
-    private static LevenshteinBuffers? tlsLevenshteinBuffers;
+    private static LevenshteinBuffers? _tlsLevenshteinBuffers;
 
     private static LevenshteinBuffers RentLevenshteinBuffers()
     {
-        var buffers = tlsLevenshteinBuffers;
+        var buffers = _tlsLevenshteinBuffers;
         if (buffers == null)
         {
             return new LevenshteinBuffers();
         }
 
-        tlsLevenshteinBuffers = null;
+        _tlsLevenshteinBuffers = null;
         return buffers;
     }
 
     private static void ReturnLevenshteinBuffers(LevenshteinBuffers buffers)
     {
-        tlsLevenshteinBuffers = buffers;
+        _tlsLevenshteinBuffers = buffers;
     }
 
     private static double LevenshteinWithMax(LevenshteinBuffers buffers, int[] s1, int[] s2, double maxValue)

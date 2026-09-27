@@ -50,14 +50,14 @@ public class CollectionsOrderedSetTests
     [Fact]
     public void TestOrderedSetWithSizeHint()
     {
-        const int N = 1024;
+        const int n = 1024;
 
-        var s = NewOrderedSetWithSizeHint<int>(N);
-        for (var i = 0; i < N; i++)
+        var s = NewOrderedSetWithSizeHint<int>(n);
+        for (var i = 0; i < n; i++)
         {
             s.Add(i);
         }
 
-        Assert.Equal(N, s.Size());
+        Assert.Equal(n, s.Size());
     }
 }

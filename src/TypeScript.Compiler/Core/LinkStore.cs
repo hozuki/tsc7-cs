@@ -20,31 +20,31 @@ public sealed class LinkStore<K, V>
     where K : notnull
     where V : class, new()
 {
-    private Dictionary<K, V>? entries;
+    private Dictionary<K, V>? _entries;
 
     public V Get(K key)
     {
-        if (entries is null)
+        if (_entries is null)
         {
-            entries = [];
+            _entries = [];
         }
-        if (entries.TryGetValue(key, out var value))
+        if (_entries.TryGetValue(key, out var value))
         {
             return value;
         }
         value = new V();
-        entries[key] = value;
+        _entries[key] = value;
         return value;
     }
 
     public bool Has(K key)
     {
-        return entries is not null && entries.ContainsKey(key);
+        return _entries is not null && _entries.ContainsKey(key);
     }
 
     public V? TryGet(K key)
     {
-        if (entries is not null && entries.TryGetValue(key, out var value))
+        if (_entries is not null && _entries.TryGetValue(key, out var value))
         {
             return value;
         }
@@ -54,10 +54,10 @@ public sealed class LinkStore<K, V>
 
 public static partial class Core
 {
-    internal const int pageShift = 8;
-    internal const int pageSize = 1 << pageShift;
-    internal const int pageMask = pageSize - 1;
-    internal const ulong maxPageCount = 65536;
+    internal const int _pageShift = 8;
+    internal const int _pageSize = 1 << _pageShift;
+    internal const int _pageMask = _pageSize - 1;
+    internal const ulong _maxPageCount = 65536;
 }
 
 // Implements a sparse-array-like structure for storing elements keyed by dense uint64 keys. Elements are
@@ -66,42 +66,42 @@ public static partial class Core
 public sealed class PagedLinkStore<V>
     where V : class, new()
 {
-    private Dictionary<ulong, V?[]>? pageMap; // Page map for page indices above maxPageCount
-    private readonly List<V?[]?> pageList = []; // Page table for page indices below maxPageCount
+    private Dictionary<ulong, V?[]>? _pageMap; // Page map for page indices above maxPageCount
+    private readonly List<V?[]?> _pageList = []; // Page table for page indices below maxPageCount
 
     public V Get(ulong key)
     {
         V?[] page;
-        var pageIndex = key >> Core.pageShift;
-        if (pageIndex < Core.maxPageCount)
+        var pageIndex = key >> Core._pageShift;
+        if (pageIndex < Core._maxPageCount)
         {
-            if ((int)pageIndex >= pageList.Count)
+            if ((int)pageIndex >= _pageList.Count)
             {
                 // Grow the length of the list to pageIndex+1
-                while (pageList.Count <= (int)pageIndex)
+                while (_pageList.Count <= (int)pageIndex)
                 {
-                    pageList.Add(null);
+                    _pageList.Add(null);
                 }
             }
-            var listPage = pageList[(int)pageIndex];
+            var listPage = _pageList[(int)pageIndex];
             if (listPage is null)
             {
-                listPage = new V?[Core.pageSize];
-                pageList[(int)pageIndex] = listPage;
+                listPage = new V?[Core._pageSize];
+                _pageList[(int)pageIndex] = listPage;
             }
             page = listPage;
         }
         else
         {
-            pageMap ??= [];
-            if (!pageMap.TryGetValue(pageIndex, out var mapPage))
+            _pageMap ??= [];
+            if (!_pageMap.TryGetValue(pageIndex, out var mapPage))
             {
-                mapPage = new V?[Core.pageSize];
-                pageMap[pageIndex] = mapPage;
+                mapPage = new V?[Core._pageSize];
+                _pageMap[pageIndex] = mapPage;
             }
             page = mapPage;
         }
-        var index = (int)(key & Core.pageMask);
+        var index = (int)(key & Core._pageMask);
         var value = page[index];
         if (value is null)
         {
@@ -117,10 +117,10 @@ public sealed class PagedLinkStore<V>
     // 与 Go 逐行对应；调用点（checker 的 nodeLinkStore.Has）读到的零值 link 与 Go 的零值槽位一致。
     public bool Has(ulong key)
     {
-        var pageIndex = key >> Core.pageShift;
-        return pageIndex < Core.maxPageCount
-            ? (int)pageIndex < pageList.Count && pageList[(int)pageIndex] is not null
-            : pageMap is not null && pageMap.TryGetValue(pageIndex, out var page) && page is not null;
+        var pageIndex = key >> Core._pageShift;
+        return pageIndex < Core._maxPageCount
+            ? (int)pageIndex < _pageList.Count && _pageList[(int)pageIndex] is not null
+            : _pageMap is not null && _pageMap.TryGetValue(pageIndex, out var page) && page is not null;
     }
 
     // 注意与 Go 的一处偏离：Go 的 TryGet 在页存在时返回**零值槽位的指针**（非 nil），C# 的槽位在
@@ -130,21 +130,21 @@ public sealed class PagedLinkStore<V>
     public V? TryGet(ulong key)
     {
         V?[]? page = null;
-        var pageIndex = key >> Core.pageShift;
-        if (pageIndex < Core.maxPageCount)
+        var pageIndex = key >> Core._pageShift;
+        if (pageIndex < Core._maxPageCount)
         {
-            if ((int)pageIndex < pageList.Count)
+            if ((int)pageIndex < _pageList.Count)
             {
-                page = pageList[(int)pageIndex];
+                page = _pageList[(int)pageIndex];
             }
         }
-        else if (pageMap is not null)
+        else if (_pageMap is not null)
         {
-            pageMap.TryGetValue(pageIndex, out page);
+            _pageMap.TryGetValue(pageIndex, out page);
         }
         if (page is not null)
         {
-            return page[(int)(key & Core.pageMask)];
+            return page[(int)(key & Core._pageMask)];
         }
         return null;
     }

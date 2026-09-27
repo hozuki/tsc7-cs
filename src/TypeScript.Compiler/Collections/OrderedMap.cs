@@ -67,45 +67,45 @@ public struct MapEntry<K, V>
 /// </summary>
 public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K : notnull
 {
-    private readonly List<K> keys;
-    private readonly Dictionary<K, V> mp;
+    private readonly List<K> _keys;
+    private readonly Dictionary<K, V> _mp;
 
     /// <summary>Go 的零值 <c>OrderedMap[K,V]{}</c>；C# 里对应 <c>new OrderedMap&lt;K,V&gt;()</c>。</summary>
     public OrderedMap()
     {
-        keys = new List<K>();
-        mp = new Dictionary<K, V>();
+        _keys = new List<K>();
+        _mp = new Dictionary<K, V>();
     }
 
     // 对应 Go 的 newMapWithSizeHint[K,V](hint)（NewOrderedMapWithSizeHint / OrderedSet 的构造）
     internal OrderedMap(int hint)
     {
-        keys = new List<K>(hint);
-        mp = new Dictionary<K, V>(hint);
+        _keys = new List<K>(hint);
+        _mp = new Dictionary<K, V>(hint);
     }
 
     // 对应 Go 的 clone() 的返回值（keys: slices.Clone, mp: maps.Clone）
     internal OrderedMap(List<K> keys, Dictionary<K, V> mp)
     {
-        this.keys = keys;
-        this.mp = mp;
+        this._keys = keys;
+        this._mp = mp;
     }
 
     /// <summary>Set sets a key-value pair in the map.（新键追加到末尾；已有键只改值、位置不变）</summary>
     public void Set(K key, V value)
     {
-        if (!mp.ContainsKey(key))
+        if (!_mp.ContainsKey(key))
         {
-            keys.Add(key);
+            _keys.Add(key);
         }
 
-        mp[key] = value;
+        _mp[key] = value;
     }
 
     /// <summary>Get retrieves a value from the map.</summary>
     public (V? Value, bool Ok) Get(K key)
     {
-        if (mp.TryGetValue(key, out var value))
+        if (_mp.TryGetValue(key, out var value))
         {
             return (value, true);
         }
@@ -120,44 +120,44 @@ public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K 
     public V? GetOrZero(K key)
     {
         // Go: return m.mp[key]（键不存在时是 V 的零值）
-        return mp.TryGetValue(key, out var value) ? value : default;
+        return _mp.TryGetValue(key, out var value) ? value : default;
     }
 
     /// <summary>EntryAt retrieves the key-value pair at the specified index.</summary>
     public (K? Key, V? Value, bool Ok) EntryAt(int index)
     {
-        if (index < 0 || index >= keys.Count)
+        if (index < 0 || index >= _keys.Count)
         {
             // Go: var zero K; var zeroV V; return zero, zeroV, false
             return (default, default, false);
         }
 
-        var key = keys[index];
+        var key = _keys[index];
         // 用索引器而不是 TryGetValue：keys 与 mp 始终同步，key 一定存在（Go 的 `m.mp[key]` 也是这样），
         // 而且索引器的返回类型是 V 而不是 V?（不需要在实现里判空再转一次）。
-        return (key, mp[key], true);
+        return (key, _mp[key], true);
     }
 
     /// <summary>Has returns true if the map contains the key.</summary>
     public bool Has(K key)
     {
-        return mp.ContainsKey(key);
+        return _mp.ContainsKey(key);
     }
 
     /// <summary>Delete removes a key-value pair from the map.</summary>
     public (V? Value, bool Ok) Delete(K key)
     {
-        if (!mp.TryGetValue(key, out var value))
+        if (!_mp.TryGetValue(key, out var value))
         {
             // Go: var zero V; return zero, false
             return (default, false);
         }
 
-        mp.Remove(key);
+        _mp.Remove(key);
 
         // Go: i == 0 时 `m.keys[0] = zero; m.keys = m.keys[1:]`，i == len-1 时 `m.keys[end] = zero;
         //     m.keys = m.keys[:end]`，其余 `slices.Delete`。见文件头第 2 条：C# 统一为 RemoveAt。
-        keys.RemoveAt(keys.IndexOf(key));
+        _keys.RemoveAt(_keys.IndexOf(key));
         return (value, true);
     }
 
@@ -165,9 +165,9 @@ public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K 
     public IEnumerable<K> Keys()
     {
         // 用下标 for 循环（而不是 foreach），这样迭代期间新增的键也会被枚举到；Go 的注释同此。
-        for (var i = 0; i < keys.Count; i++)
+        for (var i = 0; i < _keys.Count; i++)
         {
-            yield return keys[i];
+            yield return _keys[i];
         }
     }
 
@@ -175,9 +175,9 @@ public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K 
     public IEnumerable<V?> Values()
     {
         // 同样用下标 for 循环，以便枚举到迭代期间新增的键的值。值走索引器（keys/mp 同步，键一定存在）。
-        for (var i = 0; i < keys.Count; i++)
+        for (var i = 0; i < _keys.Count; i++)
         {
-            yield return mp[keys[i]];
+            yield return _mp[_keys[i]];
         }
     }
 
@@ -186,10 +186,10 @@ public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K 
     /// </summary>
     public IEnumerable<(K Key, V? Value)> Entries()
     {
-        for (var i = 0; i < keys.Count; i++)
+        for (var i = 0; i < _keys.Count; i++)
         {
-            var key = keys[i]; // 值走索引器，理由同 Values()
-            yield return (key, mp[key]);
+            var key = _keys[i]; // 值走索引器，理由同 Values()
+            yield return (key, _mp[key]);
         }
     }
 
@@ -199,21 +199,21 @@ public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K 
     public void Clear()
     {
         // Go: clear(m.keys); m.keys = m.keys[:0]; clear(m.mp) —— 不重建容器，已分配空间复用
-        keys.Clear();
-        mp.Clear();
+        _keys.Clear();
+        _mp.Clear();
     }
 
     /// <summary>Size returns the number of key-value pairs in the map.</summary>
     public int Size()
     {
-        return keys.Count;
+        return _keys.Count;
     }
 
     /// <summary>Clone returns a shallow copy of the map.（键值本身不复制）</summary>
     public OrderedMap<K, V> Clone()
     {
         // Go: OrderedMap{keys: slices.Clone(m.keys), mp: maps.Clone(m.mp)}
-        return new OrderedMap<K, V>(new List<K>(keys), new Dictionary<K, V>(mp));
+        return new OrderedMap<K, V>(new List<K>(_keys), new Dictionary<K, V>(_mp));
     }
 
     // Go: var _ json.MarshalerTo = (*OrderedMap[string, string])(nil)
@@ -221,11 +221,11 @@ public sealed class OrderedMap<K, V> : IJsonMarshaler, IJsonUnmarshaler where K 
     public void MarshalJSONTo(Encoder enc)
     {
         enc.WriteToken(BeginObject);
-        foreach (var k in keys)
+        foreach (var k in _keys)
         {
             // Go: 先 resolveKeyName(k) 把键转成字符串，再 MarshalEncode 键与值
             MarshalEncode(enc, JsonKeyName(k));
-            MarshalEncode(enc, mp[k]);
+            MarshalEncode(enc, _mp[k]);
         }
 
         enc.WriteToken(EndObject);

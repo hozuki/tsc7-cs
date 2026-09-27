@@ -54,12 +54,12 @@ namespace TypeScript.Collections;
 public sealed class SyncMap<K, V> where K : notnull
 {
     // Go: `m sync.Map`。见文件头第 2 条：用 Slot 而不是 object 是为了支持 nil 值且不装箱。
-    private readonly ConcurrentDictionary<K, Slot> m;
+    private readonly ConcurrentDictionary<K, Slot> _m;
 
     /// <summary>Go 的零值 <c>SyncMap[K,V]{}</c>；C# 里对应 <c>new SyncMap&lt;K,V&gt;()</c>。</summary>
     public SyncMap()
     {
-        m = new ConcurrentDictionary<K, Slot>();
+        _m = new ConcurrentDictionary<K, Slot>();
     }
 
     // sync.Map 里存的是 any（可以存 nil），ConcurrentDictionary 不接受 null 值，故包一层值类型。
@@ -76,7 +76,7 @@ public sealed class SyncMap<K, V> where K : notnull
     /// <summary>Go: <c>Load(key) (value V, ok bool)</c>。键不存在返回 (V 的零值, false)；值本身是 nil 时返回 (nil, true)。</summary>
     public (V? Value, bool Ok) Load(K key)
     {
-        if (m.TryGetValue(key, out var slot))
+        if (_m.TryGetValue(key, out var slot))
         {
             return (slot.Value, true);
         }
@@ -86,7 +86,7 @@ public sealed class SyncMap<K, V> where K : notnull
 
     public void Store(K key, V value)
     {
-        m[key] = new Slot(value);
+        _m[key] = new Slot(value);
     }
 
     /// <summary>
@@ -97,12 +97,12 @@ public sealed class SyncMap<K, V> where K : notnull
     {
         while (true)
         {
-            if (m.TryGetValue(key, out var existing))
+            if (_m.TryGetValue(key, out var existing))
             {
                 return (existing.Value, true);
             }
 
-            if (m.TryAdd(key, new Slot(value)))
+            if (_m.TryAdd(key, new Slot(value)))
             {
                 return (value, false);
             }
@@ -111,12 +111,12 @@ public sealed class SyncMap<K, V> where K : notnull
 
     public void Delete(K key)
     {
-        m.TryRemove(key, out _);
+        _m.TryRemove(key, out _);
     }
 
     public void Clear()
     {
-        m.Clear();
+        _m.Clear();
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ public sealed class SyncMap<K, V> where K : notnull
     /// </summary>
     public void Range(Func<K, V?, bool> f)
     {
-        foreach (var pair in m)
+        foreach (var pair in _m)
         {
             if (!f(pair.Key, pair.Value.Value))
             {
@@ -139,14 +139,14 @@ public sealed class SyncMap<K, V> where K : notnull
     /// </summary>
     public int Size()
     {
-        return m.Count;
+        return _m.Count;
     }
 
     public Dictionary<K, V?> ToMap()
     {
         // Go: m := make(map[K]V, s.Size())
-        var result = new Dictionary<K, V?>(m.Count);
-        foreach (var pair in m)
+        var result = new Dictionary<K, V?>(_m.Count);
+        foreach (var pair in _m)
         {
             result[pair.Key] = pair.Value.Value;
         }
@@ -157,7 +157,7 @@ public sealed class SyncMap<K, V> where K : notnull
     /// <summary>Keys returns an iterator over the keys.（Go: <c>iter.Seq[K]</c>）</summary>
     public IEnumerable<K> Keys()
     {
-        foreach (var pair in m)
+        foreach (var pair in _m)
         {
             yield return pair.Key;
         }
@@ -166,9 +166,9 @@ public sealed class SyncMap<K, V> where K : notnull
     public SyncMap<K, V> Clone()
     {
         var clone = new SyncMap<K, V>();
-        foreach (var pair in m)
+        foreach (var pair in _m)
         {
-            clone.m[pair.Key] = pair.Value;
+            clone._m[pair.Key] = pair.Value;
         }
 
         return clone;

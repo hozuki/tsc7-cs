@@ -18,22 +18,22 @@ public readonly struct JsonOptions
         IndentPrefix,
     }
 
-    private readonly OptionKind kind;
-    private readonly bool boolValue;
-    private readonly string? stringValue;
+    private readonly OptionKind _kind;
+    private readonly bool _boolValue;
+    private readonly string? _stringValue;
 
     private JsonOptions(OptionKind kind, bool boolValue, string? stringValue)
     {
-        this.kind = kind;
-        this.boolValue = boolValue;
-        this.stringValue = stringValue;
+        this._kind = kind;
+        this._boolValue = boolValue;
+        this._stringValue = stringValue;
     }
 
-    internal OptionKind Kind => kind;
+    internal OptionKind Kind => _kind;
 
-    internal bool BoolValue => boolValue;
+    internal bool BoolValue => _boolValue;
 
-    internal string StringValue => stringValue ?? "";
+    internal string StringValue => _stringValue ?? "";
 
     internal static JsonOptions Boolean(OptionKind kind, bool value)
     {
@@ -49,21 +49,21 @@ public readonly struct JsonOptions
 // C# 侧新增：把 `params JsonOptions[]` 合并成一份不可变的配置快照，供 Encoder/Decoder/映射层读取。
 internal struct JsonSettings
 {
-    internal bool Deterministic;
-    internal bool AllowDuplicateNames;
-    internal bool HasIndent;
-    internal string Indent;
-    internal string IndentPrefix;
+    internal bool _deterministic;
+    internal bool _allowDuplicateNames;
+    internal bool _hasIndent;
+    internal string _indent;
+    internal string _indentPrefix;
 
     internal static JsonSettings From(JsonOptions[] options)
     {
         var settings = new JsonSettings
         {
-            Deterministic = false,
-            AllowDuplicateNames = false,
-            HasIndent = false,
-            Indent = "",
-            IndentPrefix = "",
+            _deterministic = false,
+            _allowDuplicateNames = false,
+            _hasIndent = false,
+            _indent = "",
+            _indentPrefix = "",
         };
 
         foreach (var option in options)
@@ -71,18 +71,18 @@ internal struct JsonSettings
             switch (option.Kind)
             {
                 case JsonOptions.OptionKind.Deterministic:
-                    settings.Deterministic = option.BoolValue;
+                    settings._deterministic = option.BoolValue;
                     break;
                 case JsonOptions.OptionKind.AllowDuplicateNames:
-                    settings.AllowDuplicateNames = option.BoolValue;
+                    settings._allowDuplicateNames = option.BoolValue;
                     break;
                 case JsonOptions.OptionKind.Indent:
-                    settings.HasIndent = true;
-                    settings.Indent = option.StringValue;
+                    settings._hasIndent = true;
+                    settings._indent = option.StringValue;
                     break;
                 case JsonOptions.OptionKind.IndentPrefix:
-                    settings.HasIndent = true;
-                    settings.IndentPrefix = option.StringValue;
+                    settings._hasIndent = true;
+                    settings._indentPrefix = option.StringValue;
                     break;
             }
         }
@@ -96,25 +96,25 @@ internal struct JsonSettings
     {
         get
         {
-            if (!HasIndent)
+            if (!_hasIndent)
             {
                 return false;
             }
 
-            if (IndentPrefix.Length != 0 || Indent.Length == 0)
+            if (_indentPrefix.Length != 0 || _indent.Length == 0)
             {
                 return true;
             }
 
-            var c = Indent[0];
+            var c = _indent[0];
             if (c != ' ' && c != '\t')
             {
                 return true;
             }
 
-            for (var i = 1; i < Indent.Length; i++)
+            for (var i = 1; i < _indent.Length; i++)
             {
-                if (Indent[i] != c)
+                if (_indent[i] != c)
                 {
                     return true;
                 }
@@ -124,5 +124,5 @@ internal struct JsonSettings
         }
     }
 
-    internal bool IndentIsTab => HasIndent && !NeedsReindent && Indent.Length > 0 && Indent[0] == '\t';
+    internal bool IndentIsTab => _hasIndent && !NeedsReindent && _indent.Length > 0 && _indent[0] == '\t';
 }

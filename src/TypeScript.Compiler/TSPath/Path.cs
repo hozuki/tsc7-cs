@@ -77,7 +77,7 @@ public static partial class TSPath
     // we expect the host to correctly handle paths in our specified format.
     // Go 的 DirectorySeparator 是无类型 rune 常量；这里用 char（用法只有字符比较与拼接）。
     public const char DirectorySeparator = '/';
-    private const string urlSchemeSeparator = "://";
+    private const string _urlSchemeSeparator = "://";
 
     //// Path Tests
 
@@ -284,10 +284,10 @@ public static partial class TSPath
         }
 
         // URL
-        var schemeEnd = path.IndexOf(urlSchemeSeparator, StringComparison.Ordinal);
+        var schemeEnd = path.IndexOf(_urlSchemeSeparator, StringComparison.Ordinal);
         if (schemeEnd != -1)
         {
-            var authorityStart = schemeEnd + urlSchemeSeparator.Length;
+            var authorityStart = schemeEnd + _urlSchemeSeparator.Length;
             var authorityLength = path.IndexOf('/', authorityStart);
             if (authorityLength != -1) // URL: "file:///", "file://server/", "file://server/path"
             {
@@ -916,7 +916,7 @@ public static partial class TSPath
     // they have corresponding upper case character so they dont need special handling
     public static string ToFileNameLowerCase(string fileName)
     {
-        const char IWithDot = '\u0130';
+        const char iWithDot = '\u0130';
 
         var ascii = true;
         var needsLower = false;
@@ -966,7 +966,7 @@ public static partial class TSPath
         Span<char> buffer = stackalloc char[2];
         foreach (var rune in fileName.EnumerateRunes())
         {
-            var lower = rune.Value == IWithDot ? rune : Rune.ToLowerInvariant(rune);
+            var lower = rune.Value == iWithDot ? rune : Rune.ToLowerInvariant(rune);
             var written = lower.EncodeToUtf16(buffer);
             builder.Append(buffer[..written]);
         }
@@ -1619,25 +1619,25 @@ public static partial class TSPath
 // （同一个命名空间，调用点不受影响）。
 public readonly struct ComparePathsOptions
 {
-    private readonly bool useCaseSensitiveFileNames;
-    private readonly string? currentDirectory;
+    private readonly bool _useCaseSensitiveFileNames;
+    private readonly string? _currentDirectory;
 
     // Go 的零值构造 ComparePathsOptions{} 对应 new ComparePathsOptions()（两个参数都有默认值）。
     public ComparePathsOptions(bool useCaseSensitiveFileNames = false, string? currentDirectory = null)
     {
-        this.useCaseSensitiveFileNames = useCaseSensitiveFileNames;
-        this.currentDirectory = currentDirectory;
+        this._useCaseSensitiveFileNames = useCaseSensitiveFileNames;
+        this._currentDirectory = currentDirectory;
     }
 
-    public bool UseCaseSensitiveFileNames => useCaseSensitiveFileNames;
+    public bool UseCaseSensitiveFileNames => _useCaseSensitiveFileNames;
 
     // Go 的 string 零值是 ""，而 C# 的 default(ComparePathsOptions) 会把字段置为 null；
     // 这里回退到空串，使 default(ComparePathsOptions) 与 Go 的 ComparePathsOptions{} 行为一致。
-    public string CurrentDirectory => currentDirectory ?? string.Empty;
+    public string CurrentDirectory => _currentDirectory ?? string.Empty;
 
-    public Comparison<string> GetComparer() => GetStringComparer(!useCaseSensitiveFileNames);
+    public Comparison<string> GetComparer() => GetStringComparer(!_useCaseSensitiveFileNames);
 
     // Go 的 getEqualityComparer 是包内可见（unexported），C# 用 internal 对应。（未加 IEqualityComparer
     // 包装：Go 的用法就是把比较器当回调传给 tryGetExtensionFromPath 这类函数。）
-    internal Func<string, string, bool> GetEqualityComparer() => GetStringEqualityComparer(!useCaseSensitiveFileNames);
+    internal Func<string, string, bool> GetEqualityComparer() => GetStringEqualityComparer(!_useCaseSensitiveFileNames);
 }

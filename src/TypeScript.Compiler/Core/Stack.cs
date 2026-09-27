@@ -11,39 +11,39 @@ namespace TypeScript.Core;
 
 public sealed class Stack<T>
 {
-    private readonly List<T> data = [];
+    private readonly List<T> _data = [];
 
     public void Push(T item)
     {
-        data.Add(item);
+        _data.Add(item);
     }
 
     public T Pop()
     {
-        var l = data.Count;
+        var l = _data.Count;
         if (l == 0)
         {
             Debug.Fail("stack is empty");
         }
 
-        var item = data[l - 1];
-        data.RemoveAt(l - 1);
+        var item = _data[l - 1];
+        _data.RemoveAt(l - 1);
         return item;
     }
 
     public T Peek()
     {
-        var l = data.Count;
+        var l = _data.Count;
         if (l == 0)
         {
             Debug.Fail("stack is empty");
         }
 
-        return data[l - 1];
+        return _data[l - 1];
     }
 
     public int Len()
     {
-        return data.Count;
+        return _data.Count;
     }
 }

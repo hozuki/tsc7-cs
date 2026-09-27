@@ -24,12 +24,12 @@ namespace TypeScript.Tests;
 
 public class StringUtilGeneratedTablesGoldenTests
 {
-    private const int MaxCodePoint = 0x110000;
+    private const int _maxCodePoint = 0x110000;
 
     private static string MembershipDigest(UnicodeRangeTable table)
     {
-        var bits = new byte[MaxCodePoint >> 3];
-        for (var cp = 0; cp < MaxCodePoint; cp++)
+        var bits = new byte[_maxCodePoint >> 3];
+        for (var cp = 0; cp < _maxCodePoint; cp++)
         {
             if (table.Contains(cp))
             {
@@ -92,7 +92,7 @@ public class StringUtilGeneratedTablesGoldenTests
     {
         // Go 的 unicode.Is 对负数（reinterpret 成 uint32 的巨大值）与 > MaxRune 的输入都返回 false。
         Assert.False(UnicodeESNextIdentifierPart.Contains(-1));
-        Assert.False(UnicodeESNextIdentifierPart.Contains(MaxCodePoint));
+        Assert.False(UnicodeESNextIdentifierPart.Contains(_maxCodePoint));
         Assert.False(UnicodeESNextIdentifierPart.Contains(0x7FFFFFFF));
         Assert.True(UnicodeESNextIdentifierPart.Contains(0x41));
         Assert.False(UnicodeESNextIdentifierPart.Contains(0x20));

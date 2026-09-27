@@ -58,8 +58,8 @@ public sealed class Arena<T>
 {
     // Go: `data []T`。C# 数组没有 len/cap 之分，故 cap = data.Length，len = length。
     // 切片方法（NewSlice/NewSlice1/Clone）退化成普通分配后，这两个字段只被 New() 使用。
-    private T[]? data;
-    private int length;
+    private T[]? _data;
+    private int _length;
 
     /// <summary>
     /// Allocate a single element in the arena and return a pointer to the element. If the arena is at capacity,
@@ -67,18 +67,18 @@ public sealed class Arena<T>
     /// </summary>
     public ref T New()
     {
-        var array = data;
-        if (array is null || length == array.Length)
+        var array = _data;
+        if (array is null || _length == array.Length)
         {
-            var nextSize = NextArenaSize(length);
+            var nextSize = NextArenaSize(_length);
             // Use the same trick as slices.Concat; Grow rounds up to the next size class.
             array = new T[nextSize];
-            data = array;
-            length = 0;
+            _data = array;
+            _length = 0;
         }
 
-        var index = length;
-        length = index + 1;
+        var index = _length;
+        _length = index + 1;
         return ref array[index];
     }
 

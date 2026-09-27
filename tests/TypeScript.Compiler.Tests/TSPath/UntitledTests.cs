@@ -38,7 +38,7 @@ public class TspathUntitledTests
         public override string ToString() => Path;
     }
 
-    private static readonly EdgeCase[] testCases =
+    private static readonly EdgeCase[] _testCases =
     [
         new("^/", 2, true), // Minimal untitled path
         new("^/untitled/ts-nul-authority/test", 2, true), // Normal untitled path
@@ -51,7 +51,7 @@ public class TspathUntitledTests
 
     public static IEnumerable<object[]> UntitledPathEdgeCaseData()
     {
-        foreach (var testCase in testCases)
+        foreach (var testCase in _testCases)
         {
             yield return new object[] { testCase };
         }

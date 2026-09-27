@@ -10,23 +10,23 @@ namespace TypeScript.Core;
 
 public static partial class Core
 {
-    private static string version = "7.1.0-dev";
+    private static string _version = "7.1.0-dev";
 
     public static string Version()
     {
-        return version;
+        return _version;
     }
 
-    private static readonly string versionMajorMinor = ComputeVersionMajorMinor();
+    private static readonly string _versionMajorMinor = ComputeVersionMajorMinor();
 
     private static string ComputeVersionMajorMinor()
     {
         // Go 的 strings.IndexFunc：返回**第二个** '.' 的下标（只见过一个 '.' 时返回 -1）。
         var seenMajor = false;
         var i = -1;
-        for (var j = 0; j < version.Length; j++)
+        for (var j = 0; j < _version.Length; j++)
         {
-            if (version[j] != '.')
+            if (_version[j] != '.')
             {
                 continue;
             }
@@ -42,14 +42,14 @@ public static partial class Core
 
         if (i == -1)
         {
-            Debug.Fail("invalid version string: " + version);
+            Debug.Fail("invalid version string: " + _version);
         }
 
-        return version[..i];
+        return _version[..i];
     }
 
     public static string VersionMajorMinor()
     {
-        return versionMajorMinor;
+        return _versionMajorMinor;
     }
 }

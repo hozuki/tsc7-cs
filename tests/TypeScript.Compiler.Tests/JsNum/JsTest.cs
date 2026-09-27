@@ -25,12 +25,12 @@ namespace TypeScript.Tests;
 
 internal static class JsTest
 {
-    private const string LoaderScript = """
+    private const string _loaderScript = """
         import script from "./script.mjs";
         process.stdout.write(JSON.stringify(await script(...process.argv.slice(2))));
         """;
 
-    private static readonly Lazy<bool> NodeAvailable = new(static () =>
+    private static readonly Lazy<bool> _nodeAvailable = new(static () =>
     {
         try
         {
@@ -62,7 +62,7 @@ internal static class JsTest
     // Node.js 时明确失败、给出原因，比假通过更安全。
     internal static void SkipIfNoNodeJS()
     {
-        if (!NodeAvailable.Value)
+        if (!_nodeAvailable.Value)
         {
             Assert.Fail("Node.js not found (jsnum 的 Node.js 交叉验证用例需要 node 在 PATH 上)");
         }
@@ -247,7 +247,7 @@ internal static class JsTest
     {
         SkipIfNoNodeJS();
 
-        const string Script = """
+        const string script = """
             import fs from 'fs';
 
             function fromBits(bits) {
@@ -299,7 +299,7 @@ internal static class JsTest
         using var directory = new TempDirectory();
         var inputPath = Path.Combine(directory.Path, "input.json");
         File.WriteAllText(inputPath, input.ToString());
-        var stdout = RunNodeScript(Script, directory.Path, inputPath);
+        var stdout = RunNodeScript(script, directory.Path, inputPath);
 
         using var document = JsonDocument.Parse(stdout);
         var root = document.RootElement;
@@ -348,7 +348,7 @@ internal static class JsTest
     private static string RunNodeScript(string script, string directory, params string[] args)
     {
         File.WriteAllText(Path.Combine(directory, "script.mjs"), script);
-        File.WriteAllText(Path.Combine(directory, "loader.mjs"), LoaderScript);
+        File.WriteAllText(Path.Combine(directory, "loader.mjs"), _loaderScript);
 
         var startInfo = new ProcessStartInfo("node")
         {

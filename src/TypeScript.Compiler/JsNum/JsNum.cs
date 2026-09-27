@@ -31,7 +31,7 @@ public static partial class JsNum
     //
     // Go 里它只被同 package 的测试用到；C# 侧测试在另一个程序集，靠 InternalsVisibleTo 访问
     // （Properties/AssemblyInfo.cs），所以这里是 internal 而不是 private。
-    internal static readonly Number negativeZero = (Number)Math.CopySign(0, -1);
+    internal static readonly Number _negativeZero = (Number)Math.CopySign(0, -1);
 
     public static Number NaN()
     {

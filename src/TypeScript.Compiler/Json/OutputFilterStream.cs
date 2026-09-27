@@ -28,28 +28,28 @@ namespace TypeScript.Json;
 
 internal sealed class OutputFilterStream : Stream
 {
-    private readonly Stream inner;
-    private readonly bool reindent;
-    private readonly byte[] indentPrefixBytes;
-    private readonly byte[] indentBytes;
+    private readonly Stream _inner;
+    private readonly bool _reindent;
+    private readonly byte[] _indentPrefixBytes;
+    private readonly byte[] _indentBytes;
 
-    private byte[] inputBuffer = new byte[4096];
-    private byte[] outputBuffer = new byte[4096];
-    private int outputLength;
+    private byte[] _inputBuffer = new byte[4096];
+    private byte[] _outputBuffer = new byte[4096];
+    private int _outputLength;
 
-    private readonly byte[] carry = new byte[12];
-    private int carryLength;
+    private readonly byte[] _carry = new byte[12];
+    private int _carryLength;
 
-    private bool inString;
-    private bool pendingNewline;
-    private int pendingSpaces;
+    private bool _inString;
+    private bool _pendingNewline;
+    private int _pendingSpaces;
 
     internal OutputFilterStream(Stream inner, in JsonSettings settings)
     {
-        this.inner = inner;
-        reindent = settings.NeedsReindent;
-        indentPrefixBytes = System.Text.Encoding.UTF8.GetBytes(settings.IndentPrefix);
-        indentBytes = System.Text.Encoding.UTF8.GetBytes(settings.Indent);
+        this._inner = inner;
+        _reindent = settings.NeedsReindent;
+        _indentPrefixBytes = System.Text.Encoding.UTF8.GetBytes(settings._indentPrefix);
+        _indentBytes = System.Text.Encoding.UTF8.GetBytes(settings._indent);
     }
 
     public override bool CanRead => false;
@@ -78,31 +78,31 @@ internal sealed class OutputFilterStream : Stream
             return;
         }
 
-        var total = carryLength + buffer.Length;
-        if (inputBuffer.Length < total + 12)
+        var total = _carryLength + buffer.Length;
+        if (_inputBuffer.Length < total + 12)
         {
-            var size = inputBuffer.Length;
+            var size = _inputBuffer.Length;
             while (size < total + 12)
             {
                 size *= 2;
             }
 
-            inputBuffer = new byte[size];
+            _inputBuffer = new byte[size];
         }
 
-        if (carryLength > 0)
+        if (_carryLength > 0)
         {
-            carry.AsSpan(0, carryLength).CopyTo(inputBuffer);
+            _carry.AsSpan(0, _carryLength).CopyTo(_inputBuffer);
         }
 
-        buffer.CopyTo(inputBuffer.AsSpan(carryLength));
+        buffer.CopyTo(_inputBuffer.AsSpan(_carryLength));
 
         // 末尾最多 12 字节可能是不完整的转义序列（\uD83D\uDE00），留给下一次 Write。
-        var consumed = Process(inputBuffer.AsSpan(0, total));
-        carryLength = total - consumed;
-        if (carryLength > 0)
+        var consumed = Process(_inputBuffer.AsSpan(0, total));
+        _carryLength = total - consumed;
+        if (_carryLength > 0)
         {
-            inputBuffer.AsSpan(consumed, carryLength).CopyTo(carry);
+            _inputBuffer.AsSpan(consumed, _carryLength).CopyTo(_carry);
         }
 
         FlushOutput();
@@ -117,20 +117,20 @@ internal sealed class OutputFilterStream : Stream
 
     public override void Flush()
     {
-        if (carryLength > 0)
+        if (_carryLength > 0)
         {
             // 编码器的输出一定以完整的转义序列结束；走到这里说明上游写坏了。
             throw new JsonException("json: incomplete escape sequence in encoder output");
         }
 
-        if (pendingNewline)
+        if (_pendingNewline)
         {
-            outputLength = AppendByte(outputLength, (byte)'\n');
-            pendingNewline = false;
+            _outputLength = AppendByte(_outputLength, (byte)'\n');
+            _pendingNewline = false;
         }
 
         FlushOutput();
-        inner.Flush();
+        _inner.Flush();
     }
 
     public override int Read(byte[] buffer, int offset, int count)
@@ -156,12 +156,12 @@ internal sealed class OutputFilterStream : Stream
 
         while (p < length)
         {
-            if (!inString)
+            if (!_inString)
             {
                 var b = span[p];
                 if (b == (byte)'"')
                 {
-                    inString = true;
+                    _inString = true;
                 }
 
                 Emit(b);
@@ -172,7 +172,7 @@ internal sealed class OutputFilterStream : Stream
             var c = span[p];
             if (c == (byte)'"')
             {
-                inString = false;
+                _inString = false;
                 Emit(c);
                 p++;
                 continue;
@@ -300,35 +300,35 @@ internal sealed class OutputFilterStream : Stream
     // 把字节交给输出（重缩进模式下行首的空格串会被换成 prefix + indent*层级）。
     private void Emit(byte b)
     {
-        if (reindent)
+        if (_reindent)
         {
-            if (pendingNewline)
+            if (_pendingNewline)
             {
                 if (b == (byte)' ')
                 {
-                    pendingSpaces++;
+                    _pendingSpaces++;
                     return;
                 }
 
-                outputLength = AppendByte(outputLength, (byte)'\n');
-                outputLength = Append(outputLength, indentPrefixBytes);
-                for (var i = 0; i < pendingSpaces; i++)
+                _outputLength = AppendByte(_outputLength, (byte)'\n');
+                _outputLength = Append(_outputLength, _indentPrefixBytes);
+                for (var i = 0; i < _pendingSpaces; i++)
                 {
-                    outputLength = Append(outputLength, indentBytes);
+                    _outputLength = Append(_outputLength, _indentBytes);
                 }
 
-                pendingNewline = false;
-                pendingSpaces = 0;
+                _pendingNewline = false;
+                _pendingSpaces = 0;
             }
             else if (b == (byte)'\n')
             {
-                pendingNewline = true;
-                pendingSpaces = 0;
+                _pendingNewline = true;
+                _pendingSpaces = 0;
                 return;
             }
         }
 
-        outputLength = AppendByte(outputLength, b);
+        _outputLength = AppendByte(_outputLength, b);
     }
 
     private void EmitRune(int code)
@@ -340,41 +340,41 @@ internal sealed class OutputFilterStream : Stream
         else if (code < 0x800)
         {
             EnsureOutput(2);
-            outputBuffer[outputLength++] = (byte)(0xC0 | (code >> 6));
-            outputBuffer[outputLength++] = (byte)(0x80 | (code & 0x3F));
+            _outputBuffer[_outputLength++] = (byte)(0xC0 | (code >> 6));
+            _outputBuffer[_outputLength++] = (byte)(0x80 | (code & 0x3F));
         }
         else if (code < 0x10000)
         {
             EnsureOutput(3);
-            outputBuffer[outputLength++] = (byte)(0xE0 | (code >> 12));
-            outputBuffer[outputLength++] = (byte)(0x80 | ((code >> 6) & 0x3F));
-            outputBuffer[outputLength++] = (byte)(0x80 | (code & 0x3F));
+            _outputBuffer[_outputLength++] = (byte)(0xE0 | (code >> 12));
+            _outputBuffer[_outputLength++] = (byte)(0x80 | ((code >> 6) & 0x3F));
+            _outputBuffer[_outputLength++] = (byte)(0x80 | (code & 0x3F));
         }
         else
         {
             EnsureOutput(4);
-            outputBuffer[outputLength++] = (byte)(0xF0 | (code >> 18));
-            outputBuffer[outputLength++] = (byte)(0x80 | ((code >> 12) & 0x3F));
-            outputBuffer[outputLength++] = (byte)(0x80 | ((code >> 6) & 0x3F));
-            outputBuffer[outputLength++] = (byte)(0x80 | (code & 0x3F));
+            _outputBuffer[_outputLength++] = (byte)(0xF0 | (code >> 18));
+            _outputBuffer[_outputLength++] = (byte)(0x80 | ((code >> 12) & 0x3F));
+            _outputBuffer[_outputLength++] = (byte)(0x80 | ((code >> 6) & 0x3F));
+            _outputBuffer[_outputLength++] = (byte)(0x80 | (code & 0x3F));
         }
     }
 
     private void EmitEscapedHex(byte b)
     {
-        outputLength = AppendByte(outputLength, (byte)'\\');
-        outputLength = AppendByte(outputLength, (byte)'u');
-        outputLength = AppendByte(outputLength, (byte)'0');
-        outputLength = AppendByte(outputLength, (byte)'0');
-        AppendHex(outputLength, b);
-        outputLength += 2;
+        _outputLength = AppendByte(_outputLength, (byte)'\\');
+        _outputLength = AppendByte(_outputLength, (byte)'u');
+        _outputLength = AppendByte(_outputLength, (byte)'0');
+        _outputLength = AppendByte(_outputLength, (byte)'0');
+        AppendHex(_outputLength, b);
+        _outputLength += 2;
     }
 
     private void AppendHex(int at, byte b)
     {
         EnsureOutput(2);
-        outputBuffer[at] = HexDigit(b >> 4);
-        outputBuffer[at + 1] = HexDigit(b & 0xF);
+        _outputBuffer[at] = HexDigit(b >> 4);
+        _outputBuffer[at + 1] = HexDigit(b & 0xF);
     }
 
     private static byte HexDigit(int nibble)
@@ -385,7 +385,7 @@ internal sealed class OutputFilterStream : Stream
     private int AppendByte(int at, byte b)
     {
         EnsureOutput(1);
-        outputBuffer[at] = b;
+        _outputBuffer[at] = b;
         return at + 1;
     }
 
@@ -397,34 +397,34 @@ internal sealed class OutputFilterStream : Stream
         }
 
         EnsureOutput(bytes.Length);
-        bytes.CopyTo(outputBuffer, at);
+        bytes.CopyTo(_outputBuffer, at);
         return at + bytes.Length;
     }
 
     private void EnsureOutput(int extra)
     {
-        if (outputLength + extra <= outputBuffer.Length)
+        if (_outputLength + extra <= _outputBuffer.Length)
         {
             return;
         }
 
-        var size = outputBuffer.Length;
-        while (size < outputLength + extra)
+        var size = _outputBuffer.Length;
+        while (size < _outputLength + extra)
         {
             size *= 2;
         }
 
-        Array.Resize(ref outputBuffer, size);
+        Array.Resize(ref _outputBuffer, size);
     }
 
     private void FlushOutput()
     {
-        if (outputLength == 0)
+        if (_outputLength == 0)
         {
             return;
         }
 
-        inner.Write(outputBuffer.AsSpan(0, outputLength));
-        outputLength = 0;
+        _inner.Write(_outputBuffer.AsSpan(0, _outputLength));
+        _outputLength = 0;
     }
 }

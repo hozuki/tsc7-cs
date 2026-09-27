@@ -29,7 +29,7 @@ public static partial class TSPath
 
     public static readonly string[] SupportedDeclarationExtensions = [ExtensionDts, ExtensionDcts, ExtensionDmts];
     public static readonly string[] SupportedTSImplementationExtensions = [ExtensionTs, ExtensionTsx, ExtensionMts, ExtensionCts];
-    private static readonly string[] supportedTSExtensionsForExtractExtension = [ExtensionDts, ExtensionDcts, ExtensionDmts, ExtensionTs, ExtensionTsx, ExtensionMts, ExtensionCts];
+    private static readonly string[] _supportedTSExtensionsForExtractExtension = [ExtensionDts, ExtensionDcts, ExtensionDmts, ExtensionTs, ExtensionTsx, ExtensionMts, ExtensionCts];
     public static readonly string[][] AllSupportedExtensions = [[ExtensionTs, ExtensionTsx, ExtensionDts, ExtensionJs, ExtensionJsx], [ExtensionCts, ExtensionDcts, ExtensionCjs], [ExtensionMts, ExtensionDmts, ExtensionMjs]];
     public static readonly string[][] SupportedTSExtensions = [[ExtensionTs, ExtensionTsx, ExtensionDts], [ExtensionCts, ExtensionDcts], [ExtensionMts, ExtensionDmts]];
     public static readonly string[] SupportedTSExtensionsFlat = [ExtensionTs, ExtensionTsx, ExtensionDts, ExtensionCts, ExtensionDcts, ExtensionMts, ExtensionDmts];
@@ -51,12 +51,12 @@ public static partial class TSPath
             || ext == ExtensionDcts
             || ext.Length >= 7 && ext.StartsWith(".d.", StringComparison.Ordinal) && ext.EndsWith(".ts", StringComparison.Ordinal);
 
-    private static readonly string[] extensionsToRemove = [ExtensionDts, ExtensionDmts, ExtensionDcts, ExtensionMjs, ExtensionMts, ExtensionCjs, ExtensionCts, ExtensionTs, ExtensionJs, ExtensionTsx, ExtensionJsx, ExtensionJson];
+    private static readonly string[] _extensionsToRemove = [ExtensionDts, ExtensionDmts, ExtensionDcts, ExtensionMjs, ExtensionMts, ExtensionCjs, ExtensionCts, ExtensionTs, ExtensionJs, ExtensionTsx, ExtensionJsx, ExtensionJson];
 
     public static string RemoveFileExtension(string path)
     {
         // Remove any known extension even if it has more than one dot
-        foreach (var ext in extensionsToRemove)
+        foreach (var ext in _extensionsToRemove)
         {
             if (path.EndsWith(ext, StringComparison.Ordinal))
             {
@@ -86,7 +86,7 @@ public static partial class TSPath
 
     public static string TryGetExtensionFromPath(string p)
     {
-        foreach (var ext in extensionsToRemove)
+        foreach (var ext in _extensionsToRemove)
         {
             if (FileExtensionIs(p, ext))
             {
@@ -114,7 +114,7 @@ public static partial class TSPath
 
     public static string TryExtractTSExtension(string fileName)
     {
-        foreach (var ext in supportedTSExtensionsForExtractExtension)
+        foreach (var ext in _supportedTSExtensionsForExtractExtension)
         {
             if (FileExtensionIs(fileName, ext))
             {
@@ -227,7 +227,7 @@ public static partial class TSPath
     }
 
     public static string ChangeExtension(string path, string newExtension)
-        => ChangeAnyExtension(path, newExtension, extensionsToRemove, false /*ignoreCase*/);
+        => ChangeAnyExtension(path, newExtension, _extensionsToRemove, false /*ignoreCase*/);
 
     // Like `changeAnyExtension`, but declaration file extensions are recognized
     // and replaced starting from the `.d`.

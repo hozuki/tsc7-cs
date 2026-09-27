@@ -35,36 +35,36 @@ namespace TypeScript.Core;
 /// </summary>
 internal sealed class WaitGroup
 {
-    private readonly object mu = new();
-    private int count;
+    private readonly object _mu = new();
+    private int _count;
 
     internal void Add(int delta)
     {
-        lock (mu)
+        lock (_mu)
         {
-            count += delta;
+            _count += delta;
         }
     }
 
     internal void Done()
     {
-        lock (mu)
+        lock (_mu)
         {
-            count--;
-            if (count == 0)
+            _count--;
+            if (_count == 0)
             {
-                Monitor.PulseAll(mu);
+                Monitor.PulseAll(_mu);
             }
         }
     }
 
     internal void Wait()
     {
-        lock (mu)
+        lock (_mu)
         {
-            while (count > 0)
+            while (_count > 0)
             {
-                Monitor.Wait(mu);
+                Monitor.Wait(_mu);
             }
         }
     }
@@ -83,20 +83,20 @@ public interface WorkGroup
 internal sealed class ParallelWorkGroup : WorkGroup
 {
     // Go: `done atomic.Bool`
-    private volatile bool done;
+    private volatile bool _done;
     // Go: `wg sync.WaitGroup`
-    private readonly WaitGroup wg = new();
+    private readonly WaitGroup _wg = new();
     // Go 里 panic 会崩进程；见文件头第 5 条。
-    private Exception? firstError;
+    private Exception? _firstError;
 
     public void Queue(Action fn)
     {
-        if (done)
+        if (_done)
         {
             Debug.Fail("Queue called after RunAndWait returned");
         }
 
-        wg.Add(1);
+        _wg.Add(1);
         Task.Run(() =>
         {
             try
@@ -105,11 +105,11 @@ internal sealed class ParallelWorkGroup : WorkGroup
             }
             catch (Exception e)
             {
-                Interlocked.CompareExchange(ref firstError, e, null);
+                Interlocked.CompareExchange(ref _firstError, e, null);
             }
             finally
             {
-                wg.Done();
+                _wg.Done();
             }
         });
     }
@@ -118,14 +118,14 @@ internal sealed class ParallelWorkGroup : WorkGroup
     {
         try
         {
-            wg.Wait();
+            _wg.Wait();
         }
         finally
         {
-            done = true;
+            _done = true;
         }
 
-        var error = Volatile.Read(ref firstError);
+        var error = Volatile.Read(ref _firstError);
         if (error is not null)
         {
             ExceptionDispatchInfo.Capture(error).Throw();
@@ -136,22 +136,22 @@ internal sealed class ParallelWorkGroup : WorkGroup
 internal sealed class SingleThreadedWorkGroup : WorkGroup
 {
     // Go: `done atomic.Bool`
-    private volatile bool done;
+    private volatile bool _done;
     // Go: `fnsMu sync.Mutex`
-    private readonly object fnsMu = new();
+    private readonly object _fnsMu = new();
     // Go: `fns []func()`
-    private readonly List<Action> fns = new();
+    private readonly List<Action> _fns = new();
 
     public void Queue(Action fn)
     {
-        if (done)
+        if (_done)
         {
             Debug.Fail("Queue called after RunAndWait returned");
         }
 
-        lock (fnsMu)
+        lock (_fnsMu)
         {
-            fns.Add(fn);
+            _fns.Add(fn);
         }
     }
 
@@ -172,22 +172,22 @@ internal sealed class SingleThreadedWorkGroup : WorkGroup
         }
         finally
         {
-            done = true;
+            _done = true;
         }
     }
 
     private Action? Pop()
     {
-        lock (fnsMu)
+        lock (_fnsMu)
         {
-            if (fns.Count == 0)
+            if (_fns.Count == 0)
             {
                 return null;
             }
 
-            var end = fns.Count - 1;
-            var fn = fns[end];
-            fns.RemoveAt(end); // Go: w.fns[end] = nil; w.fns = w.fns[:end]（RemoveAt 同样清空腾出的槽位）
+            var end = _fns.Count - 1;
+            var fn = _fns[end];
+            _fns.RemoveAt(end); // Go: w.fns[end] = nil; w.fns = w.fns[:end]（RemoveAt 同样清空腾出的槽位）
             return fn;
         }
     }
@@ -198,17 +198,17 @@ public sealed class ThrottleGroup
 {
     // Go: `semaphore chan struct{}`（带缓冲 channel 当信号量用）→ SemaphoreSlim；
     // 调用点的 `make(chan struct{}, n)` 对应 `new SemaphoreSlim(n, n)`。
-    private readonly SemaphoreSlim semaphore;
+    private readonly SemaphoreSlim _semaphore;
     // Go: `group *errgroup.Group` 的等待机制（WaitGroup；见文件头第 1 条）
-    private readonly WaitGroup group = new();
+    private readonly WaitGroup _group = new();
     // Go: errgroup.Group 的 `errOnce sync.Once` + 保存的**第一个** error
-    private Exception? firstError;
+    private Exception? _firstError;
 
     // Go 里 `g, _ := errgroup.WithContext(ctx)` **丢弃**了派生 context（没有任何地方使用它），
     // 所以这里的 ctx 参数也不使用；保留参数只为与 Go 的 API 形状一致。
     internal ThrottleGroup(Context ctx, SemaphoreSlim semaphore)
     {
-        this.semaphore = semaphore;
+        this._semaphore = semaphore;
     }
 
     /// <summary>
@@ -217,13 +217,13 @@ public sealed class ThrottleGroup
     /// </summary>
     public void Go(Action fn)
     {
-        group.Add(1);
+        _group.Add(1);
         Task.Run(() =>
         {
             try
             {
                 // Acquire semaphore slot - this will block until a slot is available
-                semaphore.Wait();
+                _semaphore.Wait();
                 try
                 {
                     fn();
@@ -231,17 +231,17 @@ public sealed class ThrottleGroup
                 catch (Exception e)
                 {
                     // Go: errgroup 只保留第一个 error（errOnce），其余丢弃
-                    Interlocked.CompareExchange(ref firstError, e, null);
+                    Interlocked.CompareExchange(ref _firstError, e, null);
                 }
                 finally
                 {
                     // Release semaphore slot when done
-                    semaphore.Release();
+                    _semaphore.Release();
                 }
             }
             finally
             {
-                group.Done();
+                _group.Done();
             }
         });
     }
@@ -249,9 +249,9 @@ public sealed class ThrottleGroup
     /// <summary>Wait waits for all goroutines to complete and returns the first error encountered, if any.</summary>
     public void Wait()
     {
-        group.Wait();
+        _group.Wait();
 
-        var error = Volatile.Read(ref firstError);
+        var error = Volatile.Read(ref _firstError);
         if (error is not null)
         {
             ExceptionDispatchInfo.Capture(error).Throw();

@@ -21,11 +21,11 @@ namespace TypeScript.Collections;
 public sealed class SyncSet<T> where T : notnull
 {
     // Go: `m SyncMap[T, struct{}]`（zero value 可用）。
-    private readonly SyncMap<T, byte> m = new();
+    private readonly SyncMap<T, byte> _m = new();
 
     public bool Has(T key)
     {
-        return m.Load(key).Ok;
+        return _m.Load(key).Ok;
     }
 
     public void Add(T key)
@@ -39,17 +39,17 @@ public sealed class SyncSet<T> where T : notnull
     /// </summary>
     public bool AddIfAbsent(T key)
     {
-        return !m.LoadOrStore(key, 0).Loaded;
+        return !_m.LoadOrStore(key, 0).Loaded;
     }
 
     public void Delete(T key)
     {
-        m.Delete(key);
+        _m.Delete(key);
     }
 
     public void Range(Func<T, bool> fn)
     {
-        m.Range((key, _) => fn(key));
+        _m.Range((key, _) => fn(key));
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public sealed class SyncSet<T> where T : notnull
     public int Size()
     {
         var count = 0;
-        m.Range((_, _) =>
+        _m.Range((_, _) =>
         {
             count++;
             return true;
@@ -70,7 +70,7 @@ public sealed class SyncSet<T> where T : notnull
     public bool IsEmpty()
     {
         var empty = true;
-        m.Range((_, _) =>
+        _m.Range((_, _) =>
         {
             empty = false;
             return false;
@@ -82,8 +82,8 @@ public sealed class SyncSet<T> where T : notnull
     public T[] ToSlice()
     {
         // Go: var arr []T; arr = make([]T, 0, s.m.Size()); Range append
-        var arr = new List<T>(m.Size());
-        m.Range((key, _) =>
+        var arr = new List<T>(_m.Size());
+        _m.Range((key, _) =>
         {
             arr.Add(key);
             return true;
@@ -96,6 +96,6 @@ public sealed class SyncSet<T> where T : notnull
     /// </summary>
     public IEnumerable<T> Keys()
     {
-        return m.Keys();
+        return _m.Keys();
     }
 }
