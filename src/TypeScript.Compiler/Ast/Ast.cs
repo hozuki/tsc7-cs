@@ -26,6 +26,10 @@ public static partial class Ast
     /// <summary>Go: <c>func NewNodeFactory(hooks NodeFactoryHooks) *NodeFactory</c>。</summary>
     public static NodeFactory NewNodeFactory(NodeFactoryHooks hooks) => new() { _hooks = hooks };
 
+    /// <summary>Go: <c>func NewNodeVisitor(visit func(node *Node) *Node, factory *NodeFactory, hooks NodeVisitorHooks) *NodeVisitor</c>（visitor.go:28；factory 为 nil 时给零值工厂）。</summary>
+    public static NodeVisitor NewNodeVisitor(NodeVisitorVisit? visit, NodeFactory? factory, NodeVisitorHooks? hooks)
+        => new(visit, factory, hooks);
+
     /// <summary>Go: <c>func newNode(kind Kind, data nodeData, hooks NodeFactoryHooks) *Node</c>。</summary>
     internal static Node NewNode(Kind kind, Node node, NodeFactoryHooks? hooks = null)
     {

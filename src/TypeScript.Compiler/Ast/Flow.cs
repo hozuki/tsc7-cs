@@ -68,7 +68,7 @@ public sealed class FlowReduceLabelData : Node
 
 public static partial class Ast
 {
-    internal static Node NewFlowSwitchClauseData(Node? switchStatement, int clauseStart, int clauseEnd)
+    public static Node NewFlowSwitchClauseData(Node? switchStatement, int clauseStart, int clauseEnd)
     {
         var node = new FlowSwitchClauseData
         {
@@ -79,7 +79,7 @@ public static partial class Ast
         return NewNode(Kind.Unknown, node, default);
     }
 
-    internal static Node NewFlowReduceLabelData(FlowNode? target, FlowList? antecedents)
+    public static Node NewFlowReduceLabelData(FlowNode? target, FlowList? antecedents)
     {
         var node = new FlowReduceLabelData
         {

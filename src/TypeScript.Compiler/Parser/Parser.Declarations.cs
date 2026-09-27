@@ -43,7 +43,7 @@ using static TypeScript.Scanner.Scanner;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     /// <summary>Go: <c>func (p *Parser) parseTypeAliasDeclaration(pos int, jsdoc jsdocScannerInfo, modifiers *ast.ModifierList) *ast.Node</c>（Go:2142-2161）。</summary>
     private Node ParseTypeAliasDeclaration(int pos, JsdocScannerInfo jsdoc, ModifierList? modifiers)

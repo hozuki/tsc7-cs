@@ -53,6 +53,18 @@ public partial class NodeFactory : NodeFactoryCoercible
 
     public NodeFactory AsNodeFactory() => this;
 
+    /// <summary>Go: <c>func (f *NodeFactory) NewCommentRange(kind Kind, pos int, end int, hasTrailingNewLine bool) CommentRange</c>（ast.go:3115）。</summary>
+    public CommentRange NewCommentRange(Kind kind, int pos, int end, bool hasTrailingNewLine)
+    {
+        // Go 按值返回结构体字面量；C# 返回新实例（CommentRange 是 class，见 AstTypes.cs）。
+        return new CommentRange
+        {
+            Range = NewTextRange(pos, end),
+            Kind = kind,
+            HasTrailingNewLine = hasTrailingNewLine,
+        };
+    }
+
     /// <summary>Go: <c>func (f *NodeFactory) NewNodeList(nodes []*Node) *NodeList</c>。</summary>
     public NodeList NewNodeList(Node[]? nodes)
     {

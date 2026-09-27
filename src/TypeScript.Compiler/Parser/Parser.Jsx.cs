@@ -32,7 +32,7 @@ using static TypeScript.StringUtil.StringUtil;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     // ported from: internal/parser/parser.go:5054-5057
     private Node ParseJsxAttributes()

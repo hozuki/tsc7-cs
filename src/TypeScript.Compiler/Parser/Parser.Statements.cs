@@ -28,7 +28,7 @@ using static TypeScript.Diagnostics.Diagnostics;
 using static TypeScript.Scanner.Scanner;
 using static TypeScript.StringUtil.StringUtil;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     private Node ParseStatement()
     {

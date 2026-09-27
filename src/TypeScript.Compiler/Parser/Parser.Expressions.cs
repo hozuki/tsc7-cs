@@ -30,7 +30,7 @@ using static TypeScript.Scanner.Scanner;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     // ported from: internal/parser/parser.go:3534-3547
     private Node? ParseFunctionBlockOrSemicolon(ParseFlags flags, Message? diagnosticMessage)

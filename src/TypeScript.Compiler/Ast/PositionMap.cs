@@ -23,5 +23,5 @@ public sealed class PositionMap
 
 public static partial class Ast
 {
-    internal static PositionMap ComputePositionMap(string text) => new();
+    public static PositionMap ComputePositionMap(string text) => new();
 }

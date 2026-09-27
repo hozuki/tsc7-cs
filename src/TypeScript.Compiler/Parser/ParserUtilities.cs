@@ -24,7 +24,7 @@ using static TypeScript.Scanner.Scanner;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     /// <summary>Go: <c>func getLanguageVariant(scriptKind core.ScriptKind) core.LanguageVariant</c>。</summary>
     internal static LanguageVariant GetLanguageVariant(ScriptKind scriptKind)
@@ -50,7 +50,7 @@ internal sealed partial class Parser
         token == Kind.GreaterThanToken || TokenIsIdentifierOrKeyword(token);
 
     /// <summary>Go: <c>func GetJSDocCommentRanges(f *ast.NodeFactory, commentRanges []ast.CommentRange, node *ast.Node, text string) []ast.CommentRange</c>。</summary>
-    internal static List<CommentRange> GetJSDocCommentRanges(
+    public static List<CommentRange> GetJSDocCommentRanges(
         NodeFactory f,
         List<CommentRange>? commentRanges,
         Node node,

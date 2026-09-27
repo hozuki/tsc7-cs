@@ -54,7 +54,7 @@ using static TypeScript.StringUtil.StringUtil;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     /// <summary>
     /// Go: <c>func init() { ast.SetParseJSDocForNode(parseJSDocForNode) }</c>（jsdoc.go:13-15）：注册

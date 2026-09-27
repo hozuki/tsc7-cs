@@ -34,7 +34,7 @@ public sealed class ExternalModuleIndicatorOptions
 
 public static partial class Ast
 {
-    internal static ExternalModuleIndicatorOptions GetExternalModuleIndicatorOptions(string fileName, CompilerOptions? options, SourceFileMetaData metadata)
+    public static ExternalModuleIndicatorOptions GetExternalModuleIndicatorOptions(string fileName, CompilerOptions? options, SourceFileMetaData metadata)
     {
         if (IsDeclarationFileName(fileName))
         {

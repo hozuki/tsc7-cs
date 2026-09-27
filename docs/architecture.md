@@ -55,6 +55,13 @@
   * 需要被同程序集其它类访问的 Go 未导出成员 → `internal`（仍是 `_camelCase` 字段 / PascalCase 方法）；只在本类用 → `private`。
 - 命名空间必须显式声明为 file-scoped（`.editorconfig` 已把它设为 warning 级）。
 - 命名规范由 `.editorconfig` 的命名规则强制（`_camelCase` 字段等），新增/改动代码必须过。
+- **公开 API 对等检查**（周期跑，落实"公开 API 与 TSGO 一致"）：
+  ```sh
+  dotnet run --project artifacts/api-parity            # 反射 dump 我们产物的 public API
+  node artifacts/api-parity/compare.mjs               # 与 Go 的导出声明比对
+  ```
+  当前：**通过 2865 项 / 缺失 0 / 白名单 15 项（逐条给理由，如 §3.1 不移植的哨兵函数、Go 类型别名 → C# enum/直接类型、`(T,bool)` → `TryX`、`base` 结构体 → `I<Base>` 接口）**。
+  它没有做成永久测试的原因：dump 需要反射，而测试程序集开了 AOT 分析器（IL2026/IL2075 会因 TreatWarningsAsErrors 变错），所以放在 `artifacts/`（gitignore）里按需运行；TSGO 检出与 `TSGO_ROOT` 是前提。
 
 ## 3. 类型映射
 

@@ -93,7 +93,7 @@ namespace TypeScript.Parser;
 /// <summary>
 /// Go: <c>type ParsingContext int</c>（成员名去 Go 的 <c>PC</c> 前缀，数值与 Go 一致，docs/architecture.md §3.3）。
 /// </summary>
-internal enum ParsingContext : int
+public enum ParsingContext : int
 {
     /// <summary>Elements in source file</summary>
     SourceElements = 0,
@@ -186,7 +186,7 @@ internal enum ParsingContext : int
 /// 所以这里按仓库既有惯例（Core/Text.cs 的 <c>TextPos</c>）做"强类型 int"：只读 struct 包一个 int + 双向隐式转换 +
 /// `|`/`&amp;`/`~`/`==`/`!=`，于是 Go 的写法（以及显式转型的写法）都能逐字编译。
 /// </remarks>
-internal readonly struct ParsingContexts : IEquatable<ParsingContexts>
+public readonly struct ParsingContexts : IEquatable<ParsingContexts>
 {
     private readonly int _value;
 
@@ -222,7 +222,7 @@ internal readonly struct ParsingContexts : IEquatable<ParsingContexts>
 }
 
 /// <summary>Go: <c>type JSDocInfo struct { parent *ast.Node; jsDocs []*ast.Node }</c>。</summary>
-internal sealed class JSDocInfo
+public sealed class JSDocInfo
 {
     /// <summary>Go: 字段 <c>parent *ast.Node</c>。</summary>
     internal Node? _parent;
@@ -254,7 +254,7 @@ internal enum JsdocScannerInfo : byte
 /// Go: <c>type ParserState struct</c>（<see cref="Parser.Mark"/> 的返回值）。保持 struct：Go 里按值传递/复制，
 /// ReparseTopLevelAwait 会修改自己那份副本的 <c>diagnosticsLen</c>。
 /// </summary>
-internal struct ParserState
+public struct ParserState
 {
     internal TsScannerState _scannerState;
     internal NodeFlags _contextFlags;
@@ -274,7 +274,7 @@ internal struct ParserState
 /// 字段、不得再声明；名字按 docs/architecture.md §2 为未导出字段的 <c>_camelCase</c>。可见性统一 `internal`，
 /// 与 `Scanner` 的处理一致（同一 partial 类型的各部分本就能互访 private，`internal` 让同程序集的其它类也能读）。
 /// </remarks>
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     internal TsScanner _scanner;
     internal NodeFactory _factory;
@@ -411,7 +411,7 @@ internal sealed partial class Parser
     /// <summary>
     /// Go: <c>func ParseSourceFile(opts ast.SourceFileParseOptions, sourceText string, scriptKind core.ScriptKind) *ast.SourceFile</c>。
     /// </summary>
-    internal static SourceFile ParseSourceFile(SourceFileParseOptions opts, string sourceText, ScriptKind scriptKind)
+    public static SourceFile ParseSourceFile(SourceFileParseOptions opts, string sourceText, ScriptKind scriptKind)
     {
         var p = GetParser();
         try
@@ -628,7 +628,7 @@ internal sealed partial class Parser
     }
 
     /// <summary>Go: <c>func ParseIsolatedEntityName(text string) *ast.EntityName</c>。</summary>
-    internal static Node? ParseIsolatedEntityName(string text)
+    public static Node? ParseIsolatedEntityName(string text)
     {
         var p = GetParser();
         try

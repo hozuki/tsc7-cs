@@ -36,7 +36,7 @@ using static TypeScript.Scanner.Scanner;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     // ported from: internal/parser/reparser.go:14-18
     private void FinishReparsedNode(Node node, Node locationNode)

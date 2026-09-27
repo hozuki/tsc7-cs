@@ -21,7 +21,7 @@ using static TypeScript.TSPath.TSPath;
 
 namespace TypeScript.Parser;
 
-internal sealed partial class Parser
+public sealed partial class Parser
 {
     /// <summary>Go: <c>func collectExternalModuleReferences(file *ast.SourceFile)</c>。</summary>
     internal static void CollectExternalModuleReferences(SourceFile file)
