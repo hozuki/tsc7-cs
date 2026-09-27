@@ -83,7 +83,9 @@ public sealed class ContentMapperSourceFileInfo
 /// <summary>
 /// Go: <c>type SourceFile struct</c>（ast.go:2446-2524 的字段 + 各方法的宿主）。
 /// </summary>
-public sealed partial class SourceFile : Node, IDeclarationBase, ILocalsContainerBase, ICompositeBase, HasFileName, SourceFileLike
+// Go 里 *ast.SourceFile 结构化满足 sourcemap.Source 与 modulespecifiers.SourceFileForSpecifierGeneration；
+// C# 显式实现（docs §3.2）。
+public sealed partial class SourceFile : Node, IDeclarationBase, ILocalsContainerBase, ICompositeBase, HasFileName, SourceFileLike, TypeScript.SourceMap.Source, TypeScript.ModuleSpecifiers.SourceFileForSpecifierGeneration
 {
     // ── Fields set by NewSourceFile ──
 
@@ -205,6 +207,13 @@ public sealed partial class SourceFile : Node, IDeclarationBase, ILocalsContaine
         get => NextContainer;
         set => NextContainer = value;
     }
+
+    // Go: DeclarationBase.DeclarationData() / LocalsContainerBase.LocalsContainerData() 都 `return node`（ast.go:1513/1530）。
+    // 生成的节点由生成器发射这两个 override；手写的 SourceFile 漏了它们，会让 Ast.GetLocals/IsLocalsContainer
+    // 对 SourceFile 失效（NRE / 恒 false）——Binder 冒烟实测到过。
+    public override IDeclarationBase? DeclarationData() => this;
+
+    public override ILocalsContainerBase? LocalsContainerData() => this;
 
     // Go: CompositeBase.facts atomic.Uint32（缓存 SubtreeFacts；见 Node.SubtreeFacts）
     internal int _facts;

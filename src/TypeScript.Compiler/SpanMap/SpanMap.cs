@@ -1105,10 +1105,10 @@ public enum MappingErrorKind : int
 
 /// <summary>
 /// Go: <c>type MappingError struct</c>。单条 span map 校验失败，带上涉及的偏移量。
-/// Go 的 <c>Error() string</c>（error 接口）→ C# 的 <c>ToString()</c>（§3.2：Go 的 error 在 C# 侧就是异常的
-/// 消息文本；本类型仍作为普通返回值的错误描述，只有消息文本需要保留）。
+/// Go 的 <c>Error() string</c>（error 接口）→ C# 的异常（docs/architecture.md §3.2：Go 的 error 值在 C# 侧就是异常，
+/// <c>errors.AsType[*spanmap.MappingError]</c> → <c>catch (MappingError)</c>）；<c>Error()</c> 的文本进 <c>Message</c>。
 /// </summary>
-public sealed class MappingError
+public sealed class MappingError : Exception
 {
     public MappingErrorKind Kind;
     public TextPos VirtualPos;
@@ -1121,7 +1121,11 @@ public sealed class MappingError
         OriginalPos = originalPos;
     }
 
-    public override string ToString()
+    public override string Message => ErrorText();
+
+    public override string ToString() => ErrorText();
+
+    private string ErrorText()
     {
         switch (Kind)
         {

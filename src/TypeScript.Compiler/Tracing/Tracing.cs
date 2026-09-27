@@ -12,8 +12,8 @@
 // 3) Go 的 `atomic.Bool` → `volatile bool`（Load/Store 语义一致）；`sync.Mutex` → `object _mu` + `lock`（与
 //    Ast/SourceFile.cs 同款）。Go 的"nil 接收者安全"方法（Instant/Push）在 C# 里不可分派（§3.2），
 //    调用点写 `tr?.Instant(...)`；checker 的 Tracer 适配器自己判空。
-// 4) `xxh3`（github.com/zeebo/xxh3）是 Go 侧的外部依赖，不是 TSGO 的 API：按 XXH3 规范在 Xxh3.cs 里复刻
-//    （baseline 里钉住了文件线程 ID，见该文件头）。
+// 4) `xxh3`（github.com/zeebo/xxh3）是 Go 侧的外部依赖，不是 TSGO 的 API：按 XXH3 规范在 Xxh3/Xxh3.cs 里复刻
+//    （baseline 里钉住了文件线程 ID，见该文件头）。64 位与 128 位入口现在是同一个 `TypeScript.Xxh3.Xxh3`。
 // 5) `json.MarshalWrite(buf, v, opts)` 写进 `strings.Builder`：C# 的 `MarshalWrite` 只接受 `Stream`，所以这里
 //    走 `Marshal(v, opts)` → `Encoding.UTF8.GetString` 后 append（字节相同）。
 // 6) 结构体的 JSON 字段映射（Go 靠 reflect + tag）在 C# 侧必须显式实现 `IJsonMarshaler`（docs/json.md §2）：
@@ -662,7 +662,7 @@ public sealed partial class Tracing
         keyText.Append(key.Kind);
         keyText.Append(':');
         keyText.Append(key.HasIndex ? key.Index.ToString(CultureInfo.InvariantCulture) : key.Text);
-        var hash = Xxh3.Hash64(Encoding.UTF8.GetBytes(keyText.ToString()));
+        var hash = Xxh3.Xxh3.Hash64(Encoding.UTF8.GetBytes(keyText.ToString()));
         return _firstFileThreadID + (int)(hash % _fileThreadIDHashRange);
     }
 

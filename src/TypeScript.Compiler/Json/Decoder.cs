@@ -53,7 +53,7 @@ public sealed class Decoder
     public JsonKind PeekKind()
     {
         var reader = CreateReader();
-        if (!reader.Read())
+        if (!Read(ref reader))
         {
             throw new JsonException("json: unexpected end of input");
         }
@@ -80,7 +80,7 @@ public sealed class Decoder
     {
         var reader = CreateReader();
         _currentName = null;
-        if (!reader.Read())
+        if (!Read(ref reader))
         {
             throw new JsonException("json: unexpected end of input");
         }
@@ -102,7 +102,7 @@ public sealed class Decoder
     public byte[] ReadValue()
     {
         var reader = CreateReader();
-        if (!reader.Read())
+        if (!Read(ref reader))
         {
             throw new JsonException("json: unexpected end of input");
         }
@@ -140,7 +140,7 @@ public sealed class Decoder
     public void SkipValue()
     {
         var reader = CreateReader();
-        if (!reader.Read())
+        if (!Read(ref reader))
         {
             throw new JsonException("json: unexpected end of input");
         }
@@ -181,7 +181,7 @@ public sealed class Decoder
     {
         var reader = CreateReader();
         _currentName = null;
-        if (!reader.Read())
+        if (!Read(ref reader))
         {
             throw new JsonException("json: unexpected end of input");
         }
@@ -249,6 +249,21 @@ public sealed class Decoder
     private Utf8JsonReader CreateReader()
     {
         return new Utf8JsonReader(_utf8.AsSpan(_position), isFinalBlock: true, _state);
+    }
+
+    // Go 侧读到坏 JSON 是 error → C# 统一抛 TypeScript.Json.JsonException（docs/json.md）。
+    // System.Text.Json 的 JsonReaderException 是实现细节，不能漏给调用方（否则 package.json/tsconfig/
+    // sourcemap/trace/lsproto 这些"读外部 JSON"的调用点会看到 STJ 的异常类型与消息）。
+    private static bool Read(ref Utf8JsonReader reader)
+    {
+        try
+        {
+            return reader.Read();
+        }
+        catch (System.Text.Json.JsonException e)
+        {
+            throw new JsonException($"json: {e.Message}", e);
+        }
     }
 
     private void Update(ref Utf8JsonReader reader)

@@ -1,22 +1,39 @@
-// ported from: github.com/zeebo/xxh3（XXH3-128，xxHash 0.8.x 的标量参考算法）
+// ported from: github.com/zeebo/xxh3（XXH3 的标量参考实现；64 位与 128 位共用同一套 secret/累加/混合代码）
 //
-// Go 侧用的是第三方包 `github.com/zeebo/xxh3`（`Hash128`/`HashString128`/`Uint128`），C# 没有对应物：
-// 本项目**不引 NuGet**（System.IO.Hashing 只出现在一次性探针 artifacts/xxh3-probe 里当 oracle），
-// 这里自己写一份标量实现，目标是与 xxHash 参考实现 **bit-exact**（对拍结果见 artifacts/xxh3-probe）。
+// Go 侧用的是第三方包 `github.com/zeebo/xxh3`，C# 没有对应物：本项目**不引 NuGet**
+// （System.IO.Hashing 只出现在一次性探针 artifacts/xxh3-probe 里当 oracle），这里自己写一份标量实现，
+// 目标是与 xxHash 参考实现 **bit-exact**（对拍结果见 artifacts/xxh3-probe）。
 //
-// 与 Go 的映射：
-//   xxh3.Uint128{Loo, Hi}            → System.UInt128（高 64 位 = Hi，低 64 位 = Lo；Ast.SourceFile.Hash 已经用这个类型）
-//   xxh3.Hash128([]byte)             → Hash128(ReadOnlySpan<byte>)
-//   xxh3.HashString128(string)       → HashString128(string)
-//   xxh3.Uint128.Bytes() [16]byte    → Bytes(UInt128)（小端 16 字节：低 64 位在前，与 Go 的 Bytes() 逐字节一致）
+// 两个调用面（合并前是 Tracing/Xxh3.cs 与 Xxh3/Xxh3.cs 两份实现，现已合成这一份）：
+//
+// 1) **XXH3-128**（contentmapper / ast / checker 的 Identity 哈希）：
+//      xxh3.Uint128{Loo, Hi}         → System.UInt128（高 64 位 = Hi，低 64 位 = Lo；Ast.SourceFile.Hash 已用这个类型）
+//      xxh3.Hash128([]byte)          → Hash128(ReadOnlySpan<byte>)
+//      xxh3.Hash128Seed(b, seed)     → Hash128(ReadOnlySpan<byte>, ulong seed)
+//      xxh3.HashString128(string)    → HashString128(string)
+//      xxh3.Uint128.Bytes() [16]byte → Bytes(UInt128)（小端 16 字节：低 64 位在前，与 Go 的 Bytes() 逐字节一致）
+//
+// 2) **XXH3-64**（internal/tracing/tracing.go 的 stableTraceThreadID）：
+//      xxh3.New() + WriteString(...) + Sum64() → Hash64(ReadOnlySpan<byte>)
+//      xxh3.HashString(s)                      → HashString64(string)
+//    tracing 给"文件线程"分配稳定的线程 ID，这个 ID 会**逐字节**出现在 baseline 里
+//    （tsc/testdata/baselines/reference/tsc/generateTrace/generateTrace-*.js 的 trace.json 有 `"tid":852581467`
+//    这样的值），所以必须与 Go 侧逐位一致，不能换别的哈希。
+//    Go 那边是流式（多次 WriteString），但 XXH3 的流式与"一次性喂完整输入"结果相同，C# 侧把各段先拼成一个
+//    字符串再取 UTF-8 字节一次性哈希（Tracing.cs 的 StableTraceThreadID），结果与 Go 逐位一致。
+//    校验向量（`tid` 由 `Sum64() % 1_000_000_000` + firstFileThreadID 得出，见 TracingTests 的 Xxh3 用例）：
+//      "file:/home/src/tslibs/TS/Lib/lib.es2025.full.d.ts" → 2208031706851581467
+//      "file:/home/src/workspaces/project/a.ts"            → 9197916062353130385
+//      "file:/home/src/workspaces/project/main.ts"         → 7876163279099209852
+//      "file:/home/src/workspaces/project/types.ts"        →  128579712552096334
 //
 // 与 Go 不一致的地方：
-// 1) Go 的 string 是 UTF-8 字节序列；C# 的 string 是 UTF-16。HashString128 按 UTF-8 编码后再哈希
+// 1) Go 的 string 是 UTF-8 字节序列；C# 的 string 是 UTF-16。HashString64/HashString128 按 UTF-8 编码后再哈希
 //    （与 Go 对纯 UTF-8 文本的结果一致）；孤立代理项会被 UTF-8 编码替换成 U+FFFD，与 TSGO 的哨兵编码
 //    （docs/architecture.md §3.1，本移植不采用）结果不同——调用点若真要哈希含孤立代理项的文本，需要先自行编码。
-// 2) 未移植流式 API（Go 的 `xxh3.New()` + `Write`/`Sum128`）：TSGO 只在 `internal/project/extendedconfigcache.go`
-//    与 `internal/tracing/tracing.go` 用，两者都还没移植；等有调用点时再补（见报告）。
-// 3) 未移植 64 位入口（`Hash`/`HashSeed`）：TSGO 一处都没用。
+// 2) 未移植流式 API（Go 的 `xxh3.New()` + `Write`/`Sum64`/`Sum128`）：TSGO 里只有 internal/tracing/tracing.go
+//    用流式，而它的多段写入等价于一次性哈希（见上），C# 侧已经用 Hash64 覆盖；`internal/project/
+//    extendedconfigcache.go` 只是持有 `xxh3.Uint128` 字段（用 Hash128），不需要流式。
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Text;
@@ -24,11 +41,14 @@ using System.Text;
 namespace TypeScript.Xxh3;
 
 /// <summary>
-/// XXH3-128（seed = 0）的标量实现。表/常量与 xxHash 参考实现一致：<c>XXH3_kSecret</c> 192 字节、
-/// <c>XXH3_INIT_ACC</c> 8 个累加器初值、prime 常量、以及 avalanche/rrmxmx 混合函数。
+/// XXH3（seed = 0）的标量实现：64 位与 128 位入口共用同一份 secret、累加（accumulate/scramble）与混合代码。
+/// 表/常量与 xxHash 参考实现一致：<c>XXH3_kSecret</c> 192 字节、<c>XXH3_INIT_ACC</c> 8 个累加器初值、
+/// prime 常量、以及 avalanche/rrmxmx 混合函数。
 /// </summary>
 public static class Xxh3
 {
+    // ---- 共享常量 ----
+
     private const uint _prime32_1 = 0x9E3779B1;
     private const uint _prime32_2 = 0x85EBCA77;
     private const uint _prime32_3 = 0xC2B2AE3D;
@@ -70,6 +90,176 @@ public static class Xxh3
         0x45, 0xcb, 0x3a, 0x8f, 0x95, 0x16, 0x04, 0x28, 0xaf, 0xd7, 0xfb, 0xca, 0xbb, 0x4b, 0x40, 0x7e,
     ];
 
+    // ==========================================================================================
+    // 64 位入口（Go: github.com/zeebo/xxh3 的 Hash/HashString/New().Sum64()）
+    // ==========================================================================================
+
+    /// <summary>Go: <c>h := xxh3.New(); h.WriteString(s); h.Sum64()</c>（流式与一次性结果相同，见文件头）。</summary>
+    public static ulong Hash64(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        if (len <= 16)
+        {
+            return Len0To16_64b(input);
+        }
+
+        if (len <= 128)
+        {
+            return Len17To128_64b(input);
+        }
+
+        if (len <= _midsizeMax)
+        {
+            return Len129To240_64b(input);
+        }
+
+        return HashLong64(input);
+    }
+
+    /// <summary>Go: <c>xxh3.HashString(s string) uint64</c>（按 UTF-8 编码后哈希，见文件头）。</summary>
+    public static ulong HashString64(string text)
+    {
+        if (text.Length == 0)
+        {
+            return Hash64([]);
+        }
+
+        var count = Encoding.UTF8.GetByteCount(text);
+        var rented = ArrayPool<byte>.Shared.Rent(count);
+        try
+        {
+            var written = Encoding.UTF8.GetBytes(text, rented);
+            return Hash64(rented.AsSpan(0, written));
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(rented);
+        }
+    }
+
+    // XXH3_len_0to16_64b
+    private static ulong Len0To16_64b(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        if (len > 8)
+        {
+            return Len9To16_64b(input);
+        }
+
+        if (len >= 4)
+        {
+            return Len4To8_64b(input);
+        }
+
+        if (len > 0)
+        {
+            return Len1To3_64b(input);
+        }
+
+        return Avalanche64(ReadLE64(_secret, 56) ^ ReadLE64(_secret, 64));
+    }
+
+    // XXH3_len_1to3_64b
+    private static ulong Len1To3_64b(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        var c1 = (uint)input[0];
+        var c2 = (uint)input[len >> 1];
+        var c3 = (uint)input[len - 1];
+        var combined = (c1 << 16) | (c2 << 24) | (c3 << 0) | ((uint)len << 8);
+        var bitflip = (ulong)(ReadLE32(_secret, 0) ^ ReadLE32(_secret, 4));
+        var keyed = (ulong)combined ^ bitflip;
+        return Avalanche64(keyed);
+    }
+
+    // XXH3_len_4to8_64b
+    private static ulong Len4To8_64b(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        var input1 = ReadLE32(input, 0);
+        var input2 = ReadLE32(input, len - 4);
+        var bitflip = ReadLE64(_secret, 8) ^ ReadLE64(_secret, 16);
+        var input64 = input2 + ((ulong)input1 << 32);
+        var keyed = input64 ^ bitflip;
+        return Rrmxmx(keyed, (ulong)len);
+    }
+
+    // XXH3_len_9to16_64b
+    private static ulong Len9To16_64b(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        var bitflip1 = ReadLE64(_secret, 24) ^ ReadLE64(_secret, 32);
+        var bitflip2 = ReadLE64(_secret, 40) ^ ReadLE64(_secret, 48);
+        var inputLo = ReadLE64(input, 0) ^ bitflip1;
+        var inputHi = ReadLE64(input, len - 8) ^ bitflip2;
+        var acc = (ulong)len + BinaryPrimitives.ReverseEndianness(inputLo) + inputHi + Mul128Fold64(inputLo, inputHi);
+        return Avalanche(acc);
+    }
+
+    // XXH3_len_17to128_64b
+    private static ulong Len17To128_64b(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        var acc = (ulong)len * _prime64_1;
+        if (len > 32)
+        {
+            if (len > 64)
+            {
+                if (len > 96)
+                {
+                    acc += Mix16B(input, 48, _secret, 96, 0);
+                    acc += Mix16B(input, len - 64, _secret, 112, 0);
+                }
+
+                acc += Mix16B(input, 32, _secret, 64, 0);
+                acc += Mix16B(input, len - 48, _secret, 80, 0);
+            }
+
+            acc += Mix16B(input, 16, _secret, 32, 0);
+            acc += Mix16B(input, len - 32, _secret, 48, 0);
+        }
+
+        acc += Mix16B(input, 0, _secret, 0, 0);
+        acc += Mix16B(input, len - 16, _secret, 16, 0);
+        return Avalanche(acc);
+    }
+
+    // XXH3_len_129to240_64b
+    private static ulong Len129To240_64b(ReadOnlySpan<byte> input)
+    {
+        var len = input.Length;
+        var nbRounds = len / 16;
+        var acc = (ulong)len * _prime64_1;
+        for (var i = 0; i < 8; i++)
+        {
+            acc += Mix16B(input, 16 * i, _secret, 16 * i, 0);
+        }
+
+        acc = Avalanche(acc);
+
+        for (var i = 8; i < nbRounds; i++)
+        {
+            acc += Mix16B(input, 16 * i, _secret, (16 * (i - 8)) + _midsizeStartOffset, 0);
+        }
+
+        // 末尾 16 字节用密钥的 XXH3_SECRET_SIZE_MIN - XXH3_MIDSIZE_LASTOFFSET 处。
+        acc += Mix16B(input, len - 16, _secret, _secretSizeMin - _midsizeLastOffset, 0);
+        return Avalanche(acc);
+    }
+
+    // XXH3_hashLong_64b_default（seed == 0）：与 128 位共用 internal loop，只做一次 mergeAccs。
+    private static ulong HashLong64(ReadOnlySpan<byte> input)
+    {
+        Span<ulong> acc = stackalloc ulong[_accNb];
+        InitAcc(acc);
+        HashLongInternalLoop(acc, input, _secret);
+        return MergeAccs(acc, _secret, _secretMergeAccsStart, (ulong)input.Length * _prime64_1);
+    }
+
+    // ==========================================================================================
+    // 128 位入口（Go: github.com/zeebo/xxh3 的 Hash128/Hash128Seed/HashString128/Uint128.Bytes）
+    // ==========================================================================================
+
     /// <summary>Go: <c>xxh3.Hash128(b []byte) Uint128</c>（seed = 0）。</summary>
     public static UInt128 Hash128(ReadOnlySpan<byte> input) => Hash128(input, 0);
 
@@ -81,13 +271,13 @@ public static class Xxh3
         {
             if (seed == 0)
             {
-                return HashLong(input, _secret);
+                return HashLong128(input, _secret);
             }
 
             // xxHash 对长输入 + 自定义 seed 会先由 kSecret 推出 192 字节的自定义密钥。
             Span<byte> customSecret = stackalloc byte[_secretSize];
             InitCustomSecret(customSecret, seed);
-            return HashLong(input, customSecret);
+            return HashLong128(input, customSecret);
         }
 
         if (len > 128)
@@ -156,7 +346,7 @@ public static class Xxh3
     private static UInt128 Make(ulong low64, ulong high64) =>
         ((UInt128)high64 << 64) | low64;
 
-    // ---- 混合函数 ----
+    // ---- 共享：混合函数 ----
 
     // xxHash 的 XXH3_avalanche。
     private static ulong Avalanche(ulong h)
@@ -179,6 +369,7 @@ public static class Xxh3
     }
 
     // xxHash 的 XXH3_mix16B：XXH3_mul128_fold64(input_lo ^ (secret_0 + seed), input_hi ^ (secret_8 - seed))。
+    // 64 位路径用 seed = 0 调用（XXH3_mix16B 在 XXH3_len_*to*_64b 里就是 secret_lo/secret_hi），是同一个式子。
     private static ulong Mix16B(ReadOnlySpan<byte> input, int inputOffset, ReadOnlySpan<byte> secret, int secretOffset, ulong seed)
     {
         var inputLo = ReadLE64(input, inputOffset);
@@ -210,7 +401,124 @@ public static class Xxh3
     private static uint ReadLE32(ReadOnlySpan<byte> input, int offset) =>
         BinaryPrimitives.ReadUInt32LittleEndian(input.Slice(offset));
 
-    // ---- 短输入路径 ----
+    // XXH_mult64to128：a * b 的 128 位结果。
+    // 注意 .NET 的签名是 `Math.BigMul(ulong a, ulong b, out ulong low)`，**返回值是 high**（与 Go 的 bits.Mul64
+    // 正好相反：Go 返回 (hi, lo)）——第一版就是这里把高低位弄反了，只有 mul128_fold64 的路径因为 xor 可交换而侥幸通过。
+    private static (ulong Low, ulong High) Mult64To128(ulong left, ulong right)
+    {
+        var high = Math.BigMul(left, right, out var low);
+        return (low, high);
+    }
+
+    // ---- 共享：长输入路径（> 240 字节）的累加循环 ----
+
+    private static void InitAcc(Span<ulong> acc)
+    {
+        // XXH3_INIT_ACC
+        acc[0] = _prime32_3;
+        acc[1] = _prime64_1;
+        acc[2] = _prime64_2;
+        acc[3] = _prime64_3;
+        acc[4] = _prime64_4;
+        acc[5] = _prime32_2;
+        acc[6] = _prime64_5;
+        acc[7] = _prime32_1;
+    }
+
+    // XXH3_hashLong_internal_loop：64 位与 128 位的长输入路径只在"如何把 acc 收尾"上不同（见 HashLong64/HashLong128）。
+    private static void HashLongInternalLoop(Span<ulong> acc, ReadOnlySpan<byte> input, ReadOnlySpan<byte> secret)
+    {
+        var len = input.Length;
+        var nbStripesPerBlock = (_secretSize - _stripeLen) / _secretConsumeRate;
+        var blockLen = _stripeLen * nbStripesPerBlock;
+        var nbBlocks = (len - 1) / blockLen;
+        for (var n = 0; n < nbBlocks; n++)
+        {
+            Accumulate(acc, input, n * blockLen, nbStripesPerBlock, secret);
+            ScrambleAcc(acc, secret, _secretSize - _stripeLen);
+        }
+
+        var nbStripes = ((len - 1) - (blockLen * nbBlocks)) / _stripeLen;
+        Accumulate(acc, input, nbBlocks * blockLen, nbStripes, secret);
+        // 最后一条 stripe 用密钥末尾的固定偏移。
+        Accumulate512(acc, input, len - _stripeLen, secret, _secretSize - _stripeLen - _secretLastAccStart);
+    }
+
+    // XXH3_hashLong_128b_default / XXH3_hashLong_128b_withSecret
+    private static UInt128 HashLong128(ReadOnlySpan<byte> input, ReadOnlySpan<byte> secret)
+    {
+        var len = input.Length;
+        Span<ulong> acc = stackalloc ulong[_accNb];
+        InitAcc(acc);
+        HashLongInternalLoop(acc, input, secret);
+
+        var low64 = MergeAccs(acc, secret, _secretMergeAccsStart, (ulong)len * _prime64_1);
+        var high64 = MergeAccs(acc, secret, _secretSize - (_accNb * 8) - _secretMergeAccsStart, ~((ulong)len * _prime64_2));
+        return Make(low64, high64);
+    }
+
+    // XXH3_initCustomSecret_scalar
+    private static void InitCustomSecret(Span<byte> customSecret, ulong seed)
+    {
+        for (var i = 0; i < _secretSize / 16; i++)
+        {
+            var lo = ReadLE64(_secret, 16 * i) + seed;
+            var hi = ReadLE64(_secret, (16 * i) + 8) - seed;
+            BinaryPrimitives.WriteUInt64LittleEndian(customSecret.Slice(16 * i), lo);
+            BinaryPrimitives.WriteUInt64LittleEndian(customSecret.Slice((16 * i) + 8), hi);
+        }
+    }
+
+    private static void Accumulate(Span<ulong> acc, ReadOnlySpan<byte> input, int inputOffset, int nbStripes, ReadOnlySpan<byte> secret)
+    {
+        for (var n = 0; n < nbStripes; n++)
+        {
+            Accumulate512(acc, input, inputOffset + (n * _stripeLen), secret, n * _secretConsumeRate);
+        }
+    }
+
+    // XXH3_accumulate_512_scalar（64/128 共用：lane 交换相加 + 低 32 位 × 高 32 位）
+    private static void Accumulate512(Span<ulong> acc, ReadOnlySpan<byte> input, int inputOffset, ReadOnlySpan<byte> secret, int secretOffset)
+    {
+        for (var i = 0; i < _accNb; i++)
+        {
+            var dataVal = ReadLE64(input, inputOffset + (8 * i));
+            var dataKey = dataVal ^ ReadLE64(secret, secretOffset + (8 * i));
+            acc[i ^ 1] += dataVal; // 相邻 lane 交换相加
+            acc[i] += (ulong)(uint)dataKey * (dataKey >> 32);
+        }
+    }
+
+    // XXH3_scrambleAcc_scalar
+    private static void ScrambleAcc(Span<ulong> acc, ReadOnlySpan<byte> secret, int secretOffset)
+    {
+        for (var i = 0; i < _accNb; i++)
+        {
+            var key64 = ReadLE64(secret, secretOffset + (8 * i));
+            var acc64 = acc[i];
+            acc64 ^= acc64 >> 47;
+            acc64 ^= key64;
+            acc64 *= _prime32_1;
+            acc[i] = acc64;
+        }
+    }
+
+    // XXH3_mergeAccs
+    private static ulong MergeAccs(ReadOnlySpan<ulong> acc, ReadOnlySpan<byte> secret, int secretOffset, ulong start)
+    {
+        var result = start;
+        for (var i = 0; i < 4; i++)
+        {
+            // XXH3_mix2Accs(acc + 2i, secret + 16i) = mul128_fold64(acc[2i] ^ LE64(secret), acc[2i+1] ^ LE64(secret+8))
+            result += Mul128Fold64(
+                acc[2 * i] ^ ReadLE64(secret, secretOffset + (16 * i)),
+                acc[(2 * i) + 1] ^ ReadLE64(secret, secretOffset + (16 * i) + 8));
+        }
+
+        return Avalanche(result);
+    }
+
+    // ---- 128 位专用：短输入路径（64 位有另一套独立公式，见上面的 Len*_64b） ----
 
     // XXH3_len_1to3_128b
     private static UInt128 Len1To3(ReadOnlySpan<byte> input, ulong seed)
@@ -322,109 +630,17 @@ public static class Xxh3
         return Make(Avalanche(low), 0UL - Avalanche(high));
     }
 
-    // ---- 长输入路径（> 240 字节）----
+    // ---- 64 位专用：rrmxmx（4..8 字节路径用） ----
 
-    // XXH3_hashLong_128b_default / XXH3_hashLong_128b_withSecret
-    private static UInt128 HashLong(ReadOnlySpan<byte> input, ReadOnlySpan<byte> secret)
+    private static ulong Rrmxmx(ulong h64, ulong len)
     {
-        var len = input.Length;
-        Span<ulong> acc = stackalloc ulong[_accNb];
-        // XXH3_INIT_ACC
-        acc[0] = _prime32_3;
-        acc[1] = _prime64_1;
-        acc[2] = _prime64_2;
-        acc[3] = _prime64_3;
-        acc[4] = _prime64_4;
-        acc[5] = _prime32_2;
-        acc[6] = _prime64_5;
-        acc[7] = _prime32_1;
-
-        var nbStripesPerBlock = (_secretSize - _stripeLen) / _secretConsumeRate;
-        var blockLen = _stripeLen * nbStripesPerBlock;
-        var nbBlocks = (len - 1) / blockLen;
-        for (var n = 0; n < nbBlocks; n++)
-        {
-            Accumulate(acc, input, n * blockLen, nbStripesPerBlock, secret);
-            ScrambleAcc(acc, secret, _secretSize - _stripeLen);
-        }
-
-        var nbStripes = ((len - 1) - (blockLen * nbBlocks)) / _stripeLen;
-        Accumulate(acc, input, nbBlocks * blockLen, nbStripes, secret);
-        // 最后一条 stripe 用密钥末尾的固定偏移。
-        Accumulate512(acc, input, len - _stripeLen, secret, _secretSize - _stripeLen - _secretLastAccStart);
-
-        var low64 = MergeAccs(acc, secret, _secretMergeAccsStart, (ulong)len * _prime64_1);
-        var high64 = MergeAccs(acc, secret, _secretSize - (_accNb * 8) - _secretMergeAccsStart, ~((ulong)len * _prime64_2));
-        return Make(low64, high64);
+        h64 ^= RotateLeft(h64, 49) ^ RotateLeft(h64, 24);
+        h64 *= _primeMx2;
+        h64 ^= (h64 >> 35) + len;
+        h64 *= _primeMx2;
+        h64 ^= h64 >> 28;
+        return h64;
     }
 
-    // XXH3_initCustomSecret_scalar
-    private static void InitCustomSecret(Span<byte> customSecret, ulong seed)
-    {
-        for (var i = 0; i < _secretSize / 16; i++)
-        {
-            var lo = ReadLE64(_secret, 16 * i) + seed;
-            var hi = ReadLE64(_secret, (16 * i) + 8) - seed;
-            BinaryPrimitives.WriteUInt64LittleEndian(customSecret.Slice(16 * i), lo);
-            BinaryPrimitives.WriteUInt64LittleEndian(customSecret.Slice((16 * i) + 8), hi);
-        }
-    }
-
-    private static void Accumulate(Span<ulong> acc, ReadOnlySpan<byte> input, int inputOffset, int nbStripes, ReadOnlySpan<byte> secret)
-    {
-        for (var n = 0; n < nbStripes; n++)
-        {
-            Accumulate512(acc, input, inputOffset + (n * _stripeLen), secret, n * _secretConsumeRate);
-        }
-    }
-
-    // XXH3_accumulate_512_scalar
-    private static void Accumulate512(Span<ulong> acc, ReadOnlySpan<byte> input, int inputOffset, ReadOnlySpan<byte> secret, int secretOffset)
-    {
-        for (var i = 0; i < _accNb; i++)
-        {
-            var dataVal = ReadLE64(input, inputOffset + (8 * i));
-            var dataKey = dataVal ^ ReadLE64(secret, secretOffset + (8 * i));
-            acc[i ^ 1] += dataVal; // 相邻 lane 交换相加
-            acc[i] += (ulong)(uint)dataKey * (dataKey >> 32);
-        }
-    }
-
-    // XXH3_scrambleAcc_scalar
-    private static void ScrambleAcc(Span<ulong> acc, ReadOnlySpan<byte> secret, int secretOffset)
-    {
-        for (var i = 0; i < _accNb; i++)
-        {
-            var key64 = ReadLE64(secret, secretOffset + (8 * i));
-            var acc64 = acc[i];
-            acc64 ^= acc64 >> 47;
-            acc64 ^= key64;
-            acc64 *= _prime32_1;
-            acc[i] = acc64;
-        }
-    }
-
-    // XXH3_mergeAccs
-    private static ulong MergeAccs(ReadOnlySpan<ulong> acc, ReadOnlySpan<byte> secret, int secretOffset, ulong start)
-    {
-        var result = start;
-        for (var i = 0; i < 4; i++)
-        {
-            // XXH3_mix2Accs(acc + 2i, secret + 16i) = mul128_fold64(acc[2i] ^ LE64(secret), acc[2i+1] ^ LE64(secret+8))
-            result += Mul128Fold64(
-                acc[2 * i] ^ ReadLE64(secret, secretOffset + (16 * i)),
-                acc[(2 * i) + 1] ^ ReadLE64(secret, secretOffset + (16 * i) + 8));
-        }
-
-        return Avalanche(result);
-    }
-
-    // XXH_mult64to128：a * b 的 128 位结果。
-    // 注意 .NET 的签名是 `Math.BigMul(ulong a, ulong b, out ulong low)`，**返回值是 high**（与 Go 的 bits.Mul64
-    // 正好相反：Go 返回 (hi, lo)）——第一版就是这里把高低位弄反了，只有 mul128_fold64 的路径因为 xor 可交换而侥幸通过。
-    private static (ulong Low, ulong High) Mult64To128(ulong left, ulong right)
-    {
-        var high = Math.BigMul(left, right, out var low);
-        return (low, high);
-    }
+    private static ulong RotateLeft(ulong value, int shift) => (value << shift) | (value >> (64 - shift));
 }

@@ -101,7 +101,9 @@ public sealed class CommandLineOption
         {
             return null;
         }
-        return TsOptions._commandLineOptionDeprecated[Name];
+        // Go: `commandLineOptionDeprecated[o.Name]` —— Go 的 map 取缺失键返回 nil（零值），不是 panic：
+        // 只有少数 enum 选项有 deprecated key（见 commandLineOptionDeprecated），其余必须返回 null。
+        return TsOptions._commandLineOptionDeprecated.TryGetValue(Name, out var deprecated) ? deprecated : null;
     }
 
     public OrderedMap<string, object?>? EnumMap()

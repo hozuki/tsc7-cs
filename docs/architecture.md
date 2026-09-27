@@ -48,7 +48,7 @@
   * 不允许跨分片重复定义成员，也不允许把同一段 Go 代码拆到两个分片；
   * 合并时**分片顺序不影响语义**（C# partial 的类型成员集合与顺序无关；但 Go 里依赖文件内顺序的地方——几乎没有——要照原顺序）。
 - **命名（用户要求）**：**公开 API 与 TSGO 一致**——Go 导出成员的名字原样保留（本来就是 PascalCase：`Identifier.Text`、`NodeFactory.NewIdentifier`、`AsIdentifier`、`Kind`）；**非公开成员一律按 C# 习惯命名**，不要照抄 Go 的小写名：
-  * 实例字段（`private`/`internal`/`protected`）：`_camelCase`（Go 的 `name` → `_name`，`facts` → `_facts`，`identifierArena` → `_identifierArena`）。**不要**用 `Name_`/尾下划线这种"照抄 Go 的避让写法"——TSGO 里根本没有这种名字；Go 的 `name` 是未导出字段，公开访问走 `Name()` 方法，C# 里就是 `_name` + `Name()`。
+  * 实例字段：`private`/`protected` 用 `_camelCase`（Go 的 `name` → `_name`）；`internal` **不加前缀**、保留与 Go 对应的名字（internal 大量用来镜像 Go 的 package-private 与导出成员，强行 `_` 化会失去逐名对应；const 任何可见性都用 PascalCase）。**不要**用 `Name_`/尾下划线这种"照抄 Go 的避让写法"——TSGO 里根本没有这种名字；Go 的 `name` 是未导出字段，公开访问走 `Name()` 方法，C# 里就是 `_name` + `Name()`。
   * 方法/属性（任何可见性）：PascalCase（Go 的 `setModifiers` → `SetModifiers`，`computeSubtreeFacts` → `ComputeSubtreeFacts`）。
   * 局部变量/参数：camelCase。
   * 未导出类型（如 Go 的 `nodeData`）：按 C# 习惯命名，不必与 Go 同名（接口用 `I` 前缀）。导出类型名照抄。

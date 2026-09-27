@@ -26,13 +26,15 @@ dotnet_diagnostic.IDE0005.severity = suggestion
 
 # 命名规则（用户要求；理由与完整说明见 docs/architecture.md §2）：
 # 公开 API 与 TSGO 一致（Go 导出成员名字原样保留）；非公开成员一律按 C# 习惯命名。
-# 1) 非公开字段 → _camelCase（Go 的 name → _name；含 static/const，追求规则简单一致）
+# 1) **private/protected** 字段 → _camelCase。刻意**不含 internal**：internal 大量用来镜像 Go 的
+#    package-private/导出成员（例如内部类型上保留 Go 导出名的 `ResolvedModule.Path`），强制加 `_`
+#    会破坏与 Go 的逐名对应关系。
 dotnet_naming_rule.non_public_fields_should_be_underscore_camel.severity = warning
 dotnet_diagnostic.IDE1006.severity = warning
 dotnet_naming_rule.non_public_fields_should_be_underscore_camel.symbols = non_public_fields
 dotnet_naming_rule.non_public_fields_should_be_underscore_camel.style = underscore_camel
 dotnet_naming_symbols.non_public_fields.applicable_kinds = field
-dotnet_naming_symbols.non_public_fields.applicable_accessibilities = private, private_protected, protected, protected_internal, internal
+dotnet_naming_symbols.non_public_fields.applicable_accessibilities = private, private_protected, protected, protected_internal
 dotnet_naming_style.underscore_camel.required_prefix = _
 dotnet_naming_style.underscore_camel.capitalization = camel_case
 
