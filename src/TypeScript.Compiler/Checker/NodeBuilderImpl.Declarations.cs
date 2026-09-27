@@ -24,14 +24,14 @@ using static TypeScript.Checker.Checker;
 using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 
-internal sealed class SignatureToSignatureDeclarationOptions
+public sealed class SignatureToSignatureDeclarationOptions
 {
     internal Node[]? _modifiers;
     internal Node? _name;
     internal Node? _questionToken;
 }
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     internal Node TypeParameterToDeclarationWithConstraint(Type typeParameter, Node? constraintNode)
     {

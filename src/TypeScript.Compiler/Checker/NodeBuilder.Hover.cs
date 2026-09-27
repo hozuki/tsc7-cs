@@ -32,7 +32,7 @@ using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 using AstNodeFactory = TypeScript.Ast.NodeFactory;
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     private sealed class HoverStatement
     {

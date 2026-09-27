@@ -23,7 +23,7 @@ using static TypeScript.Checker.Checker;
 using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     private readonly struct SeenName
     {

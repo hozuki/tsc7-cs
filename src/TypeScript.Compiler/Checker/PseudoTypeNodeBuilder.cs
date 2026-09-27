@@ -31,7 +31,7 @@ using static TypeScript.Checker.Checker;
 using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     /// <summary>
     /// pseudoTypeToNodeWithCheckerFallback is like pseudoTypeToNode but when the top-level pseudo type

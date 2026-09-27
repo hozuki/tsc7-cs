@@ -49,7 +49,7 @@ using static TypeScript.Diagnostics.Diagnostics;
 // `Core.Map/OrElse/IfElse/...` 绑到静态类；`using static TypeScript.Core.Core;` 的裸名调用不受影响。
 using Core = TypeScript.Core.Core;
 
-internal sealed class TupleNormalizer
+public sealed class TupleNormalizer
 {
     internal Checker _c = null!;
     internal Type[] _types = [];

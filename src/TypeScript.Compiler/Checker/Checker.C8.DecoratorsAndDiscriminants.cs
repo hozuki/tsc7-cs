@@ -983,7 +983,7 @@ public sealed partial class Checker
 // 实现 relater.go:1199 的 `Discriminator` 接口（跨片：由 relater 分片落地为 `Discriminator`，成员 `Len()/Name(int)/Matches(int, Type)`）。
 // Go 用结构体字面量 `&ObjectLiteralDiscriminator{c: c, props: ..., members: ...}` 构造 → C# 对象初始化器
 // （jsx.go:290 的构造点同款写法，见报告）；未导出字段按 `_camelCase`。
-internal sealed class ObjectLiteralDiscriminator : Discriminator
+public sealed class ObjectLiteralDiscriminator : Discriminator
 {
     internal Checker _c = null!;
     internal Node[] _props = [];

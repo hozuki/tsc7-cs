@@ -32,7 +32,7 @@ using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 using AstNodeFactory = TypeScript.Ast.NodeFactory;
 
-internal readonly struct CompositeSymbolIdentity
+public readonly struct CompositeSymbolIdentity
 {
     internal readonly bool _isConstructorNode;
     internal readonly SymbolId _symbolId;
@@ -46,14 +46,14 @@ internal readonly struct CompositeSymbolIdentity
     }
 }
 
-internal sealed class TrackedSymbolArgs
+public sealed class TrackedSymbolArgs
 {
     internal Symbol _symbol = null!;
     internal Node? _enclosingDeclaration;
     internal SymbolFlags _meaning;
 }
 
-internal sealed class SerializedTypeEntry
+public sealed class SerializedTypeEntry
 {
     internal Node? _node;
     internal bool _truncating;
@@ -61,7 +61,7 @@ internal sealed class SerializedTypeEntry
     internal TrackedSymbolArgs[]? _trackedSymbols;
 }
 
-internal readonly struct CompositeTypeCacheIdentity
+public readonly struct CompositeTypeCacheIdentity
 {
     internal readonly TypeId _typeId;
     internal readonly NodeBuilderFlags _flags;
@@ -75,7 +75,7 @@ internal readonly struct CompositeTypeCacheIdentity
     }
 }
 
-internal sealed class NodeBuilderLinks
+public sealed class NodeBuilderLinks
 {
     /// <summary>Collection of types serialized at this location</summary>
     internal Dictionary<CompositeTypeCacheIdentity, SerializedTypeEntry>? _serializedTypes;
@@ -84,7 +84,7 @@ internal sealed class NodeBuilderLinks
     internal string? _fakeScopeForSignatureDeclaration;
 }
 
-internal sealed class NodeBuilderSymbolLinks
+public sealed class NodeBuilderSymbolLinks
 {
     internal global::TypeScript.Module.ModeAwareCache<ModuleSpecifierResult>? _specifierCache;
 }
@@ -95,7 +95,7 @@ internal sealed class ModuleSpecifierResult
     internal Type? _importAttributesType;
 }
 
-internal sealed class NodeBuilderContext
+public sealed class NodeBuilderContext
 {
     internal Host? _host;
     internal SymbolTracker _tracker = null!;
@@ -130,7 +130,7 @@ internal sealed class NodeBuilderContext
     internal CopyOnWriteSet<SymbolId> _typeParameterSymbolList = null!;
 }
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     // host members
     internal AstNodeFactory _f = null!;

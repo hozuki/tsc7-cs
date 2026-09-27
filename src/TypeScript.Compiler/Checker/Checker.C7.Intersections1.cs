@@ -449,7 +449,7 @@ public sealed partial class Checker
 }
 
 [Flags]
-internal enum IntersectionFlags : uint
+public enum IntersectionFlags : uint
 {
     None = 0,
     NoSupertypeReduction = 1u << 0,

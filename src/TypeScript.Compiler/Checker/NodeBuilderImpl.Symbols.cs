@@ -37,7 +37,7 @@ using static TypeScript.StringUtil.StringUtil;
 using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     internal Node? SymbolToNode(Symbol symbol, SymbolFlags meaning)
     {

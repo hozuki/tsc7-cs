@@ -37,7 +37,7 @@ internal enum PropertyNameNodeKind
     StringLiteral = 2,
 }
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     internal bool IsTriviallySerializableComputedName(Node? e)
     {

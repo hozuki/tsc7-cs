@@ -26,7 +26,7 @@ using static TypeScript.Scanner.Scanner;
 using NodeBuilderFlags = TypeScript.NodeBuilder.Flags;
 using NodeBuilderInternalFlags = TypeScript.NodeBuilder.InternalFlags;
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     internal Node? TypeToTypeNode(Type? t)
     {
@@ -644,7 +644,7 @@ internal sealed partial class NodeBuilderImpl
 public sealed partial class TypeAlias
 {
     /// <summary>Go: <c>func (t *TypeAlias) ToTypeReferenceNode(b *NodeBuilderImpl) *ast.Node</c>（nodebuilderimpl.go:3635）。</summary>
-    internal Node? ToTypeReferenceNode(NodeBuilderImpl b)
+    public Node? ToTypeReferenceNode(NodeBuilderImpl b)
     {
         return b._f.NewTypeReferenceNode(b.SymbolToEntityNameNode(Symbol()!), b.MapToTypeNodes(TypeArguments() ?? [], false /*isBareList*/));
     }

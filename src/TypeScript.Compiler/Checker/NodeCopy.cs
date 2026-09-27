@@ -30,7 +30,7 @@ using NodeBuilderSymbolTracker = TypeScript.NodeBuilder.SymbolTracker;
 
 namespace TypeScript.Checker;
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     internal Node? ReuseNode(Node? node)
     {
@@ -279,7 +279,7 @@ public sealed partial class Checker
     internal static WrappingTracker NewWrappingTracker(NodeBuilderSymbolTracker inner, RecoveryBoundary bound) => new(inner, bound);
 }
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     private RecoveryBoundary CreateRecoveryBoundary()
     {

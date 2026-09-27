@@ -112,7 +112,7 @@ public sealed partial class PseudoChecker
             if (init is not null)
             {
                 var expr = TypeFromExpression(init);
-                if (expr.Kind != PseudoTypeKind.Inferred || expr.AsPseudoTypeInferred().ErrorNodes!.Length > 0)
+                if (expr.Kind != PseudoTypeKind.Inferred || expr.AsPseudoTypeInferred().ErrorNodes.Length > 0)
                 {
                     return expr;
                 }
@@ -158,7 +158,7 @@ public sealed partial class PseudoChecker
                 }
 
                 var expr = TypeFromExpression(init);
-                if (expr.Kind != PseudoTypeKind.Inferred || expr.AsPseudoTypeInferred().ErrorNodes!.Length > 0)
+                if (expr.Kind != PseudoTypeKind.Inferred || expr.AsPseudoTypeInferred().ErrorNodes.Length > 0)
                 {
                     var postfixToken = node.AsPropertyDeclaration()!.PostfixToken;
                     if (expr.Kind != PseudoTypeKind.Direct && postfixToken is not null && postfixToken.Kind == Kind.QuestionToken)
@@ -199,7 +199,7 @@ public sealed partial class PseudoChecker
                 }
 
                 var expr = TypeFromExpression(init);
-                if (expr.Kind != PseudoTypeKind.Inferred || expr.AsPseudoTypeInferred().ErrorNodes!.Length > 0)
+                if (expr.Kind != PseudoTypeKind.Inferred || expr.AsPseudoTypeInferred().ErrorNodes.Length > 0)
                 {
                     return expr;
                 }
@@ -223,7 +223,7 @@ public sealed partial class PseudoChecker
         if (accessorDeclarations.GetAccessor is not null)
         {
             var res = CreateReturnFromSignature(accessorDeclarations.GetAccessor);
-            if (res.Kind == PseudoTypeKind.Inferred && res.AsPseudoTypeInferred().ErrorNodes!.Length == 0)
+            if (res.Kind == PseudoTypeKind.Inferred && res.AsPseudoTypeInferred().ErrorNodes.Length == 0)
             {
                 Node[] errorNodes = [accessorDeclarations.GetAccessor];
                 if (accessorDeclarations.SetAccessor is not null)
@@ -927,7 +927,7 @@ public sealed partial class PseudoChecker
         {
             var expr = TypeFromExpression(node.Initializer);
             var inferred = expr.AsPseudoTypeInferred();
-            if (expr.Kind == PseudoTypeKind.Inferred && inferred.ErrorNodes!.Length == 0)
+            if (expr.Kind == PseudoTypeKind.Inferred && inferred.ErrorNodes.Length == 0)
             {
                 expr = PseudoType.NewPseudoTypeInferredWithErrors(inferred.Expression, false, [node]); // Move error up to the parameter
             }

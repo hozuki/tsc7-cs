@@ -120,7 +120,7 @@ public static class ReactNames
 }
 
 /// <summary>Go: <c>type JsxElaborationElement struct</c>（jsx.go:369-374）；见文件头偏离 3。</summary>
-internal sealed class JsxElaborationElement
+public sealed class JsxElaborationElement
 {
     /// <summary>Go: <c>errorNode</c>。</summary>
     internal Node? _errorNode;

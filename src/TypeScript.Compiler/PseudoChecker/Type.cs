@@ -149,7 +149,7 @@ public sealed class PseudoTypeDirect : PseudoType
 public sealed class PseudoTypeInferred : PseudoType
 {
     public Node? Expression;
-    public Node[]? ErrorNodes;
+    public Node[] ErrorNodes = [];
     public bool IsSignatureReturn;
 }
 

@@ -357,10 +357,12 @@ public sealed partial class Checker
         return (_typeToStringNodebuilder, ReleaseNodes);
     }
 
-    /// <summary>Go: <c>func (c *Checker) getNodeBuilderEx(idToSymbol map[*ast.IdentifierNode]*ast.Symbol) *NodeBuilder</c>。</summary>
+    /// <summary>Go: <c>func (c *Checker) getNodeBuilderEx(idToSymbol map[*ast.IdentifierNode]*ast.Symbol) *NodeBuilder</c>（nodebuilder.go:299）。</summary>
     internal NodeBuilder GetNodeBuilderEx(Dictionary<Node, Symbol>? idToSymbol)
     {
-        return NewNodeBuilderEx(this, new EmitContext(), idToSymbol);
+        // Go: `NewNodeBuilderEx(c, printer.NewEmitContext(), idToSymbol)` —— `NewEmitContext` 才把 Factory 接到自身；
+        // `new EmitContext()` 的 Factory 为 null（printer.go:178 注释），会让 NodeBuilderImpl 构造时的 `e.Factory.AsNodeFactory()` NRE。
+        return NewNodeBuilderEx(this, global::TypeScript.Printer.Printer.NewEmitContext(), idToSymbol);
     }
 
     /// <summary>Go: <c>func simplifyClassDeclaration(f *ast.NodeFactory, classDecl *ast.Node, symbol *ast.Symbol) *ast.Node</c>。</summary>

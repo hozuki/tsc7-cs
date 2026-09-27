@@ -34,7 +34,7 @@ using static TypeScript.Ast.Ast;
 using static TypeScript.Core.Core;
 
 /// <summary>Go: <c>type InferenceKey struct { s TypeId; t TypeId }</c>（用作 map 键 → 值语义）。</summary>
-internal readonly struct InferenceKey : IEquatable<InferenceKey>
+public readonly struct InferenceKey : IEquatable<InferenceKey>
 {
     internal readonly TypeId _s;
     internal readonly TypeId _t;
@@ -53,7 +53,7 @@ internal readonly struct InferenceKey : IEquatable<InferenceKey>
 }
 
 /// <summary>Go: <c>type InferenceState struct</c>（推断状态；由 <c>Checker.freeinferenceState</c> 池复用）。</summary>
-internal sealed class InferenceState
+public sealed class InferenceState
 {
     internal IReadOnlyList<InferenceInfo> _inferences = [];
     internal Type? _originalSource;

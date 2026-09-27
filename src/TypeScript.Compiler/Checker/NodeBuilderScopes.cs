@@ -29,7 +29,7 @@ internal sealed class LocalsRecord
     internal Symbol? _oldSymbol;
 }
 
-internal sealed partial class NodeBuilderImpl
+public sealed partial class NodeBuilderImpl
 {
     internal Action AddSymbolTypeToContext(Symbol symbol, Type t)
     {

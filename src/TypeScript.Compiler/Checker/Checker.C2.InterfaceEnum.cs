@@ -16,7 +16,7 @@ using static TypeScript.Ast.Ast;
 using static TypeScript.Core.Core;
 
 /// <summary>Go: <c>type InheritanceInfo struct { prop *ast.Symbol; containingType *Type }</c>。</summary>
-internal sealed class InheritanceInfo
+public sealed class InheritanceInfo
 {
     internal Symbol? _prop;
     internal Type? _containingType;

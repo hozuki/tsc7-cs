@@ -24,7 +24,7 @@ using static TypeScript.Ast.Ast;
 using static TypeScript.Core.Core;
 
 /// <summary>Go 的 <c>type FlowType struct</c>（值类型；Go 的 <c>FlowType{}</c> 零值 ↔ C# 的 <c>default</c>）。</summary>
-internal readonly struct FlowType
+public readonly struct FlowType
 {
     internal readonly Type? _t;
     internal readonly bool _incomplete;
@@ -40,7 +40,7 @@ internal readonly struct FlowType
 }
 
 /// <summary>Go 的 <c>type SharedFlow struct</c>。</summary>
-internal readonly struct SharedFlow
+public readonly struct SharedFlow
 {
     internal readonly FlowNode _flow;
     internal readonly FlowType _flowType;
@@ -53,7 +53,7 @@ internal readonly struct SharedFlow
 }
 
 /// <summary>Go 的 <c>type FlowState struct</c>：在 Checker 的自由链表上复用（Go 的 <c>*FlowState</c> → C# 引用类型）。</summary>
-internal sealed class FlowState
+public sealed class FlowState
 {
     internal Node? _reference;
     internal Type? _declaredType;
