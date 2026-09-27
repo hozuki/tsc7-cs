@@ -15,7 +15,7 @@
 // 目录不存在时直接 return：这是"需要 TSGO 检出"的测试（TSGO_ROOT 指定，缺省 D:\Source\GitHub\TypeScript-Go）。
 // 实测（本机 TSGO 检出，2026-09）：fixtures 166 unit/8561 语句、compiler 9211 unit/54895 语句、
 // conformance 8046 unit/48404 语句，三个 suite 合计约 2 秒（含确定性复跑），远低于 60 秒目标，无需抽样。
-using System.Diagnostics;
+using Stopwatch = System.Diagnostics.Stopwatch;
 using System.Text;
 using System.Text.RegularExpressions;
 using TypeScript.Ast;

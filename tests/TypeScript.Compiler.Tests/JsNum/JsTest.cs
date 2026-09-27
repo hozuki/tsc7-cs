@@ -13,7 +13,10 @@
 // Go 的 BenchmarkToInt32/BenchmarkExponentiate 与 FuzzStringJS/FuzzFromStringJS 的"真 fuzz"模式在
 // xunit 里没有对应物：benchmark 未移植，fuzz 按 go test 默认的"只跑种子语料"语义移植为普通测试
 // （见 StringTests.cs）。
-using System.Diagnostics;
+// 全仓规则：不 `using System.Diagnostics;`（会让 Debug.Fail 绑到 BCL 的），只按需别名导入。
+using Process = System.Diagnostics.Process;
+using ProcessStartInfo = System.Diagnostics.ProcessStartInfo;
+
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
