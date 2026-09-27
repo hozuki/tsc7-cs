@@ -109,7 +109,7 @@ checker 是紧耦合单包：C1–C8 互相调用，还依赖 `relater`/`flow`/`
 - **任何 .cs 禁止 `using System.Diagnostics;`**（`Debug.Fail` 会绑到 BCL → FailFast 杀进程）；要 `Stopwatch` 用别名。
 - 字符串/位置一律 UTF-16 代码单元（AST 的 `Text`/span API）；string 零值 `""` 字段必须显式初始化。
 - **调用 C# 侧已有 API 前先 grep 确认真实签名**（`Ast.Node.Kind`、`NodeFactory.*`、`Ast.GetNodeId`、`Core.PagedLinkStore.Get(ulong)`…），不要按 Go 猜。
-- 已知坑：命名空间与类同名（`TypeScript.Checker` 命名空间 + `Checker` 类 → 类内引用同包类型直接写裸名，**不要**写 `Checker.Foo`，会解析到命名空间）；`Dictionary` 索引器读缺失键抛异常（Go 的 map 读返回零值）→ 用 `TryGetValue`/`GetValueOrDefault`；实例方法组不能直接转委托（用 lambda）；语句内的 `goto`/`fallthrough`/`break loop` 要逐处对齐（Go 的 `break loop` → C# `goto` 或提取局部函数）。
+- 已知坑：命名空间与类同名（`TypeScript.Checker` 命名空间 + `Checker` 类 → 类内引用同包类型直接写裸名，**不要**写 `Checker.Foo`，会解析到命名空间）；`Dictionary` 索引器读缺失键抛异常（Go 的 map 读返回零值）→ 用 `TryGetValue`/`GetValueOrDefault`；**方法组转委托**：签名匹配时 `Some(xs, IsFoo)` 直接传是**合法且更省**的（只分配一个委托；lambda 还要多一个闭包对象），只有在重载歧义/泛型推断失败（CS1503/CS0121，常见于 `?:`、`Map<T,U>` 推断不出 U）时才现场换成 `x => Foo(x)`；语句内的 `goto`/`fallthrough`/`break loop` 要逐处对齐（Go 的 `break loop` → C# `goto` 或提取局部函数）。
 - 只改你负责的文件。**不要**碰 `.editorconfig`/csproj/docs/别人的文件；跨包缺符号一律"报告"，不要就地发明。
 
 ### 5.5 命名裁决（2026-09-28，实测先例；checker 各片必须统一）

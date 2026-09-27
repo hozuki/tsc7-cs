@@ -23,4 +23,16 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <!-- bundled libs（internal/bundled/libs 的 108 个 .d.ts，共 3,784,983 字节，由 tools/TypeScript.CodeGen 的
+       BundledGenerator 从 TSGO 逐字节复制）作为 EmbeddedResource 嵌入。LogicalName 固定成
+       "TypeScript.Bundled.libs." + 文件名，与 Bundled/Embed.Generated.cs 里生成的 EmbeddedContents 表逐字一致
+       （运行时用 Assembly.GetManifestResourceStream 按名取，不用反射枚举资源，AOT 安全）。显式写 LogicalName 是
+       因为 MSBuild 的默认资源名会带上项目内的相对路径，那样资源名就和生成物对不上了；
+       %(Filename) 是不含最后一段扩展名的文件名（lib.dom.d.ts → lib.dom.d），拼 %(Extension)（.ts）即原名。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Bundled\libs\*.d.ts">
+      <LogicalName>TypeScript.Bundled.libs.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>
