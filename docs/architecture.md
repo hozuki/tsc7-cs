@@ -28,6 +28,15 @@
 
 - 文件名 = Go 文件名去扩展名后转 PascalCase：`js_case.go` → `JsCase.cs`，`identifier_parts_generated.go` → `IdentifierParts.Generated.cs`。
 - **唯一例外**：`internal/debug` 的类型放在根命名空间 `TypeScript`。若照搬成 `TypeScript.Debug`，则在任意 `TypeScript.*` 命名空间里 `Debug.Fail(...)` 会先解析到命名空间而不是静态类（编译器只做命名空间查找不落到成员），调用点被迫写 `Debug.Debug.Fail(...)`。放根命名空间后调用点与 Go 的 `debug.Fail(...)` 一一对应。
+- **包级函数**：C# 没有自由函数，每个 package 的包级函数放在**与该 package 同名的静态类**里，类放在该 package 的命名空间内，于是全名是 `TypeScript.StringUtil.StringUtil`。文件里这样引用：
+  ```csharp
+  using TypeScript.StringUtil;                   // 类型：Comparison、UnicodeESNextIdentifierStart…
+  using static TypeScript.StringUtil.StringUtil; // 函数：HasPrefix、CompareStringsCaseInsensitive…
+  ```
+  之后按 Go 的裸函数名调用（`HasPrefix(s, p, true)`），类型则可以用 `StringUtil.Comparison` 这样与 Go 逐字对应的限定名（命名空间限定对类型永远有效）。
+  两个包出现同名包级函数时（整个 TSGO 只有 12 处，如 `Parse`、`FromString`、`NewProgram`），在该文件用别名消歧：`using JsNum2 = TypeScript.JsNum.JsNum;`。
+  不要用项目级 `global using static`：可读性和消歧都更差。
+  注意：命名空间限定只对**该命名空间里声明的类型**有效（`StringUtil.Comparison`），拿不到静态类的成员；静态类成员只有两种写法——`using static` 后的裸名，或全名 `TypeScript.StringUtil.StringUtil.X`。这是 C# 名字解析规则决定的（外层命名空间里同名的命名空间会先被找到），不是风格问题。
 - 每个文件第一行是来源标注（生成文件另外标注生成器）：
   ```csharp
   // ported from: internal/stringutil/js_case.go
@@ -45,7 +54,7 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 
 - **不移植**哨兵机制：`EncodeJSStringRune`/`DecodeJSStringRune`/`CombineSurrogatePairs`/`surrogateUTF8Lead` 一律不出现。需要"原样保留孤立代理项"的地方，直接 `builder.Append(char)` 即可。
 - 字符串索引一律是 **UTF-16 代码单元下标**（= TS/TSGO 语义上的 `Pos`）。Go 里按字节下标走的循环（`for i := 0; i < len(s); i++`）在 C# 里必须逐个核对是"按代码单元"还是"按码点"：前者用 `char` 下标，后者用 `Rune` 解码后自行推进下标。
-- Go 的 `rune` → `System.Text.Rune`；只可能是 BMP 的内部字符判断（如 `IsWhiteSpaceSingleLine`）参数用 `char` 也可以，但扫描器/解析器对外一律 `Rune`。
+- Go 的 `rune` → 字符判定函数用 **`int`**（码点/代理项值），需要真正的码点对象时才用 `System.Text.Rune`。理由（实测）：`Rune` 无法表示孤立代理项（`new Rune(0xD800)` 抛异常），而 `char` 会把 astral 码点静默截断（`IsHighSurrogate((char)0x1D800)` 会错判为 true）。TSGO 里 `unicode.ToLower` 这类纯单码点操作对应 `Rune.ToLowerInvariant`，见 §3.4。
 
 ### 3.2 容器、指针、错误
 
@@ -67,7 +76,17 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 
 泛型：C# 泛型比 Go 强，移植时**可以更激进**（Go 里为了绕开泛型而写的 `any` + type switch，在 C# 里直接上泛型或接口）。
 
-### 3.3 可空性
+### 3.4 大小写映射
+
+三套 API 必须分清，别混用：
+
+| Go | C# | 说明 |
+| --- | --- | --- |
+| `unicode.ToLower/ToUpper`（simple 映射） | `Rune.ToLowerInvariant/ToUpperInvariant` | 单码点映射。.NET 当前的 Unicode 数据与 TSGO 钉住的 15.1 基本一致：`Rune.ToLowerInvariant(0x212A)=0x6B`、`ToUpperInvariant(0x017F)='S'`、`ToLowerInvariant(0x1E9E)=0xDF`，而 Unicode 16 新增的 `U+1C89`/`U+A7CB` 两边都无映射（`artifacts/unicode-probe`，`dotnet run Program.cs`）。版本未来若漂移，受影响的是路径规范化这类边角字符。 |
+| `strings.ToLower/ToUpper`（完整多字符映射，JS 语义） | `StringUtil.ToLowerJS/ToUpperJS` | **不能用** .NET 的 `string.ToLower`（它跟随当前区域且表不同）。JS 的 Final_Sigma、`ß→SS`、`İ→i̇` 等行为由 `stringutil` 的生成表 + `JsCase.cs` 复刻。 |
+| `strings.EqualFold`（SimpleFold 等价类） | 见下 | .NET 没有等价物：`StringComparison.OrdinalIgnoreCase` 实测 `"k" != "\u212A"`、`"s" != "\u017F"`，而 Go 的 EqualFold 认为相等。`EquateStringCaseInsensitive` 采用"两边取 `Rune.ToLowerInvariant` 后序数比较"，比 OrdinalIgnoreCase 更接近 SimpleFold（`k`/`U+212A` 相等），差异只落在 `ſ`/`ẞ` 这种等价类边角。 |
+
+### 3.5 可空性
 
 `Nullable` 全项目开启。Go 的 nil 指针映射为 `T?`；`!` 只在**同一方法内已证明非空**时使用，不允许"我觉得它不是 null"。
 
@@ -90,12 +109,15 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 
 | 里程碑 | 内容 | 状态 |
 | --- | --- | --- |
-| M0 | 工程骨架：slnx、编译器库、测试工程、CodeGen 工具；移植规范定稿 | 进行中 |
-| M1 | 叶子包：`Debug`、`StringUtil`（含生成表）、`Json`、`Collections`、`TSPath`、`JsNum` | |
+| M0 | 工程骨架：slnx、编译器库、测试工程、CodeGen 工具；移植规范定稿 | done |
+| M1a | `Debug`、`StringUtil`（含 Unicode 生成表 + CodeGen 生成器）、`TSPath` | done（200 测试通过；表数据与 Go 源对拍一致） |
+| M1b | `Collections`、`Json`、`JsNum` | 进行中 |
 | M2 | `Core`（`Text`、枚举、`CompilerOptions`…） | |
 | M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | |
 | M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | |
 | M5 | `Binder`、`Checker` → 语义错误基线 | |
 | M6 | `Printer` + transformers → emit 基线（`tests/cases/compiler` 通过） | |
-| M7 | `Compiler`/`Program`/`TSPath` 命令行 → `tsc` 可编译真实工程 | |
+| M7 | `Compiler`/`Program` → `tsc` 可编译真实工程 | |
 | M8 | `tsoptions`、`execute`、`watch`、`project`、`ls`/`lsp` | |
+
+已知缺口（本轮有意留下，必须在后续补齐）：`Collections.OrderedMap` 的 `MarshalJSONTo`/`UnmarshalJSONFrom` 与对应测试，等 `Json` 包（M1b）落地后补。
