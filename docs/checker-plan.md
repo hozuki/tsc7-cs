@@ -71,3 +71,43 @@ checker 的 import 面（决定它要等哪些包）：`ast, binder, collections
 - 编译通过 + 既有测试全绿是底线；**语义**正确性最终由 M6/M7 的 harness 用 TSGO 的 `.errors.txt` baseline 判定（见 `docs/harness.md` §4）。
 - 中间可用"与真 `tsc` 对拍诊断（码 + UTF-16 位置）"做差分（scanner/parser 已经这么做过，脚本在 `artifacts/scanner-diff` 与 `artifacts/parser-oracle`；checker 阶段可扩展同一套：`tsc --noEmit` 的输出作为 oracle）。
 - checker 自带 `checker_test.go`（看它是什么形状，能搬就搬）。
+
+## 5. C# 形状契约（**所有 checker 分片动手前必读**）
+
+### 5.1 Type 模型：三件套合并成一个类层次
+Go 的 `types.go` 把「数据」和「断言」分成三层：`Type` 结构体（`flags/objectFlags/id/symbol/alias/checker/data`）、
+`TypeData` 接口（7 个 `As*()`）、`TypeBase` 结构体（`struct{ Type }`，7 个 `AsX()` 默认返回 nil）。
+C# 里**合并**：
+
+- `abstract class Type`：字段照抄 Go 的 `Type`（`internal TypeFlags flags; internal ObjectFlags objectFlags; internal TypeId id; internal Symbol? symbol; internal TypeAlias? alias; internal Checker checker;`）；**`data TypeData` 不移植**。
+- `TypeData`、`TypeBase` 两个名字在 C# 里**不出现**；具体类型（`IntrinsicType`/`LiteralType`/`TupleType`/`StructuredType`/`ObjectType`/`UnionType`/…）直接**继承 `Type`**（Go 的 `TypeBase` 嵌入 → C# 基类）。
+- `AsX()`：在 `Type` 上 `internal virtual X? AsX() => null;`，Go 里 override 的那些在 C# 里 `override` 返回 `this`（与 Go 的「TypeBase 返回 nil、具体类型返回 t」逐一对齐）。
+- 改写：`t.data.(*X)` → `(X)t`；`x, ok := t.data.(*X)` → `t as X` + null 判断；`TypeData` 型的参数/字段/返回 → `Type`；`.AsType()` → 该对象本身（`AsType` 不移植）。
+- 与 AST 的 `nodeData` 折叠同源（docs/ast.md §2）。`TypeData` 在 Go 里只出现 11 次（types.go 7 / checker.go 4），合并是纯机械的。
+
+### 5.2 所有权（谁定义什么；别人只读）
+| 东西 | 归属 |
+| --- | --- |
+| `Checker` 结构体的**全部字段**（checker.go:586 起） | **C1 独有**。其它片只读，不改其定义；缺字段 → 报告 |
+| `NodeLinks`/`SymbolLinks`/`ValueSymbolLinks`/`MappedSymbolLinks`/`Signature`/`IndexInfo`/`TypeFlags`/`ObjectFlags`/`TypeId`/`TypeAlias`/… | `types.go`（B1a） |
+| `nodeLinkStore[V]`/`symbolArenaLinkStore[V]` | `links.go`（B1b）→ C# 命名 `NodeLinkStore<V>`/`SymbolLinkStore<V>`（§2「未导出类型按 C# 习惯命名，不必同名」） |
+| 包级函数（Go 无接收者） | 与包同名的 `public static partial class Checker`，调用点 `using static TypeScript.Checker.Checker;` |
+| `partial class Checker` 的实例方法 | 各片各写自己那段；**一个方法只能有一处定义** |
+
+Go 里同时存在 `func (c *Checker) foo()` 与包级 `func foo()` → C# 方法名冲突，包级那个加 `Worker` 后缀（§2 先例，如 `EmitSourceFileWorker`）。
+
+### 5.3 每片的编译现实（**重要**）
+checker 是紧耦合单包：C1–C8 互相调用，还依赖 `relater`/`flow`/`grammarchecks`/`jsx`/`inference`/`nodebuilderimpl`/…，
+**单文件不可能编译通过**。所以每片的验收是：
+
+1. **机械核对**：你负责的 Go 行/文件范围内的**每个顶层声明**都要在 C# 里有对应成员（成员名 = Go 名按 §2 规则；struct→class、方法→PascalCase 方法、常量→PascalCase 成员/枚举成员）。0 未解释缺失，报告里给出核对表（Go 声明 → C# 成员）。
+2. **语法自检**：`dotnet build src/TypeScript.Compiler/TypeScript.Compiler.csproj`，**你负责的文件里不得有 CS1xxx 语法错误**。`CS0103/CS0117/CS0246/CS1061/CS1501/CS1503`（符号来自别的切片/尚未落地）**是预期噪声，不要去"修"**——也不要去建别人该建的符号。
+3. **报告里必须给出**：①你的文件里期望缺失的**跨片符号清单**（名字 + 出处 Go 文件:行）；②机械核对表；③你做的所有 `Go→C#` 语义改写（每条一行理由）。
+
+### 5.4 机械改写与已知坑（照做，不要自创）
+- `(T, bool)` → `bool TryX(..., out T)`；`(T, error)` → 抛异常；`panic`/`Debug.Fail` → `Debug.Fail`；Go 用 `reflect` 浅拷贝 → `MemberwiseClone()`；`iota` → enum（数值与 Go 一致、成员名 = Go 常量名去类型前缀）。
+- **任何 .cs 禁止 `using System.Diagnostics;`**（`Debug.Fail` 会绑到 BCL → FailFast 杀进程）；要 `Stopwatch` 用别名。
+- 字符串/位置一律 UTF-16 代码单元（AST 的 `Text`/span API）；string 零值 `""` 字段必须显式初始化。
+- **调用 C# 侧已有 API 前先 grep 确认真实签名**（`Ast.Node.Kind`、`NodeFactory.*`、`Ast.GetNodeId`、`Core.PagedLinkStore.Get(ulong)`…），不要按 Go 猜。
+- 已知坑：命名空间与类同名（`TypeScript.Checker` 命名空间 + `Checker` 类 → 类内引用同包类型直接写裸名，**不要**写 `Checker.Foo`，会解析到命名空间）；`Dictionary` 索引器读缺失键抛异常（Go 的 map 读返回零值）→ 用 `TryGetValue`/`GetValueOrDefault`；实例方法组不能直接转委托（用 lambda）；语句内的 `goto`/`fallthrough`/`break loop` 要逐处对齐（Go 的 `break loop` → C# `goto` 或提取局部函数）。
+- 只改你负责的文件。**不要**碰 `.editorconfig`/csproj/docs/别人的文件；跨包缺符号一律"报告"，不要就地发明。
