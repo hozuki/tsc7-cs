@@ -45,6 +45,10 @@ func IsIdentifier(node *Node) bool { return node.Kind == KindIdentifier }
     ```
 - **`As` 转换**：Go 在 `*Node` 上生成 `func (n *Node) AsIdentifier() *Identifier`（type assert on `n.data`）→ C# 在 `Node` 上生成 `public Identifier? AsIdentifier() => this as Identifier;`（kind 不匹配时 null，与 Go 一致）。
 - **访问器名与类型名相同的特例**：`SubtreeFacts`、`ModifierFlags` 在 Go 里既是类型名又是 `nodeData` 的访问器方法名；C# 的 "Color Color" 规则只覆盖常量/字段/属性/局部/参数，**方法会遮蔽类型名**（`SubtreeFacts.None` 会 CS0119）。所以这两个访问器在 C# 里写成**属性**（`public virtual SubtreeFacts SubtreeFacts { get; }`、`public virtual ModifierFlags ModifierFlags { get; }`），调用点从 Go 的 `x.SubtreeFacts()` 变成 `x.SubtreeFacts`。其余访问器保持方法形态。
+- **字段遮蔽 `Node` 访问器的移植规则**：31 个字段名与 `Node` 上的方法同名（`Text`/`Type`/`Expression`/`Symbol`/`Parameters`…，生成时会加 `new`）。于是：
+  * Go 的 `x.AsIdentifier().Text`（字段）→ C# `x.AsIdentifier()!.Text` ✓；
+  * Go 的 `node.Text()`（Node 上的方法）→ C# `node.Text()` ✓（`node` 的静态类型是 `Node`）；
+  * **但** Go 里对派生类型调用被提升的方法（`id.Text()`，`id *Identifier`）在 C# 里不行（`id.Text` 解析成字段）→ 写成 `((Node)id).Text()` 或直接用字段。
 - **`Is` 判断**：`public static bool IsIdentifier(Node node) => node.Kind == Kind.Identifier;`（放静态类 `Ast`，对应 Go 的包级函数）。
 - **Kind**：由 ast.json 的 `kinds` 生成 `enum Kind`（**数值与 Go 一致**）+ `ToString()`（Go 的 `kind_stringer_generated.go` 落成扩展方法 `String(this Kind)`，见 docs/architecture.md §3.3）+ `<Xxx>Node = Node` 之类的别名（Go 的 `type XxxNode = Node` 在 C# 里就是 `Node`，不生成别名，调用点直接用 `Node`）。
 - **NodeFactory**：与 Go 同名的方法（`NewIdentifier(text)`、`UpdateIdentifier(node, …)`），内部 `new Identifier { … }` 后登记到 `NodeFactory.NewNode(kind, node)`；`NodeFactory` 的 arena 字段按 docs §3.2 去掉（AST 节点是 class）。
