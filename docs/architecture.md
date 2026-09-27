@@ -73,6 +73,7 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 | `LinkStore[K,V]` / `PagedLinkStore[V]` 的 `*V` | `where V : class, new()` + `new V()`；`null` = Go 的 `*V == nil`（`Has`/`TryGet` 语义完全一致）。Go 里 V 常是结构体（紧凑存储），C# 移植成 class：每个槽位一次分配、页是引用数组（性能偏离，待实测）。 |
 | Go 用 `reflect` 做**浅拷贝**（如 `CompilerOptions.Clone` 逐字段 `reflect.Value.Set`，Go 源码里自己标了 "could be generated code instead of reflection"） | `MemberwiseClone()`：同样是逐字段浅拷贝、无反射、AOT 安全，不需要生成 150 行赋值 |
 | `iota` 枚举 | C# `enum`，**数值与 TS/Go 保持一致**（`ast.Kind` 等值会出现在 baseline 里） |
+| Go 的无类型常量（`n * 2`、`n < 0`） | `Number` 定义 `implicit` 的 `double/int/long/float → Number`（读起来与 Go 一致）；反方向仍是 `explicit`（对应 Go 的 `float64(n)`）。`Number` 还实现了 `System.Numerics` 的运算符接口族（`IAdditionOperators`/`ISubtractionOperators`/…/`IComparisonOperators`/`IAdditiveIdentity`），可被泛型算法消费；**不**实现 `INumberBase` 那一套（`Parse`/`TryConvert*` 的 .NET 契约与 JS 的 `Number(string)`/`ToInt32` 语义冲突） |
 | `String()` stringer | `ToString()` 覆写 |
 | `atomic.*` | `Interlocked` / `Volatile` |
 | `sync.Mutex` / `RWMutex` | `lock` / `ReaderWriterLockSlim`；优先无锁或不可变快照 |

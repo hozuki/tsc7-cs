@@ -4,10 +4,10 @@
 //
 // 1) Go 的 `type Number float64` 在 C# 里是 `readonly struct Number`（包一层 double）。Go 的 Number 是
 //    数值类型，可以直接参与 `+ - * / < ==` 和 `len`/`switch` 等运算；C# 的结构体要保住这些调用点，
-//    就必须提供对应的运算符重载（见下方 operators 区）。转换按任务约定做成 explicit：Go 的
-//    `jsnum.Number(x)` ↔ C# 的 `(Number)x`，Go 的 `float64(n)` ↔ C# 的 `(double)n`——与 Go 一样，
-//    隐式转换只发生在无类型常量上（`Number` 字段初始化为 `(Number)1.5` 需要显式写出）。
-//    因此调用点里 `Number` 与非 Number 数值直接比较/运算的地方要补显式转换（Go 里靠无类型常量隐式转换）。
+//    就必须提供对应的运算符重载（见下方 operators 区）。转换：Go 的 `float64(n)` ↔ C# 的
+//    `(double)n`（explicit，见下方）；反方向的 `double/int/long/float → Number` 是 implicit
+//    （NumericInterfaces.cs），这样 Go 里靠**无类型常量**隐式转换的写法（`n * 2`、`n < 0`、
+//    `n + 0.5`）在 C# 里同样能直接写，`(Number)1.5` 也仍然合法（只是不必再写）。
 // 2) Go 的 typed const `MaxSafeInteger Number = 1<<53 - 1` 在 C# 里没有对应物（Number 是结构体，
 //    不能 const），改用 `static readonly`。
 // 3) Go 的 `String()` stringer → C# 的 `ToString()` 覆写（见 String.cs），另在类 JsNum 里提供
@@ -77,9 +77,8 @@ public readonly partial struct Number : IEquatable<Number>, IComparable<Number>
         Value = value;
     }
 
-    // Go 的 `Number(x)` / `float64(n)` 转换（见文件头第 1 条）。
-    public static explicit operator Number(double value) => new(value);
-
+    // Go 的 `float64(n)` ↔ C# 的 `(double)n`。反方向的 `Number(x)` 是 implicit（NumericInterfaces.cs，
+    // 见文件头第 1 条）。
     public static explicit operator double(Number number) => number.Value;
 
     // Go 的 `Number` 底层是 float64，`+ - * / < <= > >= == !=` 都按 IEEE 754 直接作用在值上。
