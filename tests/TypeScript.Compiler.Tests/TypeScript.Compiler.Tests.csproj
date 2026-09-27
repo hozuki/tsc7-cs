@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 单测直接对应移植过来的 Go *_test.go。baseline/fourslash 那种跑 TSGO testdata 的
+       集成测试属于 tests/TypeScript.Harness（尚未创建），不放这里。 -->
+  <PropertyGroup>
+    <RootNamespace>TypeScript.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/TypeScript.Compiler/TypeScript.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TypeScript.Compiler/TypeScript.Compiler.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TypeScript.Compiler.Tests/TypeScript.Compiler.Tests.csproj" />
+  </Folder>
+</Solution>

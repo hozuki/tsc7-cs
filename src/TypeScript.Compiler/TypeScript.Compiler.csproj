@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 移植目标：TSGO（github.com/microsoft/TypeScript/tsc/internal/*）的 1:1 移植。
+       一个 Go package = 一个同名文件夹 + 同名 C# 命名空间（internal/core → TypeScript.Core），
+       Go 文件名转成 PascalCase 的 .cs 文件名（core.go → Core.cs）。这样任何一个文件都能和
+       Go 源文件并排对照阅读。详见 docs/architecture.md。 -->
+  <PropertyGroup>
+    <RootNamespace>TypeScript</RootNamespace>
+    <AssemblyName>TypeScript.Compiler</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <PackageId>TypeScript.Compiler</PackageId>
+    <Description>C# port of the TypeScript compiler (TSGO).</Description>
+  </PropertyGroup>
+
+</Project>

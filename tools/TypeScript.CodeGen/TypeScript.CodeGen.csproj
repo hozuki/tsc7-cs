@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 生成器：把 TSGO 里的生成输入（Unicode 数据、ast.json、diagnosticMessages.json…）
+       转成 C# 源码。TSGO 侧同一份输入由 *_generated.go 的生成器消费，所以两边产物同源。
+       TSGO 仓库位置由 TSGO_ROOT 环境变量或命令行参数指定。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TypeScript.CodeGen</RootNamespace>
+    <AssemblyName>TypeScript.CodeGen</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>
