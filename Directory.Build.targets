@@ -1,0 +1,21 @@
+<Project>
+
+  <!-- 可执行程序用 Server GC。理由与实测（docs/architecture.md §18.4m）：本移植的编译器在混合前缀上把
+       45% 的 CPU 花在 GC 里（dotnet-trace 采样），而它的分配以**常驻**类型/成员表为主、单次集合很贵——
+       正是 Server GC 的适用面。同一构建、同一 workload 的配对实测（`DOTNET_gcServer` 开关，分配字节与诊断
+       数逐位不变）：
+
+         workload            workstation             Server GC       峰值工作集
+         p2000 semantic      1.424/1.429 s           1.198/1.208 s   264 → 283–307 MiB
+         types 分片 semantic 2.810 s                 2.663 s         340 → 447 MiB
+         全语料 total        9.964 s                 9.098 s         953 → 1,133 MiB
+
+       代价是峰值内存 +7…31%，对编译器（tsc/tsgo 同样吃内存）是划算的取舍。图书馆方式的消费者（把
+       TypeScript.Compiler 嵌进自己进程的宿主）**不受影响**：这里只给 OutputType=Exe 的项目设置，它们的
+       runtimeconfig.json 才会拿到 System.GC.Server=true，宿主可以自行选择。放在 targets（而不是 props）
+       是因为 props 在项目属性之前导入，那时 OutputType 还没定。 -->
+  <PropertyGroup Condition="'$(OutputType)' == 'Exe'">
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+
+</Project>

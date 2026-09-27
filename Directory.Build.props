@@ -1,0 +1,27 @@
+<Project>
+
+  <!-- 所有项目共享的编译契约。项目级 csproj 只保留真正项目特有的设置。 -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <!-- 对应 TS 的 strictNullChecks：undefined/null 的处理必须显式 -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <!-- 移植自 TS 的文件用 // ported from: 标注，不要求 XML 文档注释 -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- .NET 11 的 runtime async：状态机交给运行时，同步完成的 await 不再走编译器生成的状态机/延续结构。
+         实测（docs/architecture.md §18.4h，探针 artifacts/asyncprobe，两列各自 -t:Rebuild）：同步完成的
+         async 链时间 -13…16%；`ValueTask` 返回且同步完成时 0 B/次（`Task` 返回的那 72 B/次是 Task 对象本身，
+         与状态机无关）。开关必须写在这里/csproj —— 用 `-p:Features=…` 会踩 MSBuild 增量编译只看输入输出、
+         不看属性变化的坑（我就是这样先得出过错误结论）。当前 src 与 tools **没有任何 C# async 代码**，
+         所以这条今天不改任何代码生成；它是给 M8 的 CLI/host/watch（那里才有真实等待）预付的。若将来某个
+         构造被 runtime async 拒绝（Roslyn 的 ERR_UnsupportedFeatureInRuntimeAsync），用
+         `[RuntimeAsyncMethodGeneration(false)]` 单独退出即可。 -->
+    <Features>$(Features);runtime-async=on</Features>
+  </PropertyGroup>
+
+</Project>
