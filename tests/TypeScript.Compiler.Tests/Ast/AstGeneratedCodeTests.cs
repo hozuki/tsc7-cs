@@ -188,4 +188,29 @@ public class AstGeneratedCodeTests
         // Update 的 kind 分派必须与工厂一致（否则 update 会退化成 default 分支抛异常）
         Assert.Equal(Kind.JSTypeAliasDeclaration, f.UpdateTypeAliasDeclaration((TypeAliasDeclaration)jsTypeAlias, null, f.NewIdentifier("Baz"), null, null).Kind);
     }
+
+    [Fact]
+    public void IterChildrenYieldsAllChildren()
+    {
+        // 回归哨兵：ForEachChild 的回调约定是"true = 停止"，IterChildren 曾经恒返回 true，
+        // 于是只吐出第一个子节点（Go 是 `return !yield(child)`）。
+        var (f, _, _, _) = NewFactory();
+        var first = f.NewIdentifier("a");
+        var second = f.NewIdentifier("b");
+        var block = f.NewBlock(f.NewNodeList([first, second]), true);
+
+        var children = block.IterChildren().ToList();
+        Assert.Equal(2, children.Count);
+        Assert.Same(first, children[0]);
+        Assert.Same(second, children[1]);
+
+        // 与 ForEachChild 的顺序一致
+        var viaForEachChild = new List<Node>();
+        block.ForEachChild(n =>
+        {
+            viaForEachChild.Add(n);
+            return false;
+        });
+        Assert.Equal(viaForEachChild.Select(n => n.Kind), children.Select(n => n.Kind));
+    }
 }

@@ -52,13 +52,15 @@ public abstract partial class Node : IKindString, INodeBase
     /// </summary>
     public IEnumerable<Node> IterChildren()
     {
-        // Go 里 ForEachChild 返回 true 表示停止遍历，而迭代器的 yield 返回 false 表示停止，
-        // 所以这里的回调始终返回 true（读完所有子节点）。
+        // ForEachChild 的回调约定是 **true = 停止遍历**（见 Ast.Visit/VisitNodes），
+        // 所以要读完所有子节点必须返回 false。
+        // （Go 里是 `return !yield(child)`：yield 返回 false 表示迭代器停止 → ForEachChild 返回 true。
+        //   这里先把子节点收全，再交给 foreach 的 yield——调用点停止枚举时回调已经跑完了。）
         var buffer = new List<Node>();
         ForEachChild(child =>
         {
             buffer.Add(child);
-            return true;
+            return false;
         });
         foreach (var child in buffer)
         {
