@@ -125,3 +125,10 @@ checker 是紧耦合单包：C1–C8 互相调用，还依赖 `relater`/`flow`/`
 | `TypeComparer`（types.go:1447） | 归 `types.go` 片 | 新增 |
 
 → 一句话：**`_camelCase` 只针对 Go 未导出字段；Go 导出名一律原样 PascalCase、不加前缀。**
+
+### 5.6 命名遮蔽（C# 同命名空间优先于 using，会**静默**绑错类型）
+C# 的名字解析是「当前命名空间 → using 引入的命名空间」，所以 `TypeScript.Checker` 里声明的类型会**盖住** `using TypeScript.Collections;` 等引入的同名类型——不报错，直接绑错，行为悄悄变。
+
+- 已踩：`utilities.go:879` 的未导出 `orderedSet[T]`（Add **不去重**，只有 `contains` 判重）若命名成 `OrderedSet<T>`，会盖住 `collections.OrderedSet`（`Add` **会去重**）→ `Types.cs` 的 `_deferredNodes` 语义会变。**裁决：改名 `SmallOrderedSet<T>`**（未导出类型按 C# 习惯命名，§2）。
+- 包级审计结果（`TypeScript.Checker` 140 个类型 vs 其它包）：`Host`（vs `ContentMapper.Host`）、`ParseFlags`（vs `Parser.ParseFlags`）、`Tracer`（vs `Module.Tracer`）——这三个是 Go **导出**名，按 API 对等必须保留；**引用另一包的那个时写全限定名**（`TypeScript.Module.Tracer`）。
+- 新增任何 C# 侧自造类型名前，先 `grep -rn "class <名字>\b" src/TypeScript.Compiler --include=*.cs` 确认不撞。
