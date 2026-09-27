@@ -90,6 +90,30 @@ C# 的 `string` 本身就是 UTF-16 代码单元序列，**与 JavaScript 字符
 
 `Nullable` 全项目开启。Go 的 nil 指针映射为 `T?`；`!` 只在**同一方法内已证明非空**时使用，不允许"我觉得它不是 null"。
 
+### 3.6 AOT 兼容
+
+`Directory.Build.props` 设了 `<IsAotCompatible>true</IsAotCompatible>`（用户要求），它打开 trim/AOT/单文件分析器；配合 `TreatWarningsAsErrors`，**IL2xxx/IL3xxx 就是编译错误**。已验证：现有代码（StringUtil/TSPath/Debug/测试）在该开关下 0 警告 0 错误。
+
+禁止：
+
+- `System.Text.Json.JsonSerializer`（反射序列化 → IL2026/IL3050）。JSON 由自写引擎 + 静态分派 + 显式 `IJsonMarshaler`/`IJsonUnmarshaler` 承担，见 `docs/json.md`。
+- 运行时反射做类型映射/序列化：`Type.GetProperties`/`GetFields`、`PropertyInfo.GetValue`/`SetValue`、`Activator.CreateInstance(Type)`、`MakeGenericType`、`Enum.GetValues(Type)`、`dynamic`。
+- 任何 `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]` 标注的 API。确实非用不可时，只能在该调用点加 `[UnconditionalSuppressMessage]`，并在注释里给出"裁剪后为什么仍安全"的论证。
+
+允许：泛型实例化（编译期静态化）、`EqualityComparer<T>.Default`、`Utf8JsonWriter`/`Utf8JsonReader`、`JavaScriptEncoder` 子类、非反射的 `Regex`、`Interlocked`/`Volatile`/`ConcurrentDictionary`。
+
+结论：类型映射必须**静态可分析**。这也是 TSGO 的 Go 代码到处自己实现 `MarshalerTo`/`UnmarshalerFrom` 的原因——移植时保持同样的显式风格，不要用反射"省事"。
+
+### 3.7 版本库卫生
+
+`.gitignore` 用的是 VS 模板，规则按**目录名**匹配，会和移植过来的 Go package 目录名撞车：`internal/debug` → `src/TypeScript.Compiler/Debug/` 曾被 `[Dd]ebug/` 吞掉（文件一直没进版本库）。新增 package 目录后必须：
+
+```sh
+git check-ignore -v src/TypeScript.Compiler/<Folder>/x.cs   # 退出码 1 = 没被忽略
+```
+
+被忽略时在 `.gitignore` 末尾放行（该文件已有 `Debug/` 的放行条目）。
+
 ## 4. 生成代码
 
 TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.json`、`internal/stringutil/_scripts` 的 Unicode 数据、`diagnostics/diagnosticMessages.json`…）。C# 侧由 `tools/TypeScript.CodeGen` 消费同一份输入生成 `*.Generated.cs`：

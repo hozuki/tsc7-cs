@@ -13,6 +13,13 @@
     <!-- 移植自 TS 的文件用 // ported from: 标注，不要求 XML 文档注释 -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- AOT 兼容（用户要求）：打开 trim/AOT/单文件分析器（IL2xxx/IL3xxx 会因 TreatWarningsAsErrors 直接报错）。
+         实际影响（docs/architecture.md §3.6）：**禁止运行时反射驱动的序列化/映射**——不用
+         System.Text.Json 的 JsonSerializer（IL2026/IL3050），不自己 GetProperties/Activator.CreateInstance(Type)；
+         类型映射走静态分派 + 显式 IJsonMarshaler/IJsonUnmarshaler（对应 Go 的 MarshalerTo/UnmarshalerFrom）。
+         这不只是"消除警告"：反射映射在真 AOT/裁剪下会静默丢成员，正是 TSGO 里 Go 代码到处自己实现
+         MarshalerTo 的原因。 -->
+    <IsAotCompatible>true</IsAotCompatible>
     <!-- .NET 11 的 runtime async：状态机交给运行时，同步完成的 await 不再走编译器生成的状态机/延续结构。
          实测（docs/architecture.md §18.4h，探针 artifacts/asyncprobe，两列各自 -t:Rebuild）：同步完成的
          async 链时间 -13…16%；`ValueTask` 返回且同步完成时 0 B/次（`Task` 返回的那 72 B/次是 Task 对象本身，

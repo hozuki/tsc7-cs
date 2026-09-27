@@ -287,3 +287,8 @@ __pycache__/
 *.btm.cs
 *.odx.cs
 *.xsd.cs
+
+# --- 本项目覆盖：VS 模板里的 [Dd]ebug/ 会吞掉移植过来的 Go package internal/debug（→ src/…/Debug/），
+# --- 曾经导致 Debug 包没进版本库。新增移植文件夹时若与模板的构建产物规则同名，在这里放行。
+!src/TypeScript.Compiler/Debug/
+!tests/TypeScript.Compiler.Tests/Debug/
