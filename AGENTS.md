@@ -10,5 +10,6 @@ TSGO CLI is available at global `tsc` command.
 
 For C# port, correctness and accuracy are first priorities. Compiler performance and memory usage are also important. Actively use structs to reduce GC.
 Moreover, since .NET supports multi-threading, you must consider multithreaded (and thread-safe!) data structrues to accelerate the compiler. Try to do better than the Go port.
+Key insights on string: Go port actively uses span operations for string operations. To achieve a comparable performance, C# port should also use spans (for strings, arrays, lists). - Thanks to hez2010
 
 In the end, you will need to pass tests (`baselines`, `tests`) in the TSGO repository.
