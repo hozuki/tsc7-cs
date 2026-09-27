@@ -387,7 +387,8 @@ public sealed partial class Checker
     /// <summary>Go: <c>func (c *Checker) checkSpreadPropOverrides(t *Type, props ast.SymbolTable, spread *ast.Node)</c>。</summary>
     internal void CheckSpreadPropOverrides(Type t, SymbolTable props, Node spread)
     {
-        foreach (var right in GetPropertiesOfTypeWorker(t)!)
+        // Go: range over a nil slice is a no-op.
+        foreach (var right in GetPropertiesOfTypeWorker(t) ?? [])
         {
             if ((right.Flags & SymbolFlags.Optional) == 0 && (right.CheckFlags & CheckFlags.Partial) == 0)
             {
@@ -492,7 +493,7 @@ public sealed partial class Checker
             indexInfos = GetUnionIndexInfos([left, right]);
         }
 
-        foreach (var rightProp in GetPropertiesOfTypeWorker(right)!)
+        foreach (var rightProp in GetPropertiesOfTypeWorker(right) ?? [])
         {
             if ((GetDeclarationModifierFlagsFromSymbolWorker(rightProp) & (ModifierFlags.Private | ModifierFlags.Protected)) != 0)
             {
@@ -509,7 +510,7 @@ public sealed partial class Checker
             }
         }
 
-        foreach (var leftProp in GetPropertiesOfTypeWorker(left)!)
+        foreach (var leftProp in GetPropertiesOfTypeWorker(left) ?? [])
         {
             if ((skippedPrivateMembers?.Has(leftProp.Name) ?? false) || !IsSpreadableProperty(leftProp))
             {
@@ -639,7 +640,7 @@ public sealed partial class Checker
 
         // gets the type as if it had been spread, but where everything in the spread is made optional
         var members = new SymbolTable();
-        foreach (var prop in GetPropertiesOfTypeWorker(firstType)!)
+        foreach (var prop in GetPropertiesOfTypeWorker(firstType) ?? [])
         {
             if ((GetDeclarationModifierFlagsFromSymbolWorker(prop) & (ModifierFlags.Private | ModifierFlags.Protected)) != 0)
             {

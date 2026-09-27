@@ -604,16 +604,17 @@ public sealed partial class NodeBuilderImpl
         _ctx!._approximateLength += 3;
         // Usually a signature contributes a few more characters than this, but 3 is the minimum
 
-        if ((_ctx!._flags & NodeBuilderFlags.WriteTypeArgumentsOfSignature) != 0 && signature._target is not null && signature._mapper is not null && signature._target._typeParameters!.Length != 0)
+        if ((_ctx!._flags & NodeBuilderFlags.WriteTypeArgumentsOfSignature) != 0 && signature._target is not null && signature._mapper is not null && (signature._target._typeParameters?.Length ?? 0) != 0)
         {
-            foreach (var parameter in signature._target._typeParameters!)
+            // Go: range over a nil slice is a no-op.
+            foreach (var parameter in signature._target._typeParameters ?? [])
             {
                 typeParameters.Add(TypeToTypeNode(_ch.InstantiateType(parameter, signature._mapper))!);
             }
         }
         else
         {
-            foreach (var parameter in signature._typeParameters!)
+            foreach (var parameter in signature._typeParameters ?? [])
             {
                 typeParameters.Add(TypeParameterToDeclaration(parameter)!);
             }

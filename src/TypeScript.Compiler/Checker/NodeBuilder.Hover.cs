@@ -761,7 +761,7 @@ public sealed partial class NodeBuilderImpl
         foreach (var @base in baseTypes)
         {
             var baseWithThis = _ch.GetTypeWithThisArgument(@base, _ch.GetTargetType(t).AsInterfaceType()!._thisType, false);
-            foreach (var prop in _ch.GetPropertiesOfTypeWorker(baseWithThis)!)
+            foreach (var prop in _ch.GetPropertiesOfTypeWorker(baseWithThis) ?? [])
             {
                 if (propsByName.TryGetValue(prop.Name, out var existing) && prop.Parent == existing.Parent)
                 {

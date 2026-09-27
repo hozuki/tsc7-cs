@@ -349,7 +349,7 @@ public sealed partial class Checker
         // use the resolvingSignature singleton to indicate that we deferred processing. This result will be
         // propagated out and eventually turned into silentNeverType (a type that is assignable to anything and
         // from which we never make inferences).
-        if ((checkMode & CheckMode.SkipGenericFunctions) != 0 && node.TypeArguments()!.Length == 0 && Some(callSignatures, s => IsGenericFunctionReturningFunction(s)))
+        if ((checkMode & CheckMode.SkipGenericFunctions) != 0 && (node.TypeArguments()?.Length ?? 0) == 0 && Some(callSignatures, s => IsGenericFunctionReturningFunction(s)))
         {
             SkippedGenericFunction(node, checkMode);
             return _resolvingSignature!;
@@ -380,7 +380,7 @@ public sealed partial class Checker
         // list and the result of the operation is of type Any.
         if (IsTypeAny(expressionType))
         {
-            if (node.TypeArguments()!.Length != 0)
+            if ((node.TypeArguments()?.Length ?? 0) != 0)
             {
                 Error(node, Diagnostics.Untyped_function_calls_may_not_accept_type_arguments);
             }

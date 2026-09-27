@@ -870,7 +870,8 @@ public sealed partial class Checker
     // Go: checker.go:23086
     internal void ForEachMappedTypePropertyKeyTypeAndIndexSignatureKeyType(Type t, TypeFlags include, bool stringsOnly, Action<Type> cb)
     {
-        foreach (var prop in GetPropertiesOfTypeWorker(t)!)
+        // Go: range over a nil slice is a no-op, so a nil properties list is legal here.
+        foreach (var prop in GetPropertiesOfTypeWorker(t) ?? [])
         {
             cb(GetLiteralTypeFromProperty(prop, include, false));
         }

@@ -194,7 +194,8 @@ public sealed partial class NodeBuilderImpl
                 var res = new List<Node>();
                 var hasElidedType = false;
                 var hasUndefined = false;
-                var members = t.AsPseudoTypeUnion().Types!;
+                // Go: range over a nil slice is a no-op.
+                var members = t.AsPseudoTypeUnion().Types ?? [];
 
                 void AppendTypeNode(Node node)
                 {
@@ -314,7 +315,8 @@ public sealed partial class NodeBuilderImpl
             case PseudoTypeKind.Tuple:
             {
                 var res = new List<Node>();
-                var elements = t.AsPseudoTypeTuple().Elements!;
+                // Go: range over a nil slice is a no-op.
+                var elements = t.AsPseudoTypeTuple().Elements ?? [];
                 foreach (var e in elements)
                 {
                     res.Add(PseudoTypeToNode(e)!);
@@ -329,7 +331,8 @@ public sealed partial class NodeBuilderImpl
 
             case PseudoTypeKind.ObjectLiteral:
             {
-                var elements = t.AsPseudoTypeObjectLiteral().Elements!;
+                // Go: len/range over a nil slice is valid.
+                var elements = t.AsPseudoTypeObjectLiteral().Elements ?? [];
                 if (elements.Length == 0)
                 {
                     var result = _f.NewTypeLiteralNode(_f.NewNodeList([]));
@@ -490,8 +493,10 @@ public sealed partial class NodeBuilderImpl
         }
     }
 
-    internal NodeList PseudoParametersToNodeList(PseudoParameter[] params_)
+    internal NodeList PseudoParametersToNodeList(PseudoParameter[]? params_)
     {
+        // Go: len/range over a nil slice is valid; null is treated as an empty parameter list.
+        params_ ??= [];
         var res = new List<Node>(params_.Length);
         foreach (var p in params_)
         {
@@ -641,12 +646,14 @@ public sealed partial class NodeBuilderImpl
                     targetDeclCount += prop.Declarations?.Length ?? 0;
                 }
 
-                if (pt.Elements!.Length != targetDeclCount)
+                // Go: len/range over a nil slice is valid.
+                var elements = pt.Elements ?? [];
+                if (elements.Length != targetDeclCount)
                 {
                     return false;
                 }
 
-                foreach (var e in pt.Elements!)
+                foreach (var e in elements)
                 {
                     Symbol? targetProp = null;
                     var elemSymbol = e.Name!.Parent!.Symbol;
@@ -818,14 +825,16 @@ public sealed partial class NodeBuilderImpl
                 }
 
                 var elementTypes = _ch.GetTypeArgumentsWorker(undefinedStripped);
-                if (pt.Elements!.Length != elementTypes.Length)
+                // Go: len/range over a nil slice is valid.
+                var elements = pt.Elements ?? [];
+                if (elements.Length != elementTypes.Length)
                 {
                     return false;
                 }
 
-                for (var i = 0; i < pt.Elements.Length; i++)
+                for (var i = 0; i < elements.Length; i++)
                 {
-                    if (!PseudoTypeEquivalentToType(pt.Elements[i], elementTypes[i], false, reportErrors))
+                    if (!PseudoTypeEquivalentToType(elements[i], elementTypes[i], false, reportErrors))
                     {
                         return false;
                     }
@@ -843,7 +852,7 @@ public sealed partial class NodeBuilderImpl
                 }
 
                 var pt = t.AsPseudoTypeSingleCallSignature();
-                if (targetSig._typeParameters!.Length != (pt.TypeParameters?.Length ?? 0))
+                if ((targetSig._typeParameters?.Length ?? 0) != (pt.TypeParameters?.Length ?? 0))
                 {
                     if (reportErrors)
                     {
@@ -893,8 +902,11 @@ public sealed partial class NodeBuilderImpl
         }
     }
 
-    internal bool PseudoParametersEquivalentToParameters(PseudoParameter[] params_, Signature targetSig, bool reportErrors, Node nonParamErrorLocation)
+    internal bool PseudoParametersEquivalentToParameters(PseudoParameter[]? params_, Signature targetSig, bool reportErrors, Node nonParamErrorLocation)
     {
+        // Go: nil slices have len 0, so `len(targetSig.parameters)`/`len(params)` are safe on nil.
+        params_ ??= [];
+        var targetParams = targetSig._parameters ?? [];
         if (targetSig._thisParameter is not null && params_.Length == 0)
         {
             if (reportErrors)
@@ -930,7 +942,7 @@ public sealed partial class NodeBuilderImpl
             return false;
         }
 
-        if (targetSig._parameters!.Length != params_.Length)
+        if (targetParams.Length != params_.Length)
         {
             if (reportErrors)
             {
@@ -943,7 +955,7 @@ public sealed partial class NodeBuilderImpl
         for (var i = 0; i < params_.Length; i++)
         {
             var p = params_[i];
-            var targetParam = targetSig._parameters![i];
+            var targetParam = targetParams[i];
             if (p.Optional != _ch.IsOptionalParameter(targetParam.ValueDeclaration!))
             {
                 if (reportErrors)
@@ -1075,7 +1087,7 @@ public sealed partial class NodeBuilderImpl
             {
                 var res = new List<Type>();
                 var hasElidedType = false;
-                var members = t.AsPseudoTypeUnion().Types!;
+                var members = t.AsPseudoTypeUnion().Types ?? [];
                 foreach (var m in members)
                 {
                     if (!_ch._strictNullChecks)
