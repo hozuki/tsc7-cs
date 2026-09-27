@@ -55,6 +55,7 @@
   * 需要被同程序集其它类访问的 Go 未导出成员 → `internal`（仍是 `_camelCase` 字段 / PascalCase 方法）；只在本类用 → `private`。
 - 命名空间必须显式声明为 file-scoped（`.editorconfig` 已把它设为 warning 级）。
 - 命名规范由 `.editorconfig` 的命名规则强制（`_camelCase` 字段等），新增/改动代码必须过。
+- **禁止 `using System.Diagnostics;`**（Vfs 实测的坑）：文件级 using 属于最内层命名空间声明，名字解析先走它，于是 `Debug.Fail(...)` 会绑到 **`System.Diagnostics.Debug.Fail`** —— 它不是我们的 `TypeScript.Debug.Fail`：VSTest 下抛 `DebugAssertException`、普通进程里**直接 FailFast 终止进程**（`Assert.Throws<DebugFailureException>` 永不成立）。要 `Stopwatch`/`UnreachableException` 就用别名（`using Stopwatch = System.Diagnostics.Stopwatch;`）。`.cs` 里出现 `TypeScript.Debug.Fail` 全名也可以，但别名更省事。
 - **公开 API 对等检查**（周期跑，落实"公开 API 与 TSGO 一致"）：
   ```sh
   dotnet run --project artifacts/api-parity            # 反射 dump 我们产物的 public API
@@ -163,6 +164,60 @@ Go 版本大量用**切片视图**（`s[i:j]`、`bytes`、`[]T` 的子切片）�
 限制（必须记住）：`Span<T>`/`ReadOnlySpan<T>` **不能存进字段、不能跨 `await`、不能在迭代器里存活**；这类地方用 `T[]`（§3.2 的 `Arena`/`LinkStore` 条目已经处理了这一点）。生成的代码同样遵守：需要长期持有的数据用数组，只在方法内部做零拷贝视图。
 
 审计要求：热路径（scanner/parser/binder/checker/printer 以及所有逐字符/逐元素循环）里出现 `Substring`/`ToArray`/`ToCharArray`/`Encoding.*GetBytes`/LINQ 时必须能给出理由，否则改成 span 写法。
+
+### 3.9 深度递归必须跑在大栈线程上（实测，M5 结论）
+
+Go 的 goroutine 栈是**可增长**的，TSGO 的 binder/checker/printer 依赖这一点处理深度嵌套的 AST。.NET 的线程栈是**固定大小**，且 `StackOverflowException` 在 .NET Core 上**不可捕获**（进程直接死）。
+
+实测（Binder 切片）：`var x = 1+1+…` 左深嵌套在默认主线程栈上 **2000 项 OK、4000 项进程崩溃**；TSGO 自带的回归用例 `tsc/testdata/tests/cases/compiler/binderBinaryExpressionStress.ts`（6452 个操作数）同样崩；放到 `new Thread(…, maxStackSize: 64 * 1024 * 1024)` 上跑同一个文件 → 通过（symbols=1、bind diagnostics=0）。
+
+**要求**：M6/M7 的 harness、CLI、以及任何"递归遍历 AST 的入口"（bind/check/emit/transform）都必须在**显式指定了大栈的线程**上执行（建议 64–256 MB；`Thread` 的 `maxStackSize` 是构造参数，`Task`/线程池线程不能设置）。TS 的 emitter 自带 trampoline（`binderBinaryExpressionStress.ts` 的注释提到过），printer 可能不需要，但 harness 必须统一处理。
+
+**runtime async 不能替代大栈线程**（实测，`artifacts/stackprobe`，`Features=runtime-async=on` 生效）：
+
+| 写法 | 最大存活深度 | 1,000,000 层耗时 |
+| --- | --- | --- |
+| 纯同步递归 | 16,000（32,000 崩） | — |
+| `async ValueTask<int>` + `await` 一个**已完成**的 `ValueTask` | **8,000（16,000 崩）** | — |
+| `async` + 每 64 层 `await Task.Yield()` | ≥1,000,000 | 94 ms |
+| `async` + 每层 `await Task.Yield()` | ≥1,000,000 | 211 ms |
+
+结论：
+- **`await` 一个已完成的值不会挂起、不会回退栈**（这是 BCL/语言语义，runtime async 只去掉状态机分配，不改变这一点），而且 async 帧比同步帧更贵 → 单纯"写成 async 递归"比同步更早溢出。所以"深度递归 → 改成 runtime async"这个做法本身不成立。
+- 只有**真正让出**（`Task.Yield` 或等一个未完成的 `Task`）才会回退栈；代价是续体被调度到线程池 → **跨线程**。而本移植广泛使用 `[ThreadStatic]` 池（`Parser._pooledParser`、`Binder` 的 binder 池、`EmitContext._pooledEmitContext`、Core 的 levenshtein 缓冲）与线程亲和的解析状态，把递归变成"异步 + 让出"会破坏这些假设，需要把它们全部改成 `AsyncLocal`/显式池，收益不抵风险。
+- 因此**默认方案 = 大栈线程**（已实测：`binderBinaryExpressionStress.ts` 在 64 MB 栈线程上通过，默认主线程栈上崩溃）。若将来某条路径必须跑在线程池上（例如 LSP 的请求处理），再对该路径单独引入"显式工作栈 trampoline"（TS 的 emitter 就是这么做的），而不是把递归改成 async。
+
+### 3.10 async 与 runtime async（实测，2026‑09‑28）
+
+`artifacts/asyncbench`（参考 hez2010 的 async-benchmarks gist）把各 await 形态的**单次代价**钉死；同源两个工程只差 `Features`（`AsyncBench.csproj` 用 Directory.Build.props 的 `runtime-async=on`，`AsyncBenchNoRa.csproj` 清空 `Features`）。2,000,000 次/项，`dotnet bin/…/<dll>`：
+
+| 场景 | RA **on** ns/op | RA **on** B/op | RA **off** ns/op | RA **off** B/op |
+| --- | --- | --- | --- | --- |
+| 同步基线 | 1.45 | ~0 | 1.50 | ~0 |
+| async 方法、不挂起 | **8.49** | **~0** | 33.34 | **104** |
+| `await` 已完成的 `ValueTask` | **2.31** | ~0 | 17.06 | ~0 |
+| `await` 已完成的 `Task` | 8.08 | 72 | 18.90 | 72 |
+| `await Task.Yield()`（真挂起） | 40.72 | ~0 | 33.56 | ~0 |
+| 3 层 async 链 + 叶子处 yield | **127.95** | **240** | 513.28 | 413 |
+
+结论：
+- **runtime async 必须保持开启**（`Directory.Build.props` 的 `Features=runtime-async=on`）：不挂起的 async 方法从 33 ns/104 B 降到 8.5 ns/0 B；3 层链从 513 ns/413 B 降到 128 ns/240 B；`await` 已完成的 `ValueTask` 从 17 ns 降到 2.3 ns。M8 的 CLI/host/watch/LSP 会大量用到 async，这就是它的价格表。
+- **同步完成的 await 仍然不会回退栈**（2.31 ns 那行就是"什么都不做"的价格）——所以 §3.9 的结论不变：深递归不能靠"写成 async 递归"解决，只能靠大栈线程或显式 trampoline。
+- 若将来真要对某条深递归路径上 async trampoline，价格是 **~128 ns/帧 + 240 B/帧**（每 64 层一次 `Task.Yield`，其余为同步完成）——比同步递归（~1.5 ns）贵两个数量级，且会让续体跨线程（`[ThreadStatic]` 池仍安全，只是失去亲和性）。这就是"不首选它"的量化理由。
+
+**把 gist 的每种 async 形态套到"深递归"上**（`artifacts/stackprobe`，默认主线程栈，runtime async ON；栈溢出会杀进程，所以由脚本按深度逐级试）：
+
+| 递归形态 | 最大存活深度 | 存活深度处的 ns/帧 |
+| --- | --- | --- |
+| 纯同步递归（基线） | 16,000 | 43.5 |
+| gist「Async method, no suspension」：每帧 `await` 一个不挂起的 `async Task` | **8,000** | 99.3 |
+| gist「Completed ValueTask await」：每帧 `await` 已完成 `ValueTask` | **8,000** | 152.8 |
+| gist「state-machine chain」：链式递归、**只在最深处** `await Task.Yield()` | **4,000** | 759.6 |
+| 每 64 层 `await Task.Yield()`（trampoline） | **≥512,000**（未触顶） | 89.8 |
+
+两点明确结论：
+1. **"每帧 await（哪怕已完成）"会让可递归深度减半、每帧更贵**；"只在叶子 yield" 最差（整条链都压在栈上，且每帧多了 async 帧）——所以 gist 的 async 用法**不能**用来解决深递归。
+2. 只有**周期性真正让出**（每 64 层 `Task.Yield()`）才把深度上界抬到几十万级，代价 ~90 ns/帧。这印证 §3.9 的默认方案（大栈线程），并给出"若某条路径必须留在池线程上"时的备选实现与价格。
 
 ## 4. 生成代码
 
