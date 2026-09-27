@@ -41,8 +41,14 @@
   ```csharp
   // ported from: internal/stringutil/js_case.go
   ```
-- 公开 API 用 PascalCase；**私有**字段/局部变量用 camelCase；Go 的导出名首字母大写语义在 C# 里就是 `public`。
+- **命名（用户要求）**：**公开 API 与 TSGO 一致**——Go 导出成员的名字原样保留（本来就是 PascalCase：`Identifier.Text`、`NodeFactory.NewIdentifier`、`AsIdentifier`、`Kind`）；**非公开成员一律按 C# 习惯命名**，不要照抄 Go 的小写名：
+  * 实例字段（`private`/`internal`/`protected`）：`_camelCase`（Go 的 `name` → `_name`，`facts` → `_facts`，`identifierArena` → `_identifierArena`）。**不要**用 `Name_`/尾下划线这种"照抄 Go 的避让写法"——TSGO 里根本没有这种名字；Go 的 `name` 是未导出字段，公开访问走 `Name()` 方法，C# 里就是 `_name` + `Name()`。
+  * 方法/属性（任何可见性）：PascalCase（Go 的 `setModifiers` → `SetModifiers`，`computeSubtreeFacts` → `ComputeSubtreeFacts`）。
+  * 局部变量/参数：camelCase。
+  * 未导出类型（如 Go 的 `nodeData`）：按 C# 习惯命名，不必与 Go 同名（接口用 `I` 前缀）。导出类型名照抄。
+  * 需要被同程序集其它类访问的 Go 未导出成员 → `internal`（仍是 `_camelCase` 字段 / PascalCase 方法）；只在本类用 → `private`。
 - 命名空间必须显式声明为 file-scoped（`.editorconfig` 已把它设为 warning 级）。
+- 命名规范由 `.editorconfig` 的命名规则强制（`_camelCase` 字段等），新增/改动代码必须过。
 
 ## 3. 类型映射
 
@@ -126,6 +132,24 @@ git check-ignore -v src/TypeScript.Compiler/<Folder>/x.cs   # 退出码 1 = 没�
 ```
 
 被忽略时在 `.gitignore` 末尾放行（该文件已有 `Debug/` 的放行条目）。
+
+### 3.8 Span 优先（性能硬要求，AGENTS.md）
+
+Go 版本大量用**切片视图**（`s[i:j]`、`bytes`、`[]T` 的子切片）做到零拷贝；C# 的对应物是 `Span<T>`/`ReadOnlySpan<T>`。移植时必须同样使用，别用会分配/拷贝的等价物：
+
+| Go | C#（优先） | 反面（除非有理由） |
+| --- | --- | --- |
+| `s[i:j]` | `s.AsSpan(i, j-i)` | `s.Substring(i, j-i)` |
+| 接收 `[]T`/`string` 只读扫描 | `ReadOnlySpan<T>` 参数（或 `string` + `AsSpan`） | 先 `ToArray()`/拷贝 |
+| 写入/就地修改 `[]T` | `Span<T>` 参数 | 先拷贝再回写 |
+| 遍历 `List<T>` 热路径 | `CollectionsMarshal.AsSpan(list)`、索引循环 | `foreach` + LINQ |
+| `copy(dst, src)` | `src.CopyTo(dst)` / `dst.CopyTo(src)` | 手写逐元素循环（除非要自定义语义） |
+| 拼接/构造长字符串 | `string.Create`/`StringBuilder` + `CopyTo` | 大量 `+`/`Substring` |
+| `append` 预占容量 | `List<T>`（C# 数组没有 len<cap 视图） | — |
+
+限制（必须记住）：`Span<T>`/`ReadOnlySpan<T>` **不能存进字段、不能跨 `await`、不能在迭代器里存活**；这类地方用 `T[]`（§3.2 的 `Arena`/`LinkStore` 条目已经处理了这一点）。生成的代码同样遵守：需要长期持有的数据用数组，只在方法内部做零拷贝视图。
+
+审计要求：热路径（scanner/parser/binder/checker/printer 以及所有逐字符/逐元素循环）里出现 `Substring`/`ToArray`/`ToCharArray`/`Encoding.*GetBytes`/LINQ 时必须能给出理由，否则改成 span 写法。
 
 ## 4. 生成代码
 

@@ -32,13 +32,17 @@ func IsIdentifier(node *Node) bool { return node.Kind == KindIdentifier }
 - **访问器**：Go 的 `nodeData` 方法集落成 `Node` 上的 `virtual` 方法，默认值照 `NodeDefault`（`Name() => null`、`Modifiers() => null`、`ForEachChild(...) => false`、`Clone(...) => null`、`SubtreeFacts()`…）。生成的节点类**只覆写与自己相关的**。
 - **mixin 基础**：`IFlowNodeBase`/`IDeclarationBase`/`IExportableBase`/`ILocalsContainerBase`/`IFunctionLikeBase`/`IClassLikeBase`/`IBodyBase`/`ILiteralLikeNodeBase`/`ITemplateLiteralLikeNodeBase` 等接口（名字 = Go 基础名加 `I`），供 `is` 判断与 `node.XxxData()` 使用；**没有字段的基础（brand 标记、零尺寸）只做接口**。
 - **`node.XxxData()`**：返回 `IXxxBase?`（= 该节点自身，若不是该基础则 null），对应 Go 返回内嵌基础结构体指针（Go 里也是 nil / 非 nil）。调用点 `d := n.DeclarationData(); d.Foo` → C# `var d = n.DeclarationData(); if (d is not null) { … d.Foo … }`。
-- **字段照抄 Go**：节点专有字段与基础字段都用 **public 字段**（不是属性），名字与 Go 完全一致（含 `Name_` 这种为避开 `Name()` 方法而带尾下划线的）。理由：(a) 调用点可以逐字移植（`d.Name_`、`n.AsIdentifier().Text`），(b) 需要 `ref node.Field` 的地方（Go 的 `&x.F`）在 C# 里也有对应物。基础字段要满足接口时用**显式接口实现**转发：
-  ```csharp
-  public sealed class Identifier : Node, IFlowNodeBase {
-      public FlowNode? Flow;                                  // Go: FlowNodeBase.Flow
-      FlowNode? IFlowNodeBase.Flow { get => Flow; set => Flow = value; }
-  }
-  ```
+- **字段命名（用户要求）**：
+  * Go **导出**字段（`Text`、`ElementType`、`TypeParameters`…）→ C# 同名 public 成员（名字照抄）。
+  * Go **未导出**字段（`name`、`modifiers`、`facts`…）→ C# `_camelCase` 实例字段（`_name`、`_modifiers`、`_facts`），可见性按需要 `private`/`internal`。**不要**用 `Name_`/尾下划线这种"照抄 Go 的避让写法"，TSGO 的 ast 里也没有这种名字（`name` 是未导出字段，公开访问走 `Name()`）。
+  * Go 未导出的方法（`setModifiers`、`computeSubtreeFacts`、`newNode`…）→ PascalCase（`SetModifiers`、`ComputeSubtreeFacts`、`NewNode`）。
+  * 节点专有数据与基础数据都用 public 字段（不是属性）：调用点可以逐字移植（`d.Symbol`、`n.AsIdentifier().Text`），并且 C# 里仍有 `ref node.Field` 这种用法可写。基础字段要满足接口时用**显式接口实现**转发：
+    ```csharp
+    public sealed class Identifier : Node, IFlowNodeBase {
+        public FlowNode? Flow;                                  // Go: FlowNodeBase.Flow（导出字段）
+        FlowNode? IFlowNodeBase.Flow { get => Flow; set => Flow = value; }
+    }
+    ```
 - **`As` 转换**：Go 在 `*Node` 上生成 `func (n *Node) AsIdentifier() *Identifier`（type assert on `n.data`）→ C# 在 `Node` 上生成 `public Identifier? AsIdentifier() => this as Identifier;`（kind 不匹配时 null，与 Go 一致）。
 - **`Is` 判断**：`public static bool IsIdentifier(Node node) => node.Kind == Kind.Identifier;`（放静态类 `Ast`，对应 Go 的包级函数）。
 - **Kind**：由 ast.json 的 `kinds` 生成 `enum Kind`（**数值与 Go 一致**）+ `ToString()`（Go 的 `kind_stringer_generated.go` 落成扩展方法 `String(this Kind)`，见 docs/architecture.md §3.3）+ `<Xxx>Node = Node` 之类的别名（Go 的 `type XxxNode = Node` 在 C# 里就是 `Node`，不生成别名，调用点直接用 `Node`）。
