@@ -349,15 +349,6 @@ public static partial class ModuleSpecifiers
     private static string TrimSuffix(string s, string suffix) =>
         s.EndsWith(suffix, StringComparison.Ordinal) ? s[..^suffix.Length] : s;
 
-    /// <summary>Go: <c>type NodeModulePathParts struct { TopLevelNodeModulesIndex, TopLevelPackageNameIndex, PackageRootIndex, FileNameIndex int }</c>。</summary>
-    public sealed class NodeModulePathParts
-    {
-        public int TopLevelNodeModulesIndex;
-        public int TopLevelPackageNameIndex;
-        public int PackageRootIndex;
-        public int FileNameIndex;
-    }
-
     /// <summary>Go: <c>type nodeModulesPathParseState uint8</c>。</summary>
     private enum NodeModulesPathParseState : byte
     {
@@ -649,4 +640,13 @@ public static partial class ModuleSpecifiers
         // For other extensions (like .json), return as-is
         return specifier;
     }
+}
+
+/// <summary>Go: <c>type NodeModulePathParts struct { TopLevelNodeModulesIndex, TopLevelPackageNameIndex, PackageRootIndex, FileNameIndex int }</c>。</summary>
+public sealed class NodeModulePathParts
+{
+    public int TopLevelNodeModulesIndex;
+    public int TopLevelPackageNameIndex;
+    public int PackageRootIndex;
+    public int FileNameIndex;
 }

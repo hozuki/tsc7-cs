@@ -586,33 +586,6 @@ public sealed class NodeFactory : AstNodeFactory
         return (null, source);
     }
 
-    //
-    // Declaration Names
-    //
-
-    /// <summary>Go: <c>type NameOptions struct</c>。</summary>
-    public struct NameOptions
-    {
-        /// <summary>indicates whether comments may be emitted for the name.</summary>
-        public bool AllowComments;
-
-        /// <summary>indicates whether source maps may be emitted for the name.</summary>
-        public bool AllowSourceMaps;
-    }
-
-    /// <summary>Go: <c>type AssignedNameOptions struct</c>。</summary>
-    public struct AssignedNameOptions
-    {
-        /// <summary>indicates whether comments may be emitted for the name.</summary>
-        public bool AllowComments;
-
-        /// <summary>indicates whether source maps may be emitted for the name.</summary>
-        public bool AllowSourceMaps;
-
-        /// <summary>indicates whether the assigned name of a declaration shouldn't be considered.</summary>
-        public bool IgnoreAssignedName;
-    }
-
     private Node GetName(Node? node, EmitFlags emitFlags, AssignedNameOptions opts)
     {
         Node? nodeName = null;
@@ -828,24 +801,6 @@ public sealed class NodeFactory : AstNodeFactory
     }
 
     // Class Fields Helpers
-
-    /// <summary>Go: <c>type PrivateIdentifierKind string</c>。</summary>
-    public readonly struct PrivateIdentifierKind
-    {
-        public readonly string Value;
-
-        public PrivateIdentifierKind(string value)
-        {
-            Value = value;
-        }
-
-        public static implicit operator string(PrivateIdentifierKind kind) => kind.Value;
-
-        public static readonly PrivateIdentifierKind Field = new("f");
-        public static readonly PrivateIdentifierKind Method = new("m");
-        public static readonly PrivateIdentifierKind Accessor = new("a");
-        public static readonly PrivateIdentifierKind Untransformed = new("untransformed");
-    }
 
     public Node NewClassPrivateFieldGetHelper(Node receiver, Node state, PrivateIdentifierKind kind, Node? fn)
     {
@@ -1517,4 +1472,52 @@ public sealed class NodeFactory : AstNodeFactory
 public sealed partial class Printer
 {
     public static NodeFactory NewNodeFactory(EmitContext context) => new(context);
+}
+
+//
+// Go 的包级类型（docs/architecture.md §2：Go 包级导出类型 → C# 命名空间级类型；
+// 原先错误地嵌套在 NodeFactory 里，已按 Go 的公开面提到命名空间顶层）
+//
+
+// Declaration Names
+
+/// <summary>Go: <c>type NameOptions struct</c>。</summary>
+public struct NameOptions
+{
+    /// <summary>indicates whether comments may be emitted for the name.</summary>
+    public bool AllowComments;
+
+    /// <summary>indicates whether source maps may be emitted for the name.</summary>
+    public bool AllowSourceMaps;
+}
+
+/// <summary>Go: <c>type AssignedNameOptions struct</c>。</summary>
+public struct AssignedNameOptions
+{
+    /// <summary>indicates whether comments may be emitted for the name.</summary>
+    public bool AllowComments;
+
+    /// <summary>indicates whether source maps may be emitted for the name.</summary>
+    public bool AllowSourceMaps;
+
+    /// <summary>indicates whether the assigned name of a declaration shouldn't be considered.</summary>
+    public bool IgnoreAssignedName;
+}
+
+/// <summary>Go: <c>type PrivateIdentifierKind string</c>。</summary>
+public readonly struct PrivateIdentifierKind
+{
+    public readonly string Value;
+
+    public PrivateIdentifierKind(string value)
+    {
+        Value = value;
+    }
+
+    public static implicit operator string(PrivateIdentifierKind kind) => kind.Value;
+
+    public static readonly PrivateIdentifierKind Field = new("f");
+    public static readonly PrivateIdentifierKind Method = new("m");
+    public static readonly PrivateIdentifierKind Accessor = new("a");
+    public static readonly PrivateIdentifierKind Untransformed = new("untransformed");
 }

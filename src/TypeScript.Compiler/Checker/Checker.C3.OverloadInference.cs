@@ -5,8 +5,9 @@
 //   getRestTypeOfSignature（→ GetRestTypeOfSignatureWorker）、tryGetRestTypeOfSignature）
 //
 // 与 Go 的偏离（逐条；其余与 Go 逐行对应）：
-// 1) `type CallState struct` → `internal sealed class CallState`（Go 里到处传 `*CallState` 并就地改字段，
-//    C# 用引用类型；`localState := *s` 的浅拷贝 → `ShallowClone()`（`MemberwiseClone`，docs/architecture.md §3.2））。
+// 1) `type CallState struct` → 命名空间级 `public sealed class CallState`（Go 是包级导出类型，docs/architecture.md §2）。
+//    Go 里到处传 `*CallState` 并就地改字段，C# 用引用类型；`localState := *s` 的浅拷贝 → `ShallowClone()`
+//    （`MemberwiseClone`，docs/architecture.md §3.2）。
 // 2) `[]*ast.Node`/`[]*Signature` 零值（nil，len 0）→ 显式 `[]` 初始化（Go 的 nil 切片与空切片在 len/range 上等价；
 //    Go 里靠 `== nil` 区分的两处（`candidatesForArgumentError == nil`）在 C# 里是 null 检查，见 ChooseOverload）。
 // 3) Worker 改名（artifacts/checker-method-collisions.md）：`getRestTypeOfSignature` → `GetRestTypeOfSignatureWorker`、
@@ -28,24 +29,6 @@ using static TypeScript.Core.Core;
 
 public sealed partial class Checker
 {
-    internal sealed class CallState
-    {
-        internal Node? _node;
-        internal Node[]? _typeArguments;
-        internal Node[] _args = [];
-        internal Signature[] _candidates = [];
-        internal CheckMode _argCheckMode;
-        internal bool _isSingleNonGenericCandidate;
-        internal bool _signatureHelpTrailingComma;
-        internal bool _recursiveResolution;
-        internal Signature[]? _candidatesForArgumentError;
-        internal Signature? _candidateForArgumentArityError;
-        internal Signature? _candidateForTypeArgumentError;
-
-        /// <summary>Go: <c>localState := *s</c>（结构体浅拷贝）→ <c>MemberwiseClone()</c>。</summary>
-        internal CallState ShallowClone() => (CallState)MemberwiseClone();
-    }
-
     internal Type[] InferTypeArguments(Node node, Signature signature, Node[] args, CheckMode checkMode, InferenceContext context)
     {
         if (IsJsxOpeningLikeElement(node))
@@ -367,4 +350,23 @@ public sealed partial class Checker
         }
         return GetIndexTypeOfTypeWorker(restType, _numberType!);
     }
+}
+
+/// <summary>Go: <c>type CallState struct</c>（checker.go:9012；Go 里到处传 <c>*CallState</c> 并就地改字段 → C# 引用类型）。</summary>
+public sealed class CallState
+{
+    internal Node? _node;
+    internal Node[]? _typeArguments;
+    internal Node[] _args = [];
+    internal Signature[] _candidates = [];
+    internal CheckMode _argCheckMode;
+    internal bool _isSingleNonGenericCandidate;
+    internal bool _signatureHelpTrailingComma;
+    internal bool _recursiveResolution;
+    internal Signature[]? _candidatesForArgumentError;
+    internal Signature? _candidateForArgumentArityError;
+    internal Signature? _candidateForTypeArgumentError;
+
+    /// <summary>Go: <c>localState := *s</c>（结构体浅拷贝）→ <c>MemberwiseClone()</c>。</summary>
+    internal CallState ShallowClone() => (CallState)MemberwiseClone();
 }

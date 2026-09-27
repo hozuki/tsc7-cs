@@ -222,19 +222,22 @@ public sealed partial class Checker
         return resolved.ConstructSignatures();
     }
 
-    internal IndexInfo[]? GetIndexInfosOfTypeWorker(Type t)
+    // Go: `getIndexInfosOfType` / `getIndexInfosOfStructuredType` 返回 `[]*IndexInfo`，nil 切片与空切片在所有
+    // 调用点（len/range/findIndexInfo）等价，且 Go 侧没有任何地方区分二者（`grep "indexInfos != nil"` 无命中）
+    // → 归一成空数组，避免 C# 侧 `!` 解引用 nil。
+    internal IndexInfo[] GetIndexInfosOfTypeWorker(Type t)
     {
         return GetIndexInfosOfStructuredType(GetReducedApparentType(t));
     }
 
-    internal IndexInfo[]? GetIndexInfosOfStructuredType(Type t)
+    internal IndexInfo[] GetIndexInfosOfStructuredType(Type t)
     {
         if ((t._flags & TypeFlags.StructuredType) != 0)
         {
-            return ResolveStructuredTypeMembers(t)._indexInfos;
+            return ResolveStructuredTypeMembers(t)._indexInfos ?? [];
         }
 
-        return null;
+        return [];
     }
 
     // Return the indexing info of the given kind in the given type. Creates synthetic union index types when necessary and

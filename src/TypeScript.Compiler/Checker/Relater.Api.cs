@@ -1421,7 +1421,7 @@ public sealed partial class Checker
 }
 
 /// <summary>Go: <c>type TypeDiscriminator struct</c>（relater.go:1030；实现 <see cref="Discriminator"/>）。</summary>
-internal sealed class TypeDiscriminator : Discriminator
+public sealed class TypeDiscriminator : Discriminator
 {
     internal Checker _c = null!;
     internal Symbol[] _props = [];

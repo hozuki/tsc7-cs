@@ -196,24 +196,6 @@ public static partial class ModuleSpecifiers
             importingSourceFile);
     }
 
-    /// <summary>Go: <c>type ModuleSpecifierPreferences struct</c>（未导出；见文件头第 1 条）。</summary>
-    private sealed class ModuleSpecifierPreferences
-    {
-        public RelativePreferenceKind RelativePreference;
-        public Func<ModuleKind, ModuleSpecifierEnding[]> GetAllowedEndingsInPreferredOrder;
-        public string[]? ExcludeRegexes;
-
-        public ModuleSpecifierPreferences(
-            RelativePreferenceKind relativePreference,
-            string[]? excludeRegexes,
-            Func<ModuleKind, ModuleSpecifierEnding[]> getAllowedEndingsInPreferredOrder)
-        {
-            RelativePreference = relativePreference;
-            ExcludeRegexes = excludeRegexes;
-            GetAllowedEndingsInPreferredOrder = getAllowedEndingsInPreferredOrder;
-        }
-    }
-
     /// <summary>Go: <c>func GetAllowedEndingsInPreferredOrder(prefs UserPreferences, host ModuleSpecifierGenerationHost, compilerOptions *core.CompilerOptions, importingSourceFile SourceFileForSpecifierGeneration, oldImportSpecifier string, syntaxImpliedNodeFormat core.ResolutionMode) []ModuleSpecifierEnding</c>。</summary>
     public static ModuleSpecifierEnding[] GetAllowedEndingsInPreferredOrder(
         UserPreferences prefs,
@@ -346,5 +328,23 @@ public static partial class ModuleSpecifiers
                 syntaxImpliedNodeFormat);
 
         return new ModuleSpecifierPreferences(relativePreference, excludes, GetAllowedEndingsInPreferredOrder);
+    }
+}
+
+/// <summary>Go: <c>type ModuleSpecifierPreferences struct</c>（Go 里是**包级导出**类型 → C# 命名空间级 public，docs/architecture.md §2）。</summary>
+public sealed class ModuleSpecifierPreferences
+{
+    public RelativePreferenceKind RelativePreference;
+    public Func<ModuleKind, ModuleSpecifierEnding[]> GetAllowedEndingsInPreferredOrder;
+    public string[]? ExcludeRegexes;
+
+    public ModuleSpecifierPreferences(
+        RelativePreferenceKind relativePreference,
+        string[]? excludeRegexes,
+        Func<ModuleKind, ModuleSpecifierEnding[]> getAllowedEndingsInPreferredOrder)
+    {
+        RelativePreference = relativePreference;
+        ExcludeRegexes = excludeRegexes;
+        GetAllowedEndingsInPreferredOrder = getAllowedEndingsInPreferredOrder;
     }
 }

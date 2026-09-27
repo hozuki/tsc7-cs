@@ -13,8 +13,8 @@
 // 5) Go 的 `map[string]*ast.Node`（nil = 尚未记录）→ `Dictionary<string, Node>?`；
 //    Go 的 map 读缺失键返回零值 → C# 用 `TryGetValue`（docs §5.4 已知坑）。
 // 6) `printer.EFxxx` → `EmitFlags.Xxx`（常量名去类型前缀，docs §3.3）；`printer.NameOptions{...}` /
-//    `printer.AssignedNameOptions{...}` → `NodeFactory.NameOptions` / `NodeFactory.AssignedNameOptions`
-//    （Go 里是 printer 包的类型，C# 在 Printer/NodeFactory.cs 里是**嵌套**类型）。
+//    `printer.AssignedNameOptions{...}` → `NameOptions` / `AssignedNameOptions`
+//    （Go 里是 printer 包的包级类型，C# 在 Printer/NodeFactory.cs 末尾是**命名空间级**类型）。
 // 7) `core.FirstResult(tx.Visitor().VisitSlice(x))` → `Visitor().VisitSlice(x).Result`
 //    （Go 的 FirstResult 只是取多元返回的第一个；C# 用元组成员）。
 // 8) `core.IfElse(a, b, c)` / `core.Find` / `core.Some` → `Core` 静态类的同名成员（`using static`）。
@@ -332,7 +332,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
     /// <summary>Gets an expression used to refer to an export of a namespace or a member of an enum by property name.</summary>
     private Node GetNamespaceQualifiedProperty(Node ns, Node name)
     {
-        return Factory().GetNamespaceMemberName(ns, name, new NodeFactory.NameOptions { AllowSourceMaps = true });
+        return Factory().GetNamespaceMemberName(ns, name, new NameOptions { AllowSourceMaps = true });
     }
 
     /// <summary>Gets an expression used to refer to an export of a namespace or a member of an enum by indexed access.</summary>
@@ -351,7 +351,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
             return Factory().GetExternalModuleOrNamespaceExportName(GetNamespaceContainerName(_currentNamespace!), node, false /*allowComments*/, true /*allowSourceMaps*/);
         }
 
-        return Factory().GetDeclarationNameEx(node, new NodeFactory.NameOptions { AllowSourceMaps = true });
+        return Factory().GetDeclarationNameEx(node, new NameOptions { AllowSourceMaps = true });
     }
 
     private bool AddVarForDeclaration(List<Node> statements, Node node)
@@ -363,7 +363,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
         }
 
         // var name;
-        var name = Factory().GetLocalNameEx(node, new NodeFactory.AssignedNameOptions { AllowSourceMaps = true });
+        var name = Factory().GetLocalNameEx(node, new AssignedNameOptions { AllowSourceMaps = true });
         var varDecl = Factory().NewVariableDeclaration(name, null, null, null);
         var varFlags = IfElse(_currentScope == _currentSourceFile, NodeFlags.None, NodeFlags.Let);
         var varDecls = Factory().NewVariableDeclarationList(Factory().NewNodeList([varDecl]), varFlags);
@@ -446,7 +446,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
         if (IsExportOfNamespace(node))
         {
             // `localName` is the expression used within this node's containing scope for any local references.
-            var localName = Factory().GetLocalNameEx(node, new NodeFactory.AssignedNameOptions { AllowSourceMaps = true });
+            var localName = Factory().GetLocalNameEx(node, new AssignedNameOptions { AllowSourceMaps = true });
 
             //  x = (exports.x || (exports.x = {}))
             enumArg = Factory().NewAssignmentExpression(localName, enumArg);
@@ -590,7 +590,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
         if (IsExportOfNamespace(node))
         {
             // `localName` is the expression used within this node's containing scope for any local references.
-            var localName = Factory().GetLocalNameEx(node, new NodeFactory.AssignedNameOptions { AllowSourceMaps = true });
+            var localName = Factory().GetLocalNameEx(node, new AssignedNameOptions { AllowSourceMaps = true });
 
             //  x = (exports.x || (exports.x = {}))
             moduleArg = Factory().NewAssignmentExpression(localName, moduleArg);
@@ -1132,7 +1132,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
                 var memberName = node.Clone(Factory())!;
                 EmitContext().SetEmitFlags(memberName, EmitFlags.NoComments | EmitFlags.NoSourceMap);
 
-                var expression = Factory().GetNamespaceMemberName(containerName, memberName, new NodeFactory.NameOptions { AllowSourceMaps = true });
+                var expression = Factory().GetNamespaceMemberName(containerName, memberName, new NameOptions { AllowSourceMaps = true });
                 EmitContext().AssignCommentAndSourceMapRanges(expression, node);
                 return expression;
             }

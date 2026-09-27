@@ -880,7 +880,7 @@ public sealed partial class Checker
         }
         else
         {
-            foreach (var info in GetIndexInfosOfTypeWorker(t)!)
+            foreach (var info in GetIndexInfosOfTypeWorker(t))
             {
                 if (!stringsOnly || (info._keyType!._flags & (TypeFlags.String | TypeFlags.TemplateLiteral)) != 0)
                 {

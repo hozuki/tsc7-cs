@@ -21,7 +21,7 @@
 //     `printer.EFTransformPrivateStaticElements` → `EmitFlags.TransformPrivateStaticElements`。
 // 11) `printer.AutoGenerateOptions{...}` → `new AutoGenerateOptions { ... }`（struct 的对象初始化器，不用 `default`）。
 // 12) `ast.OEKAll` → `OuterExpressionKinds.All`；`core.LanguageVariantStandard` → `LanguageVariant.Standard`。
-// 13) `printer.PrivateIdentifierKind` 是 `Printer.NodeFactory` 的嵌套 struct → 顶部起别名 `PrivateIdentifierKind`
+// 13) `printer.PrivateIdentifierKind` 在 C# 侧是 `TypeScript.Printer` 的命名空间级 struct → 顶部起别名 `PrivateIdentifierKind`
 //     （避免与 `Ast.NodeFactory` 二义，同时照 Go 的 `printer.` 限定）。
 // 14) Go 包级函数（无接收者）→ `EsTransforms` 静态类成员，调用点裸名（`using static ...EsTransforms.EsTransforms;`）。
 // 15) `debug.Assert(cond, msg)` → `Debug.Assert(cond, msg)`（`Debug` 在根命名空间 `TypeScript`；禁止 `using System.Diagnostics`，
@@ -38,7 +38,7 @@ using static TypeScript.Core.Core;
 using static TypeScript.Scanner.Scanner;
 using static TypeScript.Transformers.Transformers;
 using static TypeScript.Transformers.EsTransforms.EsTransforms;
-using PrivateIdentifierKind = TypeScript.Printer.NodeFactory.PrivateIdentifierKind;
+using PrivateIdentifierKind = TypeScript.Printer.PrivateIdentifierKind;
 
 namespace TypeScript.Transformers.EsTransforms;
 

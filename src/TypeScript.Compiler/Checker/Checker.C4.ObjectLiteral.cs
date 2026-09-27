@@ -485,7 +485,7 @@ public sealed partial class Checker
         IndexInfo[] indexInfos;
         if (left == _emptyObjectType)
         {
-            indexInfos = GetIndexInfosOfTypeWorker(right)!;
+            indexInfos = GetIndexInfosOfTypeWorker(right);
         }
         else
         {
@@ -586,7 +586,7 @@ public sealed partial class Checker
     {
         var sourceInfos = GetIndexInfosOfTypeWorker(types[0]);
         List<IndexInfo> result = [];
-        foreach (var info in sourceInfos!)
+        foreach (var info in sourceInfos)
         {
             var indexType = info._keyType;
             if (Every(types, t => GetIndexInfoOfTypeWorker(t, indexType!) is not null))

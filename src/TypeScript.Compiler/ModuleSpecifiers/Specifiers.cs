@@ -221,14 +221,6 @@ public static partial class ModuleSpecifiers
         return new AmbientModuleInfo();
     }
 
-    /// <summary>Go: <c>type Info struct { UseCaseSensitiveFileNames bool; ImportingSourceFileName string; SourceDirectory string }</c>。</summary>
-    public sealed class Info
-    {
-        public bool UseCaseSensitiveFileNames;
-        public string ImportingSourceFileName = "";
-        public string SourceDirectory = "";
-    }
-
     /// <summary>Go: <c>func getInfo(importingSourceFileName string, host ModuleSpecifierGenerationHost) Info</c>。</summary>
     private static Info GetInfo(string importingSourceFileName, ModuleSpecifierGenerationHost host)
     {
@@ -461,4 +453,12 @@ public static partial class ModuleSpecifiers
 
         return results.ToArray();
     }
+}
+
+/// <summary>Go: <c>type Info struct { UseCaseSensitiveFileNames bool; ImportingSourceFileName string; SourceDirectory string }</c>。</summary>
+public sealed class Info
+{
+    public bool UseCaseSensitiveFileNames;
+    public string ImportingSourceFileName = "";
+    public string SourceDirectory = "";
 }

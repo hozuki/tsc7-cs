@@ -30,8 +30,8 @@ using static TypeScript.Ast.Ast;
 using static TypeScript.Core.Core;
 using static TypeScript.Transformers.Transformers;
 using static TypeScript.Transformers.EsTransforms.EsTransforms;
-// Go 的 printer.PrivateIdentifierKind 在 C# 侧是 NodeFactory 的嵌套类型（Printer/NodeFactory.cs:833）。
-using PrivateIdentifierKind = TypeScript.Printer.NodeFactory.PrivateIdentifierKind;
+// Go 的 printer.PrivateIdentifierKind 在 C# 侧是 `TypeScript.Printer` 的命名空间级类型（Printer/NodeFactory.cs 末尾）。
+using PrivateIdentifierKind = TypeScript.Printer.PrivateIdentifierKind;
 // 消歧：Ast 与 Printer 各有一个 NodeFactory（Go 的 ast.NodeFactory / printer.NodeFactory）。
 using NodeFactory = TypeScript.Printer.NodeFactory;
 

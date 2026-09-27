@@ -21,7 +21,7 @@ namespace TypeScript.Printer;
 
 public sealed partial class Printer
 {
-    internal string Emit(Node node, SourceFile? sourceFile)
+    public string Emit(Node node, SourceFile? sourceFile)
     {
         // ensure a reusable writer
         _ownWriter ??= NewTextWriter(Options.NewLine.GetNewLineCharacter(), 0);
@@ -418,7 +418,7 @@ public sealed partial class Printer
 }
 
 [Flags]
-internal enum ListFormat
+public enum ListFormat
 {
     None = 0,
 

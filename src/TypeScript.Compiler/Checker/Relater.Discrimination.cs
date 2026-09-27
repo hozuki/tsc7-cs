@@ -1,7 +1,7 @@
 // ported from: internal/checker/relater.go:1199-2048
 //
 // 与 Go 的偏离（逐条；其余与 Go 逐行对应）：
-// 1) 包级接口 `Discriminator`（relater.go:1199，成员 len/name/matches）→ 命名空间级 `internal interface Discriminator`
+// 1) 包级接口 `Discriminator`（relater.go:1199，成员 len/name/matches）→ 命名空间级 `public interface Discriminator`
 //    （成员按 C# 规则 PascalCase：`Len()`/`Name(int)`/`Matches(int, Type)`）。实现类 `TypeDiscriminator`（relater.go:1030）
 //    在 Relater.Api.cs，`ObjectLiteralDiscriminator`（checker.go:31117）在 Checker.C8.DecoratorsAndDiscriminants.cs。
 // 2) 包级函数 `isNonPrimitiveType` → 同一个 `partial class Checker` 的 `internal static` 成员（无接收者）。
@@ -41,7 +41,7 @@ using static TypeScript.Ast.Ast;
 using static TypeScript.Core.Core;
 
 /// <summary>Go: <c>type Discriminator interface</c>（relater.go:1199）。</summary>
-internal interface Discriminator
+public interface Discriminator
 {
     /// <summary>Number of discriminant properties.</summary>
     int Len();

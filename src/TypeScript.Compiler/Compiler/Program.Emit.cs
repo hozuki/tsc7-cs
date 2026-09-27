@@ -226,7 +226,7 @@ public sealed partial class Program
 public static partial class Compiler
 {
     /// <summary>Go: <c>func CombineEmitResults(results []*EmitResult) *EmitResult</c>（program.go:1936）。</summary>
-    internal static EmitResult CombineEmitResults(EmitResult?[] results)
+    public static EmitResult CombineEmitResults(EmitResult?[] results)
     {
         var result = new EmitResult();
         foreach (var emitResult in results)

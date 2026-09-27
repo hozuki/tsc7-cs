@@ -52,7 +52,7 @@ public sealed class Tracer
     /// Creates a Tracer for the given checker index that records both type-creation events and trace events
     /// through the provided tracing session.
     /// </summary>
-    internal static Tracer NewTracer(TracingSession tr, int checkerIndex) => new(tr, tr.NewTypeTracer(checkerIndex), checkerIndex);
+    public static Tracer NewTracer(TracingSession tr, int checkerIndex) => new(tr, tr.NewTypeTracer(checkerIndex), checkerIndex);
 
     public void RecordType(Type typ)
     {

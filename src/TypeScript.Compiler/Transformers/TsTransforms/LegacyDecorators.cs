@@ -11,7 +11,7 @@
 //    `transformDecorators` 的形参由 Go 的切片改成 `IEnumerable<Node>`：调用点既传数组也传
 //    `MultiMap.Get` 的结果（`List<V>`），这样零拷贝。
 // 6) `printer.EFxxx` → `EmitFlags.Xxx`；`printer.NameOptions{...}` / `printer.AssignedNameOptions{...}`
-//    → `NodeFactory.NameOptions` / `NodeFactory.AssignedNameOptions`（C# 侧是 Printer.NodeFactory 的嵌套类型）。
+//    → `NameOptions` / `AssignedNameOptions`（Go 的包级类型，C# 侧是 `TypeScript.Printer` 命名空间级类型）。
 // 7) `collections.GroupBy` → `Collections.GroupBy`（`TypeScript.Collections.Collections` 静态类）；
 //    `mm.Get(k)` 在 C# 返回 `List<V>?`（Go 是 nil slice）→ `?? []`。
 // 8) Go 的递归闭包 `var isOrContainsStaticSelfReference func(*ast.Node) bool` → C# 的**局部函数**
@@ -480,7 +480,7 @@ public sealed class LegacyDecoratorsTransformer : Transformer
             // When we used to transform to ES5/3 this would be moved inside an IIFE and should reference the name
             // without any block-scoped variable collision handling - but we don't support that anymore, so we always
             // use the local name for the class
-            var declName = Factory().GetLocalNameEx(node, new NodeFactory.AssignedNameOptions { AllowComments = false, AllowSourceMaps = true });
+            var declName = Factory().GetLocalNameEx(node, new AssignedNameOptions { AllowComments = false, AllowSourceMaps = true });
 
             //  ... = class ${name} ${heritageClauses} {
             //      ${members}
@@ -689,7 +689,7 @@ public sealed class LegacyDecoratorsTransformer : Transformer
         // When we used to transform to ES5/3 this would be moved inside an IIFE and should reference the name
         // without any block-scoped variable collision handling - but we don't support that anymore, so we always
         // use the local name for the class
-        var localName = Factory().GetDeclarationNameEx(node, new NodeFactory.NameOptions { AllowComments = false, AllowSourceMaps = true });
+        var localName = Factory().GetDeclarationNameEx(node, new NameOptions { AllowComments = false, AllowSourceMaps = true });
         var decorate = Factory().NewDecorateHelper(decoratorExpressions, localName, null, null);
         Node assignmentTarget = decorate;
         if (classAlias is not null)

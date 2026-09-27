@@ -325,7 +325,7 @@ public sealed partial class NodeBuilderImpl
                         return result;
                     }
 
-                    if ((t._flags & TypeFlags.TypeParameter) != 0 && Array.IndexOf(_ctx!._inferTypeParameters!, t) >= 0)
+                    if ((t._flags & TypeFlags.TypeParameter) != 0 && Array.IndexOf(_ctx!._inferTypeParameters, t) >= 0)
                     {
                         _ctx!._approximateLength += SymbolName(t._symbol).Length + 6;
                         Node? constraintNode = null;

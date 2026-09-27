@@ -349,8 +349,13 @@ public sealed partial class Checker
     });
 
     /// <summary>Go: checker.go:1805 <c>getPrimitiveTypeAliasSuggestions</c>（包级函数 → static 成员）。</summary>
-    internal static IEnumerable<Symbol> GetPrimitiveTypeAliasSuggestions(SymbolTable symbols)
+    internal static IEnumerable<Symbol> GetPrimitiveTypeAliasSuggestions(SymbolTable? symbols)
     {
+        if (symbols is null)
+        {
+            // Go: `sym, ok := symbols[builtinName]` —— nil map 的查询恒为 "不存在"。
+            yield break;
+        }
         foreach (var (builtinName, suggestion) in _primitiveTypeAliasSuggestions.Value)
         {
             if (symbols.ContainsKey(builtinName))
@@ -361,7 +366,7 @@ public sealed partial class Checker
     }
 
     /// <summary>Go: checker.go:1817 <c>getSuggestionForSymbolNameLookup</c>。</summary>
-    internal Symbol? GetSuggestionForSymbolNameLookup(SymbolTable symbols, string name, SymbolFlags meaning)
+    internal Symbol? GetSuggestionForSymbolNameLookup(SymbolTable? symbols, string name, SymbolFlags meaning)
     {
         var symbol = GetSymbol(symbols, name, meaning);
         if (symbol is not null)
@@ -373,7 +378,9 @@ public sealed partial class Checker
         {
             extras = GetPrimitiveTypeAliasSuggestions(symbols);
         }
-        return GetSpellingSuggestionForName(name, ConcatenateSeq(symbols.Values, extras), meaning);
+        // Go: `core.ConcatenateSeq(maps.Values(symbols), extras)` —— maps.Values(nil map) 是空序列。
+        IEnumerable<Symbol>? symbolsSeq = symbols is null ? null : symbols.Values;
+        return GetSpellingSuggestionForName(name, ConcatenateSeq(symbolsSeq, extras), meaning);
     }
 
     // Given a name and a list of symbols whose names are *not* equal to the name, return a spelling suggestion if there is

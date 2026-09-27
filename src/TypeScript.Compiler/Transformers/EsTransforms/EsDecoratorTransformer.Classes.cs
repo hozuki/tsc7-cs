@@ -43,7 +43,7 @@ internal sealed partial class EsDecoratorTransformer
             node = InjectClassNamedEvaluationHelperBlockIfMissing(ec, node, f.NewStringLiteral("", TokenFlags.None), null);
         }
 
-        var classReference = f.GetLocalNameEx(node, new NodeFactory.AssignedNameOptions());
+        var classReference = f.GetLocalNameEx(node, new AssignedNameOptions());
         var ci = CreateClassInfo(node);
         List<Node> classDefinitionStatements = [];
         List<Node>? leadingBlockStatements = null;
@@ -589,7 +589,7 @@ internal sealed partial class EsDecoratorTransformer
                 var iife = TransformClassLike(classNode);
                 var modifiers = _exportStrippingModifierVisitor!.VisitModifiers(classNode.Modifiers());
 
-                var declName = f.GetLocalNameEx(classNode, new NodeFactory.AssignedNameOptions { AllowSourceMaps = true });
+                var declName = f.GetLocalNameEx(classNode, new AssignedNameOptions { AllowSourceMaps = true });
                 var varDecl = f.NewVariableDeclaration(declName, null, null, iife);
                 ec.SetOriginal(varDecl, classNode);
                 var varDecls = f.NewVariableDeclarationList(f.NewNodeList([varDecl]), NodeFlags.Let);

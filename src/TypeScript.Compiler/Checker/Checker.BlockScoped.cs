@@ -366,11 +366,12 @@ public sealed partial class Checker
     }
 
     /// <summary>Go: checker.go:2218 <c>getSymbol</c>。</summary>
-    internal Symbol? GetSymbol(SymbolTable symbols, string name, SymbolFlags meaning)
+    internal Symbol? GetSymbol(SymbolTable? symbols, string name, SymbolFlags meaning)
     {
         if ((meaning & SymbolFlags.All) != 0)
         {
-            var candidate = symbols.GetValueOrDefault(name);
+            // Go: `c.getMergedSymbol(symbols[name])` —— ast.SymbolTable 是 map，nil map 的索引得零值 nil。
+            var candidate = symbols?.GetValueOrDefault(name);
             var symbol = candidate is null ? null : GetMergedSymbolWorker(candidate);
             if (symbol is not null)
             {

@@ -113,7 +113,7 @@ public sealed class NodeBuilderContext
     internal bool _expansionTruncated;
     internal Node? _enclosingDeclaration;
     internal SourceFile? _enclosingFile;
-    internal Type[]? _inferTypeParameters = null!;
+    internal Type[] _inferTypeParameters = [];
     internal Set<TypeId> _visitedTypes = null!;
     internal Dictionary<CompositeSymbolIdentity, int> _symbolDepth = null!;
     internal List<TrackedSymbolArgs> _trackedSymbols = null!;

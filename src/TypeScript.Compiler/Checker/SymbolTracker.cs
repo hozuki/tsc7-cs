@@ -16,7 +16,7 @@ using TypeScript.Ast;
 namespace TypeScript.Checker;
 
 /// <summary>Go: <c>type SymbolTrackerImpl struct</c>。</summary>
-internal sealed class SymbolTrackerImpl : TypeScript.NodeBuilder.SymbolTracker
+public sealed class SymbolTrackerImpl : TypeScript.NodeBuilder.SymbolTracker
 {
     internal readonly NodeBuilderContext _context;
     internal readonly TypeScript.NodeBuilder.SymbolTracker? _inner;
@@ -122,7 +122,7 @@ internal sealed class SymbolTrackerImpl : TypeScript.NodeBuilder.SymbolTracker
 public sealed partial class Checker
 {
     /// <summary>Go: <c>func NewSymbolTrackerImpl(context *NodeBuilderContext, tracker nodebuilder.SymbolTracker) *SymbolTrackerImpl</c>。</summary>
-    internal static SymbolTrackerImpl NewSymbolTrackerImpl(NodeBuilderContext context, TypeScript.NodeBuilder.SymbolTracker? tracker)
+    public static SymbolTrackerImpl NewSymbolTrackerImpl(NodeBuilderContext context, TypeScript.NodeBuilder.SymbolTracker? tracker)
     {
         while (tracker is SymbolTrackerImpl t)
         {

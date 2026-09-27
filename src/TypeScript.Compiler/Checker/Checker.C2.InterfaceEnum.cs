@@ -5,7 +5,7 @@
 // 1) 未导出同名方法加 `Worker`：`getDeclaredTypeOfSymbol`/`getPropertiesOfType`。
 // 2) `c.compareTypesIdentical`（Go 把实例方法当函数值传）→ lambda `(s, t) => CompareTypesIdentical(s, t)`
 //    （实例方法组不能转委托，ChkC7 广播；委托类型 `TypeRelatedComparer` 归 relater.go）。
-// 3) Go 的包级未导出类型 `InheritanceInfo` → C# 顶层 `internal sealed class InheritanceInfo`（未导出类型按 C# 习惯名）。
+// 3) Go 的包级**导出**类型 `InheritanceInfo` → C# 顶层 `public sealed class InheritanceInfo`（公开 API 对齐，docs/architecture.md §2）。
 // 4) `for id, p := range m` → `foreach (var (id, p) in m)`；`seen[k]` 读缺失键 → `TryGetValue`。
 namespace TypeScript.Checker;
 

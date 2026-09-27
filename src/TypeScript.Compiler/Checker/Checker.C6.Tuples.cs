@@ -2,7 +2,7 @@
 // （TupleNormalizer（元组元素规范化）、元组元素计数、数组/元组类型谓词、getTypeFromTypeAliasReference）
 //
 // 与 Go 的偏离（逐条；其余与 Go 逐行对应）：
-// 1) `type TupleNormalizer struct` → checker 包里的**另一个**类型 `internal sealed class TupleNormalizer`
+// 1) `type TupleNormalizer struct` → checker 包里的**另一个**类型 `public sealed class TupleNormalizer`
 //    （不是 `partial class Checker` 的成员）；Go 未导出字段 → `_camelCase`。Go 的包级函数与 `(c *Checker)` 方法
 //    按契约一律落进同一个 `public sealed partial class Checker`（前者 `internal static`、后者 `internal` 实例方法）。
 // 2) Worker 改名（artifacts/checker-method-collisions.md 规则：Go 未导出者与导出包装器同名时加 `Worker`）：

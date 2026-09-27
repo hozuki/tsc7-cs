@@ -379,7 +379,7 @@ public sealed partial class Checker
                 _checkType = checkType,
                 _extendsType = GetTypeFromTypeNodeWorker(node.AsConditionalTypeNode()!.ExtendsType!),
                 _isDistributive = (checkType._flags & TypeFlags.TypeParameter) != 0,
-                _inferTypeParameters = GetInferTypeParameters(node),
+                _inferTypeParameters = GetInferTypeParameters(node) ?? [],
                 _outerTypeParameters = outerTypeParameters,
                 _instantiations = null,
                 _alias = alias,
@@ -429,7 +429,7 @@ public sealed partial class Checker
             var checkTuples = IsSimpleTupleType(checkTypeNode!) && IsSimpleTupleType(extendsTypeNode!) && (checkTypeNode!.Elements()?.Length ?? 0) == (extendsTypeNode!.Elements()?.Length ?? 0);
             var checkTypeDeferred = IsDeferredType(checkType, checkTuples);
             TypeMapper? combinedMapper = null;
-            if (root._inferTypeParameters!.Length != 0)
+            if (root._inferTypeParameters.Length != 0)
             {
                 // When we're looking at making an inference for an infer type, when we get its constraint, it'll automagically be
                 // instantiated with the context, so it doesn't need the mapper for the inference context - however the constraint

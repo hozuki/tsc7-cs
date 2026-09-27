@@ -487,7 +487,7 @@ public sealed partial class NodeBuilderImpl
     internal Node[] SerializeIndexSignaturesOfType(Type input, Type? baseType)
     {
         var result = new List<Node>();
-        foreach (var info in _ch.GetIndexInfosOfTypeWorker(input)!)
+        foreach (var info in _ch.GetIndexInfosOfTypeWorker(input))
         {
             if (baseType is not null)
             {

@@ -97,14 +97,14 @@ public enum RelationComparisonResult : uint
 }
 
 /// <summary>Go: <c>type DiagnosticAndArguments struct</c>（当前 Go 侧无使用点，按声明复刻）。</summary>
-internal sealed class DiagnosticAndArguments
+public sealed class DiagnosticAndArguments
 {
     internal Message _message = null!;
     internal object?[] _arguments = [];
 }
 
 /// <summary>Go: <c>type ErrorOutputContainer struct</c>（当前 Go 侧无使用点，按声明复刻）。</summary>
-internal sealed class ErrorOutputContainer
+public sealed class ErrorOutputContainer
 {
     internal Diagnostic[] _errors = [];
     internal bool _skipLogging;
@@ -124,7 +124,7 @@ internal delegate Ternary TypeRelatedComparer(Type source, Type target);
 /// Go: <c>type RecursionId struct { value any }</c>。Go 的 `==` 对 `any` 里的指针就是身份比较，
 /// C# 用 <see cref="ReferenceEquals(object?, object?)"/> 复刻。
 /// </summary>
-internal readonly struct RecursionId : IEquatable<RecursionId>
+public readonly struct RecursionId : IEquatable<RecursionId>
 {
     internal readonly object? _value;
 
@@ -196,7 +196,7 @@ internal readonly struct ErrorState
 }
 
 /// <summary>Go: <c>type ErrorChain struct</c>。</summary>
-internal sealed class ErrorChain
+public sealed class ErrorChain
 {
     internal ErrorChain? _next;
     internal Message _message = null!;

@@ -23,9 +23,9 @@ using TypeScript.Printer;
 using TypeScript.Collections;
 using static TypeScript.Ast.Ast;
 using static TypeScript.Core.Core;
-// Go 的 printer.PrivateIdentifierKind 在 C# 侧是 NodeFactory 的**嵌套类型**（Printer/NodeFactory.cs:833），
+// Go 的 printer.PrivateIdentifierKind 在 C# 侧是 `TypeScript.Printer` 的命名空间级类型（Printer/NodeFactory.cs 末尾），
 // 别名让调用点与 Go 逐字一致。
-using PrivateIdentifierKind = TypeScript.Printer.NodeFactory.PrivateIdentifierKind;
+using PrivateIdentifierKind = TypeScript.Printer.PrivateIdentifierKind;
 
 namespace TypeScript.Transformers.EsTransforms;
 

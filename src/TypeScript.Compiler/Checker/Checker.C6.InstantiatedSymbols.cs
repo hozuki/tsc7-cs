@@ -107,7 +107,7 @@ public sealed partial class Checker
             var members = CreateInstantiatedSymbolTable(GetPropertiesOfObjectType(d._target), d._mapper!);
             var callSignatures = InstantiateSignatures(GetSignaturesOfTypeWorker(d._target, SignatureKind.Call)!, d._mapper!);
             var constructSignatures = InstantiateSignatures(GetSignaturesOfTypeWorker(d._target, SignatureKind.Construct)!, d._mapper!);
-            var indexInfos = InstantiateIndexInfos(GetIndexInfosOfTypeWorker(d._target)!, d._mapper!);
+            var indexInfos = InstantiateIndexInfos(GetIndexInfosOfTypeWorker(d._target), d._mapper!);
             SetStructuredTypeMembers(t, members, callSignatures, constructSignatures, indexInfos);
             return;
         }

@@ -86,7 +86,7 @@ public class PrintHandlers
 }
 
 /// <summary>Go: <c>type WriteKind int</c>（包级类型；成员名去掉 <c>WriteKind</c> 前缀，数值与 Go 一致）。</summary>
-internal enum WriteKind
+public enum WriteKind
 {
     None = 0,
     Keyword = 1,

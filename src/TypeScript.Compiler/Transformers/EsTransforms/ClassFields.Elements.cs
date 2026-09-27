@@ -23,7 +23,7 @@ using TypeScript.Printer;
 using static TypeScript.Ast.Ast;
 using static TypeScript.Transformers.Transformers;
 using static TypeScript.Transformers.EsTransforms.EsTransforms;
-using PrivateIdentifierKind = TypeScript.Printer.NodeFactory.PrivateIdentifierKind;
+using PrivateIdentifierKind = TypeScript.Printer.PrivateIdentifierKind;
 
 namespace TypeScript.Transformers.EsTransforms;
 

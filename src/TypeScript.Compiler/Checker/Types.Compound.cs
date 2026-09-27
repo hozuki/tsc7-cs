@@ -352,7 +352,9 @@ public sealed class ConditionalRoot
     internal Type? _checkType;
     internal Type? _extendsType;
     internal bool _isDistributive;
-    internal Type[]? _inferTypeParameters;
+    // Go: `inferTypeParameters []*TypeParameter` —— nil 切片与空切片在 len/range/slices.Index 下等价，
+    // 归一成空数组（`getInferTypeParameters` 返回 nil 时）。
+    internal Type[] _inferTypeParameters = [];
     internal Type[]? _outerTypeParameters;
     internal Dictionary<CacheHashKey, Type>? _instantiations;
     internal TypeAlias? _alias;

@@ -248,13 +248,6 @@ public sealed partial class Checker
         return links._resolvedExports;
     }
 
-    /// <summary>Go: <c>type ExportCollision struct</c>（checker.go:16458；Go 里类型名导出、字段未导出）。</summary>
-    public sealed class ExportCollision
-    {
-        internal string _specifierText = "";
-        internal Node[]? _exportsWithDuplicate;
-    }
-
     internal (SymbolTable Exports, Dictionary<string, Node>? TypeOnlyExportStarMap) GetExportsOfModuleWorkerImpl(Symbol moduleSymbol)
     {
         var visitedSymbols = new List<Symbol>();
@@ -626,4 +619,11 @@ public sealed partial class Checker
     {
         return FindLast(symbol.Declarations, IsAliasSymbolDeclaration);
     }
+}
+
+/// <summary>Go: <c>type ExportCollision struct</c>（checker.go:16458；Go 里类型名导出、字段未导出）。</summary>
+public sealed class ExportCollision
+{
+    internal string _specifierText = "";
+    internal Node[]? _exportsWithDuplicate;
 }

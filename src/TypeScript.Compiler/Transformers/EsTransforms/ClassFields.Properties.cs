@@ -36,7 +36,7 @@ using static TypeScript.Core.Core;
 using static TypeScript.Transformers.EsTransforms.EsTransforms;
 using static TypeScript.Transformers.Transformers;
 using NodeFactory = TypeScript.Printer.NodeFactory;
-using PrivateIdentifierKind = TypeScript.Printer.NodeFactory.PrivateIdentifierKind;
+using PrivateIdentifierKind = TypeScript.Printer.PrivateIdentifierKind;
 
 namespace TypeScript.Transformers.EsTransforms;
 

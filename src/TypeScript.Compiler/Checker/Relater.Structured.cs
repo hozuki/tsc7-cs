@@ -743,10 +743,10 @@ public sealed partial class Relater
                 var sourceParams = source.AsConditionalType()!._root!._inferTypeParameters;
                 var sourceExtends = source.AsConditionalType()!._root!._extendsType!;
                 TypeMapper? mapper = null;
-                if ((sourceParams?.Length ?? 0) != 0)
+                if (sourceParams.Length != 0)
                 {
                     // If the source has infer type parameters, we instantiate them in the context of the target
-                    var ctx = _c.NewInferenceContext(sourceParams!, null /*signature*/, InferenceFlags.None, _isRelatedToWorkerDelegate);
+                    var ctx = _c.NewInferenceContext(sourceParams, null /*signature*/, InferenceFlags.None, _isRelatedToWorkerDelegate);
                     _c.InferTypes(ctx._inferences, target.AsConditionalType()!._root!._extendsType!, sourceExtends, InferencePriority.NoConstraints | InferencePriority.AlwaysStrict, false);
                     sourceExtends = _c.InstantiateType(sourceExtends, ctx._mapper);
                     mapper = ctx._mapper;
