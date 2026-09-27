@@ -1008,7 +1008,7 @@ public sealed partial class Checker
         {
             return t;
         }
-        var clauses = data.SwitchStatement!.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes!;
+        var clauses = data.SwitchStatement!.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes ?? [];
         // Equal start and end denotes implicit fallthrough; undefined marks explicit default clause.
         var defaultIndex = FindIndex(clauses, clause => clause.Kind == Kind.DefaultClause);
         var clauseStart = data.ClauseStart;
@@ -1027,7 +1027,7 @@ public sealed partial class Checker
 
     internal Type NarrowTypeBySwitchOnTrue(FlowState f, Type t, FlowSwitchClauseData data)
     {
-        var clauses = data.SwitchStatement!.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes!;
+        var clauses = data.SwitchStatement!.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes ?? [];
         var defaultIndex = FindIndex(clauses, clause => clause.Kind == Kind.DefaultClause);
         var clauseStart = data.ClauseStart;
         var clauseEnd = data.ClauseEnd;

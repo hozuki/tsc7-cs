@@ -49,15 +49,19 @@ public sealed class HarnessTest : IHarnessTest
 
     private readonly RunReport _report;
     private readonly string[] _cases;
+    /// <summary>非 Go 源：`--limit/--offset` 分批时需要把"执行"也限制在选中的用例上（否则 runner 会跑全量，
+    /// 只是比较阶段被限制）。元素是**用例 basename**。</summary>
+    private readonly HashSet<string>? _only;
 
-    private HarnessTest(string name, RunReport report, string[] cases)
+    private HarnessTest(string name, RunReport report, string[] cases, HashSet<string>? only)
     {
         Name = name;
         _report = report;
         _cases = cases;
+        _only = only;
     }
 
-    public static HarnessTest Root(RunReport report, string[] cases) => new("", report, cases);
+    public static HarnessTest Root(RunReport report, string[] cases, HashSet<string>? only = null) => new("", report, cases, only);
 
     public string Name { get; }
 
@@ -67,6 +71,26 @@ public sealed class HarnessTest : IHarnessTest
     /// 且祖先名（过滤器是它的超串）也要执行，否则无法下钻到叶子子测试。</summary>
     private bool ShouldRun(string name)
     {
+        if (_only is not null)
+        {
+            // 分批模式（--limit/--offset）：只执行选中的用例；叶子的 basename 必须命中。
+            // 祖先名（如套件名）一律放行，否则无法下钻到叶子子测试。
+            if (_only.Count == 0)
+            {
+                return false;
+            }
+
+            var slash = name.LastIndexOf('/');
+            var leaf = slash >= 0 ? name[(slash + 1)..] : name;
+            var leafBase = leaf.EndsWith(".ts", StringComparison.Ordinal) || leaf.EndsWith(".tsx", StringComparison.Ordinal)
+                ? leaf
+                : (leaf.Contains('(') ? leaf[..leaf.IndexOf('(')] : leaf);
+            if (!_only.Contains(leafBase.Trim()))
+            {
+                return false;
+            }
+        }
+
         if (_cases.Length == 0)
         {
             return true;
@@ -92,7 +116,7 @@ public sealed class HarnessTest : IHarnessTest
             return;
         }
 
-        var child = new HarnessTest(childName, _report, _cases);
+        var child = new HarnessTest(childName, _report, _cases, _only);
         if (Name.Length == 0)
         {
             // 顶层 = 用例级（Go: TestLocal/<用例> 的那一段）。

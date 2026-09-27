@@ -738,7 +738,7 @@ public sealed partial class Checker
 
     internal void ReportUnusedVariables(Node node)
     {
-        var declarations = node.AsVariableDeclarationList()!.Declarations!.Nodes!;
+        var declarations = node.AsVariableDeclarationList()!.Declarations!.Nodes ?? [];
         if (declarations.Length > 1 && Every(declarations, IsUnreferencedVariableDeclaration))
         {
             ReportUnusedVariable(node, NewDiagnosticForNode(node, Diagnostics.All_variables_are_unused));
@@ -837,7 +837,8 @@ public sealed partial class Checker
             }
             else
             {
-                declarationCount += namedBindings.Elements()!.Length;
+                // Go: `len(namedBindings.Elements())`（ast.go:1062 的 Elements() 在无列表时返回 nil 切片）
+                declarationCount += namedBindings.Elements()?.Length ?? 0;
             }
         }
 
@@ -896,7 +897,7 @@ public sealed partial class Checker
             return;
         }
 
-        if (typeParameterList.Nodes!.Length > 1 && Every(typeParameterList.Nodes, IsUnreferencedTypeParameter))
+        if ((typeParameterList.Nodes?.Length ?? 0) > 1 && Every(typeParameterList.Nodes, IsUnreferencedTypeParameter))
         {
             var file = GetSourceFileOfNode(node)!;
             var loc = RangeOfTypeParameters(file, typeParameterList);
@@ -904,7 +905,7 @@ public sealed partial class Checker
         }
         else
         {
-            foreach (var typeParameter in typeParameterList.Nodes!)
+            foreach (var typeParameter in typeParameterList.Nodes ?? [])
             {
                 if (IsUnreferencedTypeParameter(typeParameter))
                 {

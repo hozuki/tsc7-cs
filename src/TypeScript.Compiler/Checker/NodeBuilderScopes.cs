@@ -233,7 +233,7 @@ public sealed partial class NodeBuilderImpl
 
                             void BindPattern(BindingPattern p)
                             {
-                                foreach (var e in p.Elements!.Nodes!)
+                                foreach (var e in p.Elements!.Nodes ?? [])
                                 {
                                     switch (e.Kind)
                                     {

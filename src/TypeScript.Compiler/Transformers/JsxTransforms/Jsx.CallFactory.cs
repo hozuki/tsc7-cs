@@ -30,7 +30,7 @@ public sealed partial class JSXTransformer
         NodeList? children,
         TextRange location)
     {
-        var nonWhitespaceChildren = children is null ? [] : GetSemanticJsxChildren(children.Nodes!);
+        var nonWhitespaceChildren = children is null ? [] : GetSemanticJsxChildren(children.Nodes ?? []);
         var isStaticChildren = nonWhitespaceChildren.Length > 1
             || (nonWhitespaceChildren.Length == 1
                 && IsJsxExpression(nonWhitespaceChildren[0])

@@ -21,8 +21,8 @@
 //    所以 Go 的 ModifierFlags 访问器（带括号）→ C# 的同名属性（无括号）。其余访问器（`Name()`/`Type()`/`Body()`/…）仍是方法。
 // 3) 可空数组：Go 的 `range nil-slice` 是空循环，C# 的 `foreach (null)` 会 NRE；Go 直接 range 可空访问器
 //    （`node.Members()`/`Parameters()`/`Statements()`/`Elements()`/`TypeArguments()`/`NodeList.Nodes`）的地方一律写 `?? []`，
-//    保留 Go 的 nil 语义；把可空数组/可空节点传给非空形参（`CheckSourceElements(Node[])`、`NewTypeMapper`、
-//    `AddDeprecatedSuggestion`、`CheckIndexConstraints`、`GetTypeFromTypeNodeWorker`…）时补 `!`。
+//    保留 Go 的 nil 语义；"`len(x) > 0` 判定 + 之后索引" 这类序列归一成局部量后再判定/解引用
+//    （`var ds = x.Declarations ?? []; if (ds.Length > 0) { … ds[0] … }`），避免 Roslyn 流分析断链（`?.Length ?? 0` 之后裸索引会 CS8602）。
 // 4) Go 的 `if x := f(); cond`（语句内声明 + 条件）→ C# 先声明局部再判断（C# 的 `if` 不能声明变量）。
 // 5) Go 的无条件 `switch { case <bool expr>: }` → if/else 链；`break loop` 不出现。
 // 6) Go 的闭包 `visit := func(node *ast.Node) bool {...}` / `checkPropertyOrAccessor := func(...)` → C# 语言局部函数。
@@ -469,7 +469,7 @@ public sealed partial class Checker
             {
                 if (Some(symbol.Declarations, d => IsTypeDeclaration(d) && IsDeprecatedDeclaration(d)))
                 {
-                    AddDeprecatedSuggestion(GetDeprecatedSuggestionNode(node), symbol.Declarations!, symbol.Name);
+                    AddDeprecatedSuggestion(GetDeprecatedSuggestionNode(node), symbol.Declarations, symbol.Name);
                 }
             }
         }

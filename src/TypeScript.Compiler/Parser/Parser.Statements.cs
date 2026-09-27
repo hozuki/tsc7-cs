@@ -133,7 +133,7 @@ public sealed partial class Parser
             // if node {
             // 	return node
             // }
-            foreach (var m in modifiers!.Nodes!)
+            foreach (var m in modifiers!.Nodes ?? [])
             {
                 m.Flags |= NodeFlags.Ambient;
             }
@@ -898,12 +898,12 @@ public sealed partial class Parser
             CheckJSSyntax(result);
             if (heritageClauses is not null)
             {
-                foreach (var clause in heritageClauses.Nodes!)
+                foreach (var clause in heritageClauses.Nodes ?? [])
                 {
                     var heritageClause = clause.AsHeritageClause()!;
                     if (heritageClause.Token == Kind.ExtendsKeyword)
                     {
-                        foreach (var expr in heritageClause.Types!.Nodes!)
+                        foreach (var expr in heritageClause.Types!.Nodes ?? [])
                         {
                             CheckJSSyntax(expr);
                         }
@@ -1064,7 +1064,7 @@ public sealed partial class Parser
             var isAmbient = modifiers is not null && Some(modifiers.Nodes, IsDeclareModifier);
             if (isAmbient)
             {
-                foreach (var m in modifiers!.Nodes!)
+                foreach (var m in modifiers!.Nodes ?? [])
                 {
                     m.Flags |= NodeFlags.Ambient;
                 }

@@ -416,7 +416,7 @@ public sealed partial class NodeBuilderImpl
         else if (IsTypeReferenceNode(root))
         {
             var typeRef = root.AsTypeReferenceNode()!;
-            if ((_ctx!._flags & NodeBuilderFlags.UseInstantiationExpressions) != 0 && typeRef.TypeArguments is not null && typeRef.TypeArguments.Nodes!.Length != 0)
+            if ((_ctx!._flags & NodeBuilderFlags.UseInstantiationExpressions) != 0 && typeRef.TypeArguments is not null && (typeRef.TypeArguments.Nodes?.Length ?? 0) != 0)
             {
                 var expr = CreateExpressionWithTypeArguments(CreateAccessExpression(typeRef.TypeName!), typeRef.TypeArguments);
                 foreach (var id in GetAccessStack(refNode))

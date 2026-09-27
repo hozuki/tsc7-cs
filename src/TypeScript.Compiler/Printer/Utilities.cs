@@ -562,8 +562,8 @@ public sealed partial class Printer
         var parentNodeArray = GetContainingNodeArray(previousNode);
         if (parentNodeArray is not null)
         {
-            var prevNodeIndex = Array.IndexOf(parentNodeArray.Nodes!, previousNode);
-            return prevNodeIndex >= 0 && Array.IndexOf(parentNodeArray.Nodes!, nextNode) == prevNodeIndex + 1;
+            var prevNodeIndex = Array.IndexOf(parentNodeArray.Nodes ?? [], previousNode);
+            return prevNodeIndex >= 0 && Array.IndexOf(parentNodeArray.Nodes ?? [], nextNode) == prevNodeIndex + 1;
         }
 
         return false;

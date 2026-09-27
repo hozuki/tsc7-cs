@@ -187,7 +187,7 @@ public sealed partial class PseudoChecker
 
         var init = declaration.Initializer;
         if (init is not null && declaration.Symbol is not null &&
-            (declaration.Symbol.Declarations!.Length == 1 || CountWhere(declaration.Symbol.Declarations, IsVariableDeclaration) == 1))
+            ((declaration.Symbol.Declarations?.Length ?? 0) == 1 || CountWhere(declaration.Symbol.Declarations, IsVariableDeclaration) == 1))
         {
             if (!IsContextuallyTyped(declaration))
             {
@@ -213,7 +213,7 @@ public sealed partial class PseudoChecker
 
     private PseudoType TypeFromAccessor(Node accessor)
     {
-        var accessorDeclarations = GetAllAccessorDeclarationsForDeclaration(accessor, accessor.Symbol!.Declarations!);
+        var accessorDeclarations = GetAllAccessorDeclarationsForDeclaration(accessor, accessor.Symbol!.Declarations ?? []);
         var accessorType = GetTypeAnnotationFromAllAccessorDeclarations(accessor, accessorDeclarations);
         if (accessorType is not null && !IsTypePredicateNode(accessorType))
         {
@@ -525,7 +525,7 @@ public sealed partial class PseudoChecker
     // roughly analogous to typeFromObjectLiteralAccessor in strada
     private PseudoObjectElement? GetAccessorMember(Node accessor, Node name)
     {
-        var allAccessors = GetAllAccessorDeclarationsForDeclaration(accessor, accessor.Symbol!.Declarations!); // TODO: node preservation for late-bound accessor pairs?
+        var allAccessors = GetAllAccessorDeclarationsForDeclaration(accessor, accessor.Symbol!.Declarations ?? []); // TODO: node preservation for late-bound accessor pairs?
 
         // TODO: handle pseudo-annotations from get accessor return positions?
         if (allAccessors.GetAccessor is not null && allAccessors.GetAccessor.AsGetAccessorDeclaration()!.Type is not null &&
@@ -630,7 +630,7 @@ public sealed partial class PseudoChecker
         }
 
         // we are in a const context producing a tuple type, there are no spread elements
-        var elements = node.Elements!.Nodes!;
+        var elements = node.Elements!.Nodes ?? [];
         var results = new List<PseudoType>(elements.Length);
         foreach (var e in elements)
         {
@@ -652,7 +652,7 @@ public sealed partial class PseudoChecker
             return [node];
         }
 
-        foreach (var e in node.Elements!.Nodes!)
+        foreach (var e in node.Elements!.Nodes ?? [])
         {
             if (e.Kind == Kind.SpreadElement)
             {

@@ -380,7 +380,7 @@ internal sealed class ObjectRestSpreadTransformer : Transformer
         if (IsBlock(body))
         {
             var custom = false;
-            var statements = body.Statements()!;
+            var statements = body.Statements() ?? [];
             for (var i = 0; i < statements.Length; i++)
             {
                 var statement = statements[i];
@@ -457,7 +457,7 @@ internal sealed class ObjectRestSpreadTransformer : Transformer
                             }
 
                             var declarationListNode = declarationList.AsVariableDeclarationList()!;
-                            declarationListNode.Declarations!.Nodes = [.. declarationListNode.Declarations!.Nodes!, .. decls];
+                            declarationListNode.Declarations!.Nodes = [.. declarationListNode.Declarations!.Nodes ?? [], .. decls];
                             var statement = Factory().NewVariableStatement(null, declarationList);
                             EmitContext().AddEmitFlags(statement, EmitFlags.CustomPrologue);
                             results.Add(statement);
@@ -526,7 +526,7 @@ internal sealed class ObjectRestSpreadTransformer : Transformer
                     }
 
                     var declarationListNode = declarationList.AsVariableDeclarationList()!;
-                    declarationListNode.Declarations!.Nodes = [.. declarationListNode.Declarations!.Nodes!, .. decls];
+                    declarationListNode.Declarations!.Nodes = [.. declarationListNode.Declarations!.Nodes ?? [], .. decls];
                     var statement = Factory().NewVariableStatement(null, declarationList);
                     EmitContext().AddEmitFlags(statement, EmitFlags.CustomPrologue);
                     results.Add(statement);
@@ -785,7 +785,7 @@ internal sealed class ObjectRestSpreadTransformer : Transformer
             return [];
         }
 
-        var elements = list.Nodes!;
+        var elements = list.Nodes ?? [];
         var chunkObject = new List<Node>();
         var objects = new List<Node>();
         foreach (var e in elements)

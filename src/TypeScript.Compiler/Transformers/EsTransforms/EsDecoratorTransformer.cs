@@ -638,7 +638,7 @@ internal sealed partial class EsDecoratorTransformer : Transformer
             ci.ClassThis = f.NewUniqueNameEx("_classThis", new AutoGenerateOptions { Flags = flags });
         }
 
-        foreach (var member in node.Members()!)
+        foreach (var member in node.Members() ?? [])
         {
             if (IsMethodOrAccessor(member) && NodeOrChildIsDecorated(false, member, node, null))
             {

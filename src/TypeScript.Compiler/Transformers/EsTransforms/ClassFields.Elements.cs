@@ -505,7 +505,7 @@ public sealed partial class ClassFieldsTransformer
             var original = EmitContext().MostOriginal(node);
             if (original != node && _currentClassContainer != null)
             {
-                foreach (var member in _currentClassContainer.Members()!)
+                foreach (var member in _currentClassContainer.Members() ?? [])
                 {
                     if (EmitContext().MostOriginal(member) == original && IsStatic(member))
                     {

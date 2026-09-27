@@ -91,7 +91,7 @@ internal sealed class OptionalChainTransformer : Transformer
                     var res = Factory().NewFunctionCallCall(
                         expression!.AsSyntheticReferenceExpression()!.Expression!,
                         expression.AsSyntheticReferenceExpression()!.ThisArg!,
-                        args!.Nodes!);
+                        args!.Nodes ?? []);
                     res.Loc = node.Loc;
                     EmitContext().SetOriginal(res, node);
                     return res;
@@ -270,7 +270,7 @@ internal sealed class OptionalChainTransformer : Transformer
                             callThisArg = Factory().NewThisExpression();
                         }
 
-                        rightExpression = Factory().NewFunctionCallCall(rightExpression!, callThisArg, Visitor().VisitNodes(segment.ArgumentList())!.Nodes!);
+                        rightExpression = Factory().NewFunctionCallCall(rightExpression!, callThisArg, Visitor().VisitNodes(segment.ArgumentList())!.Nodes ?? []);
                     }
                     else
                     {

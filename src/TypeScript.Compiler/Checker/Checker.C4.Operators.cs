@@ -501,12 +501,12 @@ public sealed partial class Checker
     internal Type CheckObjectLiteralAssignment(Node node, Type sourceType, bool rightIsThis)
     {
         var properties = node.PropertyList()!;
-        if (_strictNullChecks && properties.Nodes!.Length == 0)
+        if (_strictNullChecks && (properties.Nodes?.Length ?? 0) == 0)
         {
             return CheckNonNullType(sourceType, node);
         }
 
-        for (int i = 0; i < properties.Nodes!.Length; i++)
+        for (int i = 0; i < (properties.Nodes?.Length ?? 0); i++)
         {
             CheckObjectLiteralDestructuringPropertyAssignment(node, sourceType, i, properties, rightIsThis);
         }
@@ -568,7 +568,7 @@ public sealed partial class Checker
             List<Node>? nonRestNames = null;
             if (allProperties is not null)
             {
-                foreach (var otherProperty in allProperties.Nodes!)
+                foreach (var otherProperty in allProperties.Nodes ?? [])
                 {
                     if (!IsSpreadAssignment(otherProperty))
                     {
@@ -589,7 +589,7 @@ public sealed partial class Checker
     /// <summary>Go: <c>func (c *Checker) checkArrayLiteralAssignment(node *ast.Node, sourceType *Type, checkMode CheckMode) *Type</c>。</summary>
     internal Type CheckArrayLiteralAssignment(Node node, Type sourceType, CheckMode checkMode)
     {
-        var elements = node.Elements()!;
+        var elements = node.Elements() ?? [];
 
         // This elementType will be used if the specific property corresponding to this index is not
         // present (aka the tuple element property). This call also checks that the parentType is in
@@ -762,7 +762,8 @@ public sealed partial class Checker
             if (IsDeclarationNode(left.Parent!) && GetAssignmentDeclarationKind(left.Parent!) == JSDeclarationKind.ExportsProperty)
             {
                 var symbol = _symbolNodeLinks.Get(left)._resolvedSymbol;
-                if (symbol is not null && symbol.Declarations!.Length > 1 && (rightType._flags & TypeFlags.Undefined) != 0)
+                // Go: `len(symbol.Declarations) > 1`（nil 切片长度为 0）
+                if (symbol is not null && (symbol.Declarations?.Length ?? 0) > 1 && (rightType._flags & TypeFlags.Undefined) != 0)
                 {
                     return;
                 }

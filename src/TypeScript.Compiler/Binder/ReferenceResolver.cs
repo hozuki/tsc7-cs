@@ -392,7 +392,7 @@ public sealed partial class Binder
             return null;
         }
         // Go: `len(symbol.Declarations) == 0`（isExportDefaultSymbol 已排除 nil 与空声明，保留此判断与 Go 逐行对应）
-        var declarations = symbol!.Declarations!;
+        var declarations = symbol!.Declarations ?? [];
         if (declarations.Length == 0)
         {
             return null;

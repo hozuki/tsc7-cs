@@ -288,7 +288,8 @@ public sealed partial class Checker
             {
                 var nestedSymbols = new SymbolTable();
                 var lookupTable = new Dictionary<string, ExportCollision>();
-                foreach (var node in exportStars.Declarations!)
+                // Go: `for _, node := range exportStars.Declarations`（checker.go:16490）
+                foreach (var node in exportStars.Declarations ?? [])
                 {
                     var resolvedModule = ResolveExternalModuleNameWorker(node, node.ModuleSpecifier()!, false /*ignoreErrors*/, GetTypeFromImportAttributes(GetImportAttributes(node)!));
                     var exportedSymbols = Visit(resolvedModule, node, isTypeOnly || node.IsTypeOnly());

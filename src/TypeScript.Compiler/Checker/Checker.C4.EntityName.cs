@@ -336,7 +336,8 @@ public sealed partial class Checker
 
             // fill in any as-yet-unresolved late-bound members.
             SymbolTable? lateSymbols = null;
-            foreach (var decl in symbol.Declarations!)
+            // Go: `for _, decl := range symbol.Declarations`（checker.go:16261，nil 切片不迭代）
+            foreach (var decl in symbol.Declarations ?? [])
             {
                 foreach (var member in GetMembersOfDeclaration(decl) ?? [])
                 {
@@ -361,7 +362,8 @@ public sealed partial class Checker
                 var assignmentSymbol = symbol.Exports?.GetValueOrDefault(InternalSymbolNameAssignmentDeclaration);
                 if (assignmentSymbol is not null)
                 {
-                    foreach (var member in assignmentSymbol.Declarations!)
+                    // Go: `for _, member := range assignmentSymbol.Declarations`（checker.go:16281）
+                    foreach (var member in assignmentSymbol.Declarations ?? [])
                     {
                         if (HasLateBindableName(member))
                         {

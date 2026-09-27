@@ -325,7 +325,7 @@ public sealed partial class Checker
         if (links._resolvedType == null)
         {
             var spans = node.AsTemplateLiteralTypeNode()!.TemplateSpans!;
-            var spanNodes = spans.Nodes!;
+            var spanNodes = spans.Nodes ?? [];
             var texts = new string[spanNodes.Length + 1];
             var types = new Type[spanNodes.Length];
             texts[0] = node.AsTemplateLiteralTypeNode()!.Head!.Text();

@@ -383,12 +383,13 @@ public sealed partial class Checker
                 //      for (let of [1,2,3]) {} // this is invalid ES6 syntax
                 //      for (let in [1,2,3]) {} // this is invalid ES6 syntax
                 // We will then want to skip on grammar checking on variableList declaration
-                if ((declarations?.Nodes?.Length ?? 0) == 0)
+                var declarationNodes = declarations?.Nodes ?? [];
+                if (declarationNodes.Length == 0)
                 {
                     return false;
                 }
 
-                if (declarations!.Nodes!.Length > 1)
+                if (declarationNodes.Length > 1)
                 {
                     Message diagnostic;
                     if (forInOrOfStatement.Kind == Kind.ForInStatement)
@@ -400,10 +401,10 @@ public sealed partial class Checker
                         diagnostic = Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement;
                     }
 
-                    return GrammarErrorOnFirstToken(declarations.Nodes[1], diagnostic);
+                    return GrammarErrorOnFirstToken(declarationNodes[1], diagnostic);
                 }
 
-                var firstVariableDeclaration = declarations.Nodes[0].AsVariableDeclaration()!;
+                var firstVariableDeclaration = declarationNodes[0].AsVariableDeclaration()!;
                 if (firstVariableDeclaration.Initializer is not null)
                 {
                     Message diagnostic;

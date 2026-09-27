@@ -72,7 +72,12 @@ public sealed partial class Checker
     /// <summary>Go: <c>func (c *Checker) produceDeferredDiagnostics()</c>。</summary>
     internal void ProduceDeferredDiagnostics()
     {
-        foreach (var cb in _deferredDiagnosticCallbacks)
+        // Go: `for _, cb := range c.deferredDiagnosticCallbacks { cb() }` —— range 只对切片头做一次快照
+        // （ptr/len），回调里再 `append` 不会影响本次遍历，新增的回调在循环结束后的 `= nil` 里被丢弃。
+        // C# 的 `foreach (List<T>)` 会在枚举期间检测版本号变更并抛 InvalidOperationException，
+        // 所以先取数组快照再遍历；本轮新增的项仍进原 list，末尾 Clear() 与 Go 的 `= nil` 同义（一并丢弃）。
+        var callbacks = _deferredDiagnosticCallbacks.ToArray();
+        foreach (var cb in callbacks)
         {
             cb();
         }
@@ -158,16 +163,17 @@ public sealed partial class Checker
     }
 
     /// <summary>Go: <c>func (c *Checker) addDeprecatedSuggestion(location *ast.Node, declarations []*ast.Node, deprecatedEntity string) *ast.Diagnostic</c>。</summary>
-    internal Diagnostic AddDeprecatedSuggestion(Node location, Node[] declarations, string deprecatedEntity)
+    internal Diagnostic AddDeprecatedSuggestion(Node location, Node[]? declarations, string deprecatedEntity)
     {
         var diagnostic = NewDiagnosticForNode(location, X_0_is_deprecated, deprecatedEntity);
         return AddDeprecatedSuggestionWorker(declarations, diagnostic);
     }
 
     /// <summary>Go: <c>func (c *Checker) addDeprecatedSuggestionWorker(declarations []*ast.Node, diagnostic *ast.Diagnostic) *ast.Diagnostic</c>。</summary>
-    internal Diagnostic AddDeprecatedSuggestionWorker(Node[] declarations, Diagnostic diagnostic)
+    /// <remarks>Go 的 nil 切片可 range（不迭代）→ C# 用 <c>?? []</c> 兜住 null 数组。</remarks>
+    internal Diagnostic AddDeprecatedSuggestionWorker(Node[]? declarations, Diagnostic diagnostic)
     {
-        foreach (var declaration in declarations)
+        foreach (var declaration in declarations ?? [])
         {
             var deprecatedTag = GetJSDocDeprecatedTag(declaration);
             if (deprecatedTag is not null)
@@ -183,19 +189,22 @@ public sealed partial class Checker
     /// <summary>Go: <c>func (c *Checker) isDeprecatedSymbol(symbol *ast.Symbol) bool</c>。</summary>
     internal bool IsDeprecatedSymbol(Symbol symbol)
     {
+        // Go 的 `symbol.Declarations` 是 nil 切片时 `len(...) == 0`；C# 的数组为 null 必须兜住
+        // （例如 binder 合成的类 `prototype` 符号只设了 Parent、没有声明，见 Binder.Declarations.cs:347）。
+        var declarations = symbol.Declarations ?? [];
         var parentSymbol = GetParentOfSymbol(symbol);
-        if (parentSymbol is not null && symbol.Declarations!.Length > 1)
+        if (parentSymbol is not null && declarations.Length > 1)
         {
             if ((parentSymbol.Flags & SymbolFlags.Interface) != 0)
             {
-                return Some(symbol.Declarations, IsDeprecatedDeclaration);
+                return Some(declarations, IsDeprecatedDeclaration);
             }
 
-            return Every(symbol.Declarations, IsDeprecatedDeclaration);
+            return Every(declarations, IsDeprecatedDeclaration);
         }
 
         return (symbol.ValueDeclaration is not null && IsDeprecatedDeclaration(symbol.ValueDeclaration))
-            || (symbol.Declarations!.Length != 0 && Every(symbol.Declarations, IsDeprecatedDeclaration));
+            || (declarations.Length != 0 && Every(declarations, IsDeprecatedDeclaration));
     }
 
     /// <summary>Go: <c>func (c *Checker) hasParseDiagnostics(sourceFile *ast.SourceFile) bool</c>。</summary>

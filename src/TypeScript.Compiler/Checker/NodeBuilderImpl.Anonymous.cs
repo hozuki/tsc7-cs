@@ -212,7 +212,7 @@ public sealed partial class NodeBuilderImpl
             }
             else
             {
-                foreach (var declaration in symbol.Declarations!)
+                foreach (var declaration in symbol.Declarations ?? [])
                 {
                     if (declaration.Parent!.Kind == Kind.SourceFile || declaration.Parent!.Kind == Kind.ModuleBlock)
                     {
@@ -519,7 +519,7 @@ public sealed partial class NodeBuilderImpl
                 var tupleConstituentNodes = MapToTypeNodes(typeArguments[0..arity], false /*isBareList*/);
                 if (tupleConstituentNodes is not null)
                 {
-                    for (var i = 0; i < tupleConstituentNodes.Nodes!.Length; i++)
+                    for (var i = 0; i < (tupleConstituentNodes.Nodes?.Length ?? 0); i++)
                     {
                         var flags = t.Target()!.AsTupleType()!._elementInfos![i]._flags;
                         var labeledElementDeclaration = t.Target()!.AsTupleType()!._elementInfos![i]._labeledDeclaration;

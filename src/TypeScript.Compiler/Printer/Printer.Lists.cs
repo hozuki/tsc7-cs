@@ -108,7 +108,7 @@ public sealed partial class Printer
         {
             var end = Math.Min(start + count, length);
 
-            EmitListItems(emit, parentNode, children!.Nodes![start..end], format, HasTrailingComma(parentNode, children), children.Loc);
+            EmitListItems(emit, parentNode, (children!.Nodes ?? [])[start..end], format, HasTrailingComma(parentNode, children), children.Loc);
         }
 
         OnAfterEmitNodeList?.Invoke(children);

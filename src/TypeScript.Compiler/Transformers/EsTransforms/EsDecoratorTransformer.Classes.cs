@@ -371,7 +371,7 @@ internal sealed partial class EsDecoratorTransformer
         // Assemble new members list
         if (leadingStaticBlock is not null || syntheticConstructor is not null || trailingStaticBlock is not null)
         {
-            var memberNodes = members!.Nodes!;
+            var memberNodes = members!.Nodes ?? [];
             var newMembers = new List<Node>(memberNodes.Length + 3);
 
             // Find the existing NamedEvaluation helper block index
@@ -471,7 +471,7 @@ internal sealed partial class EsDecoratorTransformer
         if (shouldTransformPrivateStaticElementsInClass)
         {
             ec.AddEmitFlags(classExpression, EmitFlags.TransformPrivateStaticElements);
-            foreach (var member in classExpression.Members()!)
+            foreach (var member in classExpression.Members() ?? [])
             {
                 if ((IsPrivateIdentifierClassElementDeclaration(member) || IsAutoAccessorPropertyDeclaration(member)) && HasStaticModifier(member))
                 {
@@ -680,7 +680,7 @@ internal sealed partial class EsDecoratorTransformer
             // Recurse into try block
             var tryBlockNode = superStatement.AsTryStatement()!.TryBlock!;
             var tryBlock = tryBlockNode.AsBlock()!;
-            var tryBlockStatements = TransformConstructorBodyWorker(null, tryBlock.Statements!.Nodes!, 0, superPath, superPathDepth + 1, initializerStatements);
+            var tryBlockStatements = TransformConstructorBodyWorker(null, tryBlock.Statements!.Nodes ?? [], 0, superPath, superPathDepth + 1, initializerStatements);
 
             var newTryBlock = Factory().NewBlock(Factory().NewNodeList(tryBlockStatements!.ToArray()), true);
             // Use the original try block's range even though the statements may differ due to
@@ -737,7 +737,7 @@ internal sealed partial class EsDecoratorTransformer
             if (initializerStatements is { Count: > 0 })
             {
                 List<Node>? stmts = [];
-                var (prologue, restNodes) = Factory().SplitStandardPrologue(ctor.Body.AsBlock()!.Statements!.Nodes!);
+                var (prologue, restNodes) = Factory().SplitStandardPrologue(ctor.Body.AsBlock()!.Statements!.Nodes ?? []);
                 stmts.AddRange(prologue);
                 var rest = restNodes ?? [];
 

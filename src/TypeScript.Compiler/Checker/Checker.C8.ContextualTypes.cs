@@ -329,14 +329,14 @@ public sealed partial class Checker
                 return GetContextualTypeWorker(parent.Parent!, contextFlags);
             case Kind.ArrayLiteralExpression:
                 var t = GetApparentTypeOfContextualType(parent, contextFlags);
-                var elementIndex = IndexOfNode(parent.Elements()!, node);
+                var elementIndex = IndexOfNode(parent.Elements() ?? [], node);
                 if (elementIndex < 0)
                 {
                     return null;
                 }
 
                 GetSpreadIndices(parent, out var firstSpreadIndex, out var lastSpreadIndex);
-                return GetContextualTypeForElementExpression(t, elementIndex, parent.Elements()!.Length, firstSpreadIndex, lastSpreadIndex);
+                return GetContextualTypeForElementExpression(t, elementIndex, parent.Elements()?.Length ?? 0, firstSpreadIndex, lastSpreadIndex);
             case Kind.ConditionalExpression:
                 return GetContextualTypeForConditionalOperand(node, contextFlags);
             case Kind.TemplateSpan:
@@ -1291,7 +1291,7 @@ public sealed partial class Checker
                 return new[] { firstArg };
             }
 
-            var spans = template.AsTemplateExpression()!.TemplateSpans!.Nodes!;
+            var spans = template.AsTemplateExpression()!.TemplateSpans!.Nodes ?? [];
             var args = new Node[spans.Length + 1];
             args[0] = firstArg;
             // Go: for i, span := range spans —— C# 的方法体作用域不允许与下面 nodeArgs 循环的 i 重名（CS0136），故改名 spanIndex。

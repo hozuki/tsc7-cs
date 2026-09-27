@@ -407,14 +407,16 @@ public sealed partial class Relater
             }
         }
         ReportRelationError(headMessage, source, target);
-        if ((source._flags & TypeFlags.TypeParameter) != 0 && source._symbol != null && source._symbol.Declarations!.Length != 0 && _c.GetConstraintOfType(source) == null)
+        // Go: `len(source.symbol.Declarations) != 0`（nil 切片长度为 0）
+        var sourceSymbolDeclarations = source._symbol?.Declarations ?? [];
+        if ((source._flags & TypeFlags.TypeParameter) != 0 && source._symbol != null && sourceSymbolDeclarations.Length != 0 && _c.GetConstraintOfType(source) == null)
         {
             var syntheticParam = _c.CloneTypeParameter(source);
             syntheticParam.AsTypeParameter()!._constraint = _c.InstantiateType(target, new SimpleTypeMapper(source, syntheticParam));
             if (_c.HasNonCircularBaseConstraint(syntheticParam))
             {
                 var targetConstraintString = _c.TypeToString(target);
-                _relatedInfo = [.. _relatedInfo, NewDiagnosticForNode(source._symbol.Declarations[0], Diagnostics.This_type_parameter_might_need_an_extends_0_constraint, targetConstraintString)];
+                _relatedInfo = [.. _relatedInfo, NewDiagnosticForNode(sourceSymbolDeclarations[0], Diagnostics.This_type_parameter_might_need_an_extends_0_constraint, targetConstraintString)];
             }
         }
     }

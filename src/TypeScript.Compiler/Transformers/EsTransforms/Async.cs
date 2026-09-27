@@ -65,7 +65,7 @@ internal sealed class AsyncTransformer : Transformer
     internal NodeVisitor? _fallbackNodeVisitor;
 
     /// <summary>Go: <c>node.Parameters()</c>（见文件头差异 4）。</summary>
-    private static Node[] Parameters(Node node) => node.ParameterList()!.Nodes!;
+    private static Node[] Parameters(Node node) => node.ParameterList()!.Nodes ?? [];
 
     /// <summary>Go: <c>func (tx *asyncTransformer) visitSourceFile</c>（async.go:41-51）。</summary>
     private Node? VisitSourceFile(SourceFile node)
@@ -950,7 +950,7 @@ internal sealed class AsyncTransformer : Transformer
                 // `node` does not have a simple parameter list, so `outerParameters` refers to placeholders that are
                 // forwarded to `innerParameters`, matching how they are introduced in `transformAsyncFunctionParameterList`.
                 var parameterBindings = new List<Node>();
-                var outerLen = outerParameters!.Nodes!.Length;
+                var outerLen = outerParameters!.Nodes?.Length ?? 0;
                 var parameters = Parameters(node);
                 for (var i = 0; i < parameters.Length; i++)
                 {

@@ -238,7 +238,7 @@ public sealed partial class Binder
         }
         if (name is not null && IsBindingPattern(name))
         {
-            foreach (var child in name.Elements()!)
+            foreach (var child in name.Elements() ?? [])
             {
                 BindInitializedVariableFlow(child);
             }

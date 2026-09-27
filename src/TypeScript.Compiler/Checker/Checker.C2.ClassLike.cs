@@ -162,7 +162,7 @@ public sealed partial class Checker
                 continue;
             }
 
-            foreach (var tag in j.AsJSDoc()!.Tags!.Nodes!)
+            foreach (var tag in j.AsJSDoc()!.Tags!.Nodes ?? [])
             {
                 if (tag.Kind != Kind.JSDocAugmentsTag)
                 {

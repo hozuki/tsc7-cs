@@ -157,12 +157,14 @@ public sealed partial class Checker
         if (!links._enumChecked)
         {
             links._enumChecked = true;
-            if (enumSymbol.Declarations!.Length > 1)
+            // Go: `len(enumSymbol.Declarations) > 1`（nil 切片长度为 0）
+            var enumSymbolDeclarations = enumSymbol.Declarations ?? [];
+            if (enumSymbolDeclarations.Length > 1)
             {
                 var enumIsConst = IsEnumConst(node);
 
                 // check that const is placed\omitted on all enum declarations
-                foreach (var decl in enumSymbol.Declarations)
+                foreach (var decl in enumSymbolDeclarations)
                 {
                     if (IsEnumDeclaration(decl) && IsEnumConst(decl) != enumIsConst)
                     {
@@ -172,7 +174,7 @@ public sealed partial class Checker
             }
 
             var seenEnumMissingInitialInitializer = false;
-            foreach (var declaration in enumSymbol.Declarations)
+            foreach (var declaration in enumSymbolDeclarations)
             {
                 // return true if we hit a violation of the rule, false otherwise
                 if (declaration.Kind != Kind.EnumDeclaration)

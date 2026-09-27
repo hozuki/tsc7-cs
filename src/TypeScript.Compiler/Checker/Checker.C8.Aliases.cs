@@ -915,9 +915,9 @@ public sealed partial class Checker
         switch (node.Kind)
         {
             case Kind.IntersectionType:
-                return GetEntityNameForDecoratorMetadataFromTypeList(node.AsIntersectionTypeNode()!.Types!.Nodes!);
+                return GetEntityNameForDecoratorMetadataFromTypeList(node.AsIntersectionTypeNode()!.Types!.Nodes ?? []);
             case Kind.UnionType:
-                return GetEntityNameForDecoratorMetadataFromTypeList(node.AsUnionTypeNode()!.Types!.Nodes!);
+                return GetEntityNameForDecoratorMetadataFromTypeList(node.AsUnionTypeNode()!.Types!.Nodes ?? []);
             case Kind.ConditionalType:
                 return GetEntityNameForDecoratorMetadataFromTypeList(new[] { node.AsConditionalTypeNode()!.TrueType!, node.AsConditionalTypeNode()!.FalseType! });
             case Kind.ParenthesizedType:

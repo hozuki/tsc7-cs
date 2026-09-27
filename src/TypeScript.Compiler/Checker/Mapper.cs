@@ -14,6 +14,13 @@
 //    Go 里 `NodeBuilderImpl`（另一个类型）也调用它（nodecopy.go / nodebuilderimpl.go）。
 // 5) `checker-plan §5.2` 的同名冲突：Go 未导出的 `getX` 与导出的 `GetX` 同形 → 未导出者加 `Worker`
 //    后缀（artifacts/checker-method-collisions.md）。本文件里 `mapper.go` 无此类冲突项。
+// 6) Go 的切片有三态（`nil`/空/有元素），`len(nil) == 0`、`range nil` 皆合法；C# 的数组 `null` 不能
+//    `.Length`/索引。mapper 工厂的 `sources []*Type` / `targets []*Type`（以及 `targets []func() *Type`）
+//    入参因此统一按 Go 语义把 `null` 归一成空数组（`?? []`），保证 `ArrayTypeMapper` /
+//    `ArrayToSingleTypeMapper` / `DeferredTypeMapper` 的字段永不为 `null`。`NewTypeMapper` 里
+//    `len(sources) == 1` 对 Go 的 `nil` 切片为 false，归一后走同样的「空 → ArrayTypeMapper（`Map` 恒等）」
+//    分支；若 `sources` 恰有 1 个而 `targets` 为空，Go 会在 `targets[0]` 越界 panic，C# 同样以
+//    IndexOutOfRangeException 大声失败（不吞异常、不特判用例）。
 using System;
 using TypeScript.Ast;
 using static TypeScript.Checker.Checker;
@@ -243,22 +250,31 @@ public sealed partial class Checker
     /// <summary>Go: <c>func getMappedType(t *Type, mapper *TypeMapper) *Type</c>。</summary>
     internal static Type GetMappedType(Type t, TypeMapper mapper) => mapper.Map(GetNonDistributedTypeParameter(t));
 
-    /// <summary>Go: <c>func newTypeMapper(sources []*Type, targets []*Type) *TypeMapper</c>。</summary>
-    internal static TypeMapper NewTypeMapper(Type[] sources, Type[] targets) => sources.Length == 1
-        ? NewSimpleTypeMapper(sources[0], targets[0])
-        : NewArrayTypeMapper(sources, targets);
+    /// <summary>
+    /// Go: <c>func newTypeMapper(sources []*Type, targets []*Type) *TypeMapper</c>。
+    /// Go 的 <c>nil</c> 切片就是空切片（<c>len(nil) == 0</c>），<c>len(sources) == 1</c> 对 <c>nil</c> 取值为 false；
+    /// C# 的数组没有这个性质（<c>null.Length</c> 抛 NRE），所以先归一成空数组再分支。
+    /// </summary>
+    internal static TypeMapper NewTypeMapper(Type[]? sources, Type[]? targets)
+    {
+        sources ??= [];
+        targets ??= [];
+        return sources.Length == 1
+            ? NewSimpleTypeMapper(sources[0], targets[0])
+            : NewArrayTypeMapper(sources, targets);
+    }
 
     /// <summary>Go: <c>func newSimpleTypeMapper(source *Type, target *Type) *TypeMapper</c>。</summary>
     internal static TypeMapper NewSimpleTypeMapper(Type source, Type target) => new SimpleTypeMapper(source, target);
 
-    /// <summary>Go: <c>func newArrayTypeMapper(sources []*Type, targets []*Type) *TypeMapper</c>。</summary>
-    internal static TypeMapper NewArrayTypeMapper(Type[] sources, Type[] targets) => new ArrayTypeMapper(sources, targets);
+    /// <summary>Go: <c>func newArrayTypeMapper(sources []*Type, targets []*Type) *TypeMapper</c>（<c>nil</c> 切片合法，归一成空数组）。</summary>
+    internal static TypeMapper NewArrayTypeMapper(Type[]? sources, Type[]? targets) => new ArrayTypeMapper(sources ?? [], targets ?? []);
 
-    /// <summary>Go: <c>func newArrayToSingleTypeMapper(sources []*Type, target *Type) *TypeMapper</c>。</summary>
-    internal static TypeMapper NewArrayToSingleTypeMapper(Type[] sources, Type target) => new ArrayToSingleTypeMapper(sources, target);
+    /// <summary>Go: <c>func newArrayToSingleTypeMapper(sources []*Type, target *Type) *TypeMapper</c>（<c>nil</c> 切片合法，归一成空数组）。</summary>
+    internal static TypeMapper NewArrayToSingleTypeMapper(Type[]? sources, Type target) => new ArrayToSingleTypeMapper(sources ?? [], target);
 
-    /// <summary>Go: <c>func newDeferredTypeMapper(sources []*Type, targets []func() *Type) *TypeMapper</c>。</summary>
-    internal static TypeMapper NewDeferredTypeMapper(Type[] sources, Func<Type>[] targets) => new DeferredTypeMapper(sources, targets);
+    /// <summary>Go: <c>func newDeferredTypeMapper(sources []*Type, targets []func() *Type) *TypeMapper</c>（<c>nil</c> 切片合法，归一成空数组）。</summary>
+    internal static TypeMapper NewDeferredTypeMapper(Type[]? sources, Func<Type>[]? targets) => new DeferredTypeMapper(sources ?? [], targets ?? []);
 
     /// <summary>Go: <c>func newFunctionTypeMapper(fn func(*Type) *Type) *TypeMapper</c>。</summary>
     internal static TypeMapper NewFunctionTypeMapper(Func<Type, Type> fn) => new FunctionTypeMapper(fn);

@@ -280,9 +280,10 @@ public static partial class EsTransforms
             emitContext.SetSourceMapRange(namedEvaluationBlock.Body()!.Statements()![0], node.Name()!.Loc);
         }
 
-        var insertionIndex = Array.FindIndex(node.Members()!, n => IsClassThisAssignmentBlock(emitContext, n)) + 1;
-        var leading = node.Members()![..insertionIndex];
-        var trailing = node.Members()![insertionIndex..];
+        var classMembers = node.Members() ?? [];
+        var insertionIndex = Array.FindIndex(classMembers, n => IsClassThisAssignmentBlock(emitContext, n)) + 1;
+        var leading = classMembers[..insertionIndex];
+        var trailing = classMembers[insertionIndex..];
 
         var members = new List<Node>();
         members.AddRange(leading);

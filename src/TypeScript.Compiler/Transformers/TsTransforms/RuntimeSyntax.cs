@@ -478,7 +478,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
         node = Visitor().VisitEachChild(node)!.AsEnumDeclaration()!;
 
         var statements = new List<Node>();
-        for (var i = 0; i < node.Members!.Nodes!.Length; i++)
+        for (var i = 0; i < (node.Members!.Nodes?.Length ?? 0); i++)
         {
             //  E[E["A"] = 0] = "A";
             TransformEnumMember(statements, node, i);
@@ -950,7 +950,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
         var (savedCurrentScope, savedCurrentScopeFirstDeclarationsOfName) = PushScope(body);
 
         EmitContext().StartVariableEnvironment();
-        var (prologue, rest) = Factory().SplitStandardPrologue(body.Statements!.Nodes!);
+        var (prologue, rest) = Factory().SplitStandardPrologue(body.Statements!.Nodes ?? []);
         // Go: slices.Clone(prologue) + append —— C# 用 List（自己管扩容）。
         var statements = new List<Node>(prologue);
 
@@ -1040,7 +1040,7 @@ public sealed class RuntimeSyntaxTransformer : Transformer
 
             // visit the `try` block
             var tryBlockStatements = TransformConstructorBodyWorker(
-                tryBlock.Statements!.Nodes!,
+                tryBlock.Statements!.Nodes ?? [],
                 superPath[1..],
                 initializerStatements);
 

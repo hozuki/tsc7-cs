@@ -198,7 +198,7 @@ public sealed partial class Binder
     private static bool HasNarrowableArgument(Node expr)
     {
         var call = expr.AsCallExpression()!;
-        var arguments = call.Arguments!.Nodes!; //nolint:modernize
+        var arguments = call.Arguments!.Nodes ?? []; //nolint:modernize
         for (var i = 0; i < arguments.Length; i++)
         {
             if (ContainsNarrowableReference(arguments[i]))

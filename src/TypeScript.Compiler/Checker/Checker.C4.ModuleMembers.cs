@@ -195,7 +195,8 @@ public sealed partial class Checker
         }
 
         var result = NewSymbol(valueSymbol.Flags | typeSymbol.Flags, valueSymbol.Name);
-        Debug.Assert(valueSymbol.Declarations!.Length > 0 || typeSymbol.Declarations!.Length > 0);
+        // Go: `debug.Assert(len(valueSymbol.Declarations) > 0 || len(typeSymbol.Declarations) > 0)`（checker.go:15017）
+        Debug.Assert((valueSymbol.Declarations?.Length ?? 0) > 0 || (typeSymbol.Declarations?.Length ?? 0) > 0);
 
         // Go: slices.Compact(slices.Concat(valueSymbol.Declarations, typeSymbol.Declarations))（去掉相邻的重复指针）
         var concatenated = Concatenate(valueSymbol.Declarations, typeSymbol.Declarations);
@@ -434,7 +435,8 @@ public sealed partial class Checker
                     diagnostic = Error(name, Module_0_declares_1_locally_but_it_is_not_exported, moduleName, declarationName);
                 }
 
-                var declarations = localSymbol.Declarations!;
+                // Go: `for i, decl := range localSymbol.Declarations`（checker.go:15172，nil 切片不迭代）
+                var declarations = localSymbol.Declarations ?? [];
                 for (int i = 0; i < declarations.Length; i++)
                 {
                     diagnostic.AddRelatedInfo(CreateDiagnosticForNode(declarations[i], IfElse(i == 0, X_0_is_declared_here, X_and_here), declarationName));

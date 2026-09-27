@@ -53,10 +53,23 @@ public interface IProjectLifecycleHandler
 
 public static partial class ContentMapperTest
 {
-    /// <summary>Go: <c>func initializeResult(source string) contentmapper.InitializeResult</c>。</summary>
+    /// <summary>
+    /// Go: <c>func initializeResult(source string) contentmapper.InitializeResult</c>。
+    /// <para>
+    /// **偏离**：Go 的 <c>PositionEncoding: contentmapper.PositionEncodingUTF8</c> 之所以成立，是因为 Go 的
+    /// string 是 UTF-8 字节序列、`len(content)`/`strings.Index` 给出的就是**字节**偏移，与宿主内部坐标一致
+    /// （Go 侧 <c>positionNormalizer.normalize</c> 对 utf-8 是恒等映射）。本移植的宿主内部坐标是 **UTF-16
+    /// 代码单元**（docs/architecture.md §3.1；`PositionNormalizer` 的 utf-8 分支会把字节偏移**换算**到 UTF-16），
+    /// 而本进程内的测试 mapper 全部用 C# 的 `string.Length`/`IndexOf` 取位置——那是 UTF-16 下标。若仍声明
+    /// utf-8，宿主会把 UTF-16 下标当成字节偏移再换算一次，凡是含非 ASCII（尤其非 BMP，如 😀）的内容都会
+    /// 整体错位（必现 TS18073 verbatim 映射不匹配）。所以这里按测试 mapper 的**真实坐标空间**声明 utf-16，
+    /// 宿主侧即为恒等映射——与 Go 的 utf-8 情形在"归一化后编码无关"这个意义上等价（见
+    /// ContentMapperHostTests.TestRunnerPositionEncodings 钉住的语义）。
+    /// </para>
+    /// </summary>
     public static InitializeResult InitializeResult(string source) => new()
     {
-        PositionEncoding = PositionEncoding.UTF8,
+        PositionEncoding = PositionEncoding.UTF16,
         DiagnosticSource = source,
     };
 

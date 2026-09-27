@@ -1201,7 +1201,7 @@ public sealed partial class Checker
         var typeParameters = arrowFunc.TypeParameters;
         if (typeParameters is not null)
         {
-            var typeParamNodes = typeParameters.Nodes!;
+            var typeParamNodes = typeParameters.Nodes ?? [];
             var hasConstraint = typeParamNodes.Length > 0 && typeParamNodes[0].AsTypeParameterDeclaration()!.Constraint is not null;
             if (!(typeParamNodes.Length > 1 || typeParameters.HasTrailingComma() || hasConstraint))
             {
@@ -1400,7 +1400,7 @@ public sealed partial class Checker
                         return GrammarErrorOnFirstToken(heritageClauseNode, X_extends_clause_must_precede_implements_clause);
                     }
 
-                    var typeNodes = heritageClause.Types!.Nodes!;
+                    var typeNodes = heritageClause.Types!.Nodes ?? [];
                     if (typeNodes.Length > 1)
                     {
                         return GrammarErrorOnFirstToken(typeNodes[1], Classes_can_only_extend_a_single_class);

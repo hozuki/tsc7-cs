@@ -485,7 +485,7 @@ public sealed partial class DeclarationTransformer
                     }
                     if (exportEquals != null && (exportEquals.Declarations?.Length ?? 0) > 1)
                     {
-                        foreach (var declaration in exportEquals.Declarations!)
+                        foreach (var declaration in exportEquals.Declarations ?? [])
                         {
                             _state.AddDiagnostic(CreateDiagnosticForNode(declaration, Diagnostics.Multiple_module_exports_assignments_cannot_be_serialized_for_declaration_emit));
                         }

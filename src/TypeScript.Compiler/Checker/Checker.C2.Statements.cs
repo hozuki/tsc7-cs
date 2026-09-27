@@ -223,7 +223,7 @@ public sealed partial class Checker
 
         var expressionType = CheckExpression(node.Expression()!);
         var caseBlock = node.AsSwitchStatement()!.CaseBlock!;
-        foreach (var clause in caseBlock.AsCaseBlock()!.Clauses!.Nodes!)
+        foreach (var clause in caseBlock.AsCaseBlock()!.Clauses!.Nodes ?? [])
         {
             // Grammar check for duplicate default clauses, skip if we already report duplicate default clause
             if (IsDefaultClause(clause) && !hasDuplicateDefaultClause)

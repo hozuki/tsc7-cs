@@ -1666,14 +1666,14 @@ public sealed partial class Parser
                     }
                     if (lastChildElement.Children != null)
                     {
-                        foreach (var c in lastChildElement.Children.Nodes!)
+                        foreach (var c in lastChildElement.Children.Nodes ?? [])
                         {
                             c.Parent = newLast;
                         }
                     }
                     newClosingElement.Parent = newLast;
                     // Go: append(children.Nodes[0:len(children.Nodes)-1], newLast)（长度不变 → 同长度新数组）
-                    var oldNodes = children.Nodes!;
+                    var oldNodes = children.Nodes ?? [];
                     var newNodes = new Node[oldNodes.Length];
                     Array.Copy(oldNodes, newNodes, oldNodes.Length - 1);
                     newNodes[^1] = newLast;

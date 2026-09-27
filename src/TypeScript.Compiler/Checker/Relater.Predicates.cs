@@ -344,11 +344,15 @@ public sealed partial class Checker
         {
             return false;
         }
-        var mapper = NewTypeMapper(targetParams!, sourceParams!);
-        for (var i = 0; i < sourceParams!.Length; i++)
+        // Go 的切片 nil/空等价（`len(nil) == 0`），这里两个长度相等；若都为 nil，Go 的 `range` 不执行循环体，
+        // 直接返回 true。C# 的 `null.Length` 抛 NRE，所以按 Go 语义归一成空数组（等价于 `Signature.TypeParameters()`）。
+        sourceParams ??= [];
+        targetParams ??= [];
+        var mapper = NewTypeMapper(targetParams, sourceParams);
+        for (var i = 0; i < sourceParams.Length; i++)
         {
-            var source = sourceParams![i];
-            var target = targetParams![i];
+            var source = sourceParams[i];
+            var target = targetParams[i];
             if (source == target)
             {
                 continue;

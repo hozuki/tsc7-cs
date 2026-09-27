@@ -958,7 +958,7 @@ public sealed partial class DeclarationTransformer : Transformer
         if (ctor is not null)
         {
             var oldDiag = _state._getSymbolAccessibilityDiagnostic;
-            foreach (var param in ctor.AsConstructorDeclaration()!.Parameters!.Nodes!)
+            foreach (var param in ctor.AsConstructorDeclaration()!.Parameters!.Nodes ?? [])
             {
                 if (!HasSyntacticModifier(param, ModifierFlags.ParameterPropertyModifier) || ShouldStripInternal(param))
                 {
@@ -988,7 +988,7 @@ public sealed partial class DeclarationTransformer : Transformer
         // When the class has at least one private identifier, create a unique constant identifier to retain the nominal typing behavior
         // Prevents other classes with the same public members from being used in place of the current class
         Node? privateIdentifier = null;
-        if (Some(classNode.ClassLikeData()!.Members!.Nodes!, member => member.Name() is not null && IsPrivateIdentifier(member.Name()!)))
+        if (Some(classNode.ClassLikeData()!.Members!.Nodes, member => member.Name() is not null && IsPrivateIdentifier(member.Name()!)))
         {
             privateIdentifier = Factory().NewPropertyDeclaration(null, Factory().NewPrivateIdentifier("#private"), null, null, null);
         }
@@ -1006,7 +1006,7 @@ public sealed partial class DeclarationTransformer : Transformer
         memberNodes = Concatenate(memberNodes, parameterProperties);
         memberNodes = Concatenate(memberNodes, extraMembers);
         var visitResult = Visitor().VisitNodes(classNode.ClassLikeData()!.Members);
-        if (visitResult is not null && visitResult.Nodes!.Length > 0)
+        if (visitResult is not null && (visitResult.Nodes?.Length ?? 0) > 0)
         {
             memberNodes = Concatenate(memberNodes, visitResult.Nodes);
         }
@@ -1079,7 +1079,7 @@ public sealed partial class DeclarationTransformer : Transformer
                         }));
                     var retainedHeritageClauses = Visitor().VisitNodes(input.HeritageClauses); // should just be `implements`
                     Node[] heritageList = new Node[] { newHeritageClause };
-                    if (retainedHeritageClauses is not null && retainedHeritageClauses.Nodes!.Length > 0)
+                    if (retainedHeritageClauses is not null && (retainedHeritageClauses.Nodes?.Length ?? 0) > 0)
                     {
                         heritageList = Concatenate(heritageList, retainedHeritageClauses.Nodes);
                     }

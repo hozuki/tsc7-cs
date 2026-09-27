@@ -564,12 +564,12 @@ public sealed partial class Checker
         if (IsFunctionOrModuleBlock(node))
         {
             var saveFlowAnalysisDisabled = _flowAnalysisDisabled;
-            CheckSourceElements(node.Statements()!);
+            CheckSourceElements(node.Statements() ?? []);
             _flowAnalysisDisabled = saveFlowAnalysisDisabled;
         }
         else
         {
-            CheckSourceElements(node.Statements()!);
+            CheckSourceElements(node.Statements() ?? []);
         }
         if (node.Locals() is { Count: > 0 })
         {
@@ -838,7 +838,8 @@ public sealed partial class Checker
         //   and Expr must be an expression of type Any, an object type, or a type parameter type.
         if (IsVariableDeclarationList(data.Initializer!))
         {
-            var declarations = data.Initializer!.AsVariableDeclarationList()!.Declarations!.Nodes!;
+            // Go: `...Declarations.Nodes`（NodeList.Nodes 是 nil 切片）
+            var declarations = data.Initializer!.AsVariableDeclarationList()!.Declarations!.Nodes ?? [];
             if (declarations.Length != 0 && IsBindingPattern(declarations[0].Name()))
             {
                 Error(declarations[0].Name(), Diagnostics.The_left_hand_side_of_a_for_in_statement_cannot_be_a_destructuring_pattern);

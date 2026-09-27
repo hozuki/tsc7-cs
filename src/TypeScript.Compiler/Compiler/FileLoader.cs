@@ -518,7 +518,13 @@ internal sealed partial class FileLoader
 
         lock (_contentMapperMu)
         {
-            return _contentMapperInitFailed.Has(mapper) || _contentMapperFailures?[mapper] >= Compiler.MaxContentMapperFailures;
+            // Go: `p.contentMapperInitFailed.Has(mapper) || p.contentMapperFailures[mapper] >= maxContentMapperFailures`
+            // —— nil map 下标读取返回零值。C# 的 `dict?[key]` 只对 **null 字典**短路，字典非空而键不存在时
+            // 仍会抛 KeyNotFoundException，所以必须显式 TryGetValue（等价于 Go 的零值 0）。
+            return _contentMapperInitFailed.Has(mapper)
+                || (_contentMapperFailures is not null
+                    && _contentMapperFailures.TryGetValue(mapper, out var failures)
+                    && failures >= Compiler.MaxContentMapperFailures);
         }
     }
 

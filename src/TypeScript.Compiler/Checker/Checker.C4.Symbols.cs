@@ -279,19 +279,21 @@ public sealed partial class Checker
     /// <summary>Go: <c>func (c *Checker) addDuplicateDeclarationErrorsForSymbols(target *ast.Symbol, message *diagnostics.Message, symbolName string, source *ast.Symbol)</c>。</summary>
     internal void AddDuplicateDeclarationErrorsForSymbols(Symbol target, Message message, string symbolName, Symbol source)
     {
-        foreach (var node in target.Declarations!)
+        // Go: len(nil) == 0，range nil 不迭代；C# 的 Node[]? 必须判空。
+        foreach (var node in target.Declarations ?? [])
         {
-            AddDuplicateDeclarationError(node, message, symbolName, source.Declarations!);
+            AddDuplicateDeclarationError(node, message, symbolName, source.Declarations);
         }
     }
 
     /// <summary>Go: <c>func (c *Checker) addDuplicateDeclarationError(node *ast.Node, message *diagnostics.Message, symbolName string, relatedNodes []*ast.Node)</c>。</summary>
-    internal void AddDuplicateDeclarationError(Node node, Message message, string symbolName, Node[] relatedNodes)
+    internal void AddDuplicateDeclarationError(Node node, Message message, string symbolName, Node[]? relatedNodes)
     {
         var errorNode = GetAdjustedNodeForError(node);
         errorNode ??= node;
         var err = LookupOrIssueError(errorNode, message, symbolName);
-        foreach (var relatedNode in relatedNodes)
+        // Go: range nil 切片不迭代。
+        foreach (var relatedNode in relatedNodes ?? [])
         {
             var adjustedNode = GetAdjustedNodeForError(relatedNode);
             if (adjustedNode == errorNode)
@@ -301,13 +303,16 @@ public sealed partial class Checker
 
             var leadingMessage = CreateDiagnosticForNode(adjustedNode!, X_0_was_also_declared_here, symbolName);
             var followOnMessage = CreateDiagnosticForNode(adjustedNode!, X_and_here);
-            if (err.RelatedInformation()!.Length >= 5 || Some(err.RelatedInformation(), d =>
+            // Go: RelatedInformation() 可为 nil 切片，len(nil) == 0、core.Some(nil, …) == false。
+            var relatedInformation = err.RelatedInformation();
+            var relatedInformationLength = relatedInformation?.Length ?? 0;
+            if (relatedInformationLength >= 5 || Some(relatedInformation, d =>
                 CompareDiagnostics(d, followOnMessage) == 0 || CompareDiagnostics(d, leadingMessage) == 0))
             {
                 continue;
             }
 
-            if (err.RelatedInformation()!.Length == 0)
+            if (relatedInformationLength == 0)
             {
                 err.AddRelatedInfo(leadingMessage);
             }
@@ -345,9 +350,11 @@ public sealed partial class Checker
     /// <summary>Go（包级）: <c>func getFirstDeclaration(symbol *ast.Symbol) *ast.Node</c>。</summary>
     internal static Node? GetFirstDeclaration(Symbol symbol)
     {
-        if (symbol.Declarations!.Length > 0)
+        // Go: `if len(symbol.Declarations) > 0 { return symbol.Declarations[0] }`（nil 切片长度为 0）。
+        var declarations = symbol.Declarations;
+        if (declarations is { Length: > 0 })
         {
-            return symbol.Declarations[0];
+            return declarations[0];
         }
 
         return null;

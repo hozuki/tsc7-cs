@@ -14,8 +14,8 @@
 //    → 把 fallthrough 那一支的目标赋值显式重复一次；两处 `default: panic(...)` → `Debug.Fail(...)` + throw。
 // 5) 局部变量重名：`checkVarDeclaredNamesNotShadowed` 里 Go 的内层 `name`（`c.symbolToString(...)`）遮蔽了外层
 //    `name *ast.Node`；C# 禁止同作用域重名（CS0136），内层改名 `symbolName`（语义不变）。
-// 6) 可空数组：`CheckSourceElements(Node[] nodes)` 的参数不可空、`NodeList.Nodes` 是 `Node[]?`，故调用点写 `!`
-//    （AST 不变量：变量声明列表必有 Declarations）；`Elements()`/`ModifierNodes()` 同理。
+// 6) 可空数组：`NodeList.Nodes`、`Elements()`、`ModifierNodes()` 在 Go 里是 nil 切片（len/range 合法），
+//    C# 侧一律用 `?? []` 归一（Go 的 nil ≡ 空），不再用 `!` 硬解；`CheckSourceElements(Node[])` 的参数因此总能拿到非空数组。
 // 注：Go 5927-5934 的 `checkVariableStatement` 不在本窗口（由 5608-5935 分片定义，见报告）。
 namespace TypeScript.Checker;
 
@@ -36,7 +36,8 @@ public sealed partial class Checker
         {
             CheckExternalEmitHelpers(node, ExternalEmitHelpers.AddDisposableResourceAndDisposeResources);
         }
-        CheckSourceElements(node.AsVariableDeclarationList()!.Declarations!.Nodes!);
+        // Go: `CheckSourceElements(node.Declarations.Nodes)`（NodeList.Nodes 是 nil 切片）
+        CheckSourceElements(node.AsVariableDeclarationList()!.Declarations!.Nodes ?? []);
     }
 
     internal void CheckVariableDeclaration(Node node)
@@ -140,7 +141,7 @@ public sealed partial class Checker
         // For a binding pattern, check contained binding elements
         if (IsBindingPattern(name))
         {
-            CheckSourceElements(name.Elements()!);
+            CheckSourceElements(name.Elements() ?? []);
         }
         // For a parameter declaration with an initializer, error and exit if the containing function doesn't have a body
         if (initializer != null && IsPartOfParameterDeclaration(node) && NodeIsMissing(GetContainingFunction(node)!.Body()))
@@ -401,7 +402,7 @@ public sealed partial class Checker
             }
         }
         MarkLinkedReferences(node, ReferenceHint.Decorator, null, null);
-        foreach (var modifier in node.ModifierNodes()!)
+        foreach (var modifier in node.ModifierNodes() ?? [])
         {
             if (IsDecorator(modifier))
             {

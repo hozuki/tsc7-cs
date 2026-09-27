@@ -118,7 +118,7 @@ public sealed partial class CommonJSModuleTransformer
     {
         if (IsObjectLiteralExpression(node))
         {
-            foreach (var elem in node.Properties()!)
+            foreach (var elem in node.Properties() ?? [])
             {
                 switch (elem.Kind)
                 {
@@ -149,7 +149,7 @@ public sealed partial class CommonJSModuleTransformer
         }
         else if (IsArrayLiteralExpression(node))
         {
-            foreach (var elem in node.AsArrayLiteralExpression()!.Elements!.Nodes!)
+            foreach (var elem in node.AsArrayLiteralExpression()!.Elements!.Nodes ?? [])
             {
                 if (IsSpreadElement(elem))
                 {
@@ -558,7 +558,7 @@ public sealed partial class CommonJSModuleTransformer
         var needsRewrite = false;
         if (_compilerOptions.RewriteRelativeImportExtensions.IsTrue())
         {
-            if (IsImportCall(node.AsNode()) && node.Arguments!.Nodes!.Length > 0 ||
+            if (IsImportCall(node.AsNode()) && (node.Arguments!.Nodes?.Length ?? 0) > 0 ||
                 IsInJSFile(node.AsNode()) && IsRequireCall(node.AsNode(), false /*requireStringLiteralLikeArgument*/))
             {
                 needsRewrite = true;
@@ -612,7 +612,7 @@ public sealed partial class CommonJSModuleTransformer
         }
 
         var externalModuleName = ModuleTransforms.GetExternalModuleNameLiteral(Factory(), node.AsNode(), _currentSourceFile!, null /*host*/, null /*resolver*/, _compilerOptions);
-        var firstArgument = Visitor().VisitNode(FirstOrNil(node.Arguments!.Nodes!));
+        var firstArgument = Visitor().VisitNode(FirstOrNil(node.Arguments!.Nodes));
 
         // Only use the external module name if it differs from the first argument. This allows us to preserve the quote style of the argument on output.
         Node? argument;
@@ -730,9 +730,10 @@ public sealed partial class CommonJSModuleTransformer
     {
         var expression = Visitor().VisitNode(node.Expression);
         var argumentsList = node.Arguments!;
-        if (node.Arguments!.Nodes!.Length > 0)
+        var argumentNodes = node.Arguments!.Nodes ?? [];
+        if (argumentNodes.Length > 0)
         {
-            var firstArgument = Visitor().VisitNode(node.Arguments.Nodes[0]);
+            var firstArgument = Visitor().VisitNode(argumentNodes[0]);
             var firstArgumentChanged = false;
             if (IsStringLiteralLike(firstArgument))
             {
@@ -746,7 +747,7 @@ public sealed partial class CommonJSModuleTransformer
                 firstArgumentChanged = true;
             }
 
-            var (rest, restChanged) = Visitor().VisitSlice(node.Arguments.Nodes[1..]);
+            var (rest, restChanged) = Visitor().VisitSlice(argumentNodes[1..]);
             if (firstArgumentChanged || restChanged)
             {
                 var arguments = new List<Node> { firstArgument! };

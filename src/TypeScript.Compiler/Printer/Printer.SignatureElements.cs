@@ -73,12 +73,13 @@ public sealed partial class Printer
             var start = 0;
             var pos = 0;
 
+            var modifierNodes = modifiers.Nodes ?? [];
             Node lastModifier;
-            while (start < modifiers.Nodes!.Length)
+            while (start < modifierNodes.Length)
             {
-                while (pos < modifiers.Nodes!.Length)
+                while (pos < modifierNodes.Length)
                 {
-                    lastModifier = modifiers.Nodes![pos];
+                    lastModifier = modifierNodes[pos];
                     if (IsDecorator(lastModifier))
                     {
                         mode = modeDecorators;
@@ -103,7 +104,7 @@ public sealed partial class Printer
                 {
                     textRange = NewTextRange(modifiers.Pos(), textRange.End());
                 }
-                if (pos == modifiers.Nodes!.Length - 1)
+                if (pos == modifierNodes.Length - 1)
                 {
                     textRange = NewTextRange(textRange.Pos(), modifiers.End());
                 }
@@ -112,7 +113,7 @@ public sealed partial class Printer
                     EmitListItems(
                         EmitModifierLike,
                         parentNode,
-                        modifiers.Nodes![start..pos],
+                        modifierNodes[start..pos],
                         IfElse(lastMode == modeModifiers, ListFormat.Modifiers, ListFormat.Decorators),
                         false, /*hasTrailingComma*/
                         textRange);

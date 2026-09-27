@@ -78,7 +78,7 @@ internal sealed class UsingDeclarationTransformer : Transformer
         }
 
         Node? visited;
-        var usingKind = GetUsingKindOfStatements(node.Statements!.Nodes!);
+        var usingKind = GetUsingKindOfStatements(node.Statements!.Nodes ?? []);
         if (usingKind != UsingKind.None)
         {
             // Imports and exports must stay at the top level. This means we must hoist all imports, exports, and
@@ -124,7 +124,7 @@ internal sealed class UsingDeclarationTransformer : Transformer
             _exportBindings = [];
             _exportVars = [];
 
-            var (prologue, rest) = Factory().SplitStandardPrologue(node.Statements!.Nodes!);
+            var (prologue, rest) = Factory().SplitStandardPrologue(node.Statements!.Nodes ?? []);
             var topLevelStatements = new List<Node>();
             topLevelStatements.AddRange(Visitor().VisitSlice(prologue).Result ?? []);
 
@@ -222,10 +222,10 @@ internal sealed class UsingDeclarationTransformer : Transformer
     /// <summary>Go: <c>func (tx *usingDeclarationTransformer) visitBlock</c>（using.go:168-186）。</summary>
     private Node? VisitBlock(Block node)
     {
-        var usingKind = GetUsingKindOfStatements(node.Statements!.Nodes!);
+        var usingKind = GetUsingKindOfStatements(node.Statements!.Nodes ?? []);
         if (usingKind != UsingKind.None)
         {
-            var (prologue, rest) = Factory().SplitStandardPrologue(node.Statements!.Nodes!);
+            var (prologue, rest) = Factory().SplitStandardPrologue(node.Statements!.Nodes ?? []);
             var envBinding = CreateEnvBinding();
             var statements = new List<Node>(prologue.Length + 2);
             statements.AddRange(Visitor().VisitSlice(prologue).Result ?? []);
@@ -292,7 +292,7 @@ internal sealed class UsingDeclarationTransformer : Transformer
             //
             // before handing the shallow transformation back to the visitor for an in-depth transformation.
             var forInitializer = node.Initializer!.AsVariableDeclarationList()!;
-            Node? forDecl = FirstOrNil(forInitializer.Declarations!.Nodes!);
+            Node? forDecl = FirstOrNil(forInitializer.Declarations!.Nodes);
             if (forDecl is null)
             {
                 forDecl = Factory().NewVariableDeclaration(Factory().NewTempVariable(), null, null, null);
@@ -309,11 +309,11 @@ internal sealed class UsingDeclarationTransformer : Transformer
             Node statement;
             if (IsBlock(node.Statement!))
             {
-                var statements = new List<Node>(node.Statement!.AsBlock()!.Statements!.Nodes!.Length + 1)
+                var statements = new List<Node>((node.Statement!.AsBlock()!.Statements!.Nodes?.Length ?? 0) + 1)
                 {
                     usingVarStatement,
                 };
-                statements.AddRange(node.Statement.AsBlock()!.Statements!.Nodes!);
+                statements.AddRange(node.Statement.AsBlock()!.Statements!.Nodes ?? []);
                 statement = Factory().UpdateBlock(
                     node.Statement.AsBlock()!,
                     Factory().NewNodeList(statements.ToArray()),

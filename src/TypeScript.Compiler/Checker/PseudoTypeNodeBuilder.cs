@@ -201,7 +201,7 @@ public sealed partial class NodeBuilderImpl
                 {
                     if (IsUnionTypeNode(node))
                     {
-                        foreach (var n in node.AsUnionTypeNode()!.Types!.Nodes!)
+                        foreach (var n in node.AsUnionTypeNode()!.Types!.Nodes ?? [])
                         {
                             AppendTypeNode(n);
                         }

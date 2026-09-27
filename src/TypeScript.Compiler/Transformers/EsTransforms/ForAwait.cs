@@ -90,7 +90,7 @@ internal sealed class ForAwaitTransformer : Transformer
     internal NodeVisitor? _noAsyncModifierVisitor;
 
     /// <summary>Go: <c>node.Parameters()</c>（见文件头差异 4）。</summary>
-    private static Node[] Parameters(Node node) => node.ParameterList()!.Nodes!;
+    private static Node[] Parameters(Node node) => node.ParameterList()!.Nodes ?? [];
 
     /// <summary>Go: <c>func (tx *forawaitTransformer) affectsSubtree</c>（forawait.go:64-66）。</summary>
     private bool AffectsSubtree(ForAwaitHierarchyFacts excludeFacts, ForAwaitHierarchyFacts includeFacts) =>
@@ -422,7 +422,7 @@ internal sealed class ForAwaitTransformer : Transformer
         var statement = Visitor().VisitEmbeddedStatement(node.Statement);
         if (IsBlock(statement!))
         {
-            statements.AddRange(statement!.StatementList()!.Nodes!);
+            statements.AddRange(statement!.StatementList()!.Nodes ?? []);
             bodyLocation = statement.Loc;
             statementsLocation = statement.StatementList()!.Loc;
         }

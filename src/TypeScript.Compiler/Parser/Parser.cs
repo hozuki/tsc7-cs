@@ -534,9 +534,10 @@ public sealed partial class Parser
         var node = FinishNode(_factory.NewSourceFile(_opts, _sourceText, statements, eof), pos);
         var result = node.AsSourceFile()!;
         var resultStatements = result.Statements!;
-        if (resultStatements.Nodes!.Length > 0)
+        var resultStatementNodes = resultStatements.Nodes ?? [];
+        if (resultStatementNodes.Length > 0)
         {
-            ValidateJsonValue(result, resultStatements.Nodes[0].Expression());
+            ValidateJsonValue(result, resultStatementNodes[0].Expression());
         }
 
         FinishSourceFile(result, false);
@@ -971,7 +972,7 @@ public sealed partial class Parser
         var savedParseDiagnostics = _diagnostics;
         _diagnostics = [];
 
-        var awaitStatementNodes = sourceFile.Statements!.Nodes!;
+        var awaitStatementNodes = sourceFile.Statements!.Nodes ?? [];
         var afterAwaitStatement = 0;
         for (var i = 0; i < _possibleAwaitSpans.Count; i += 2)
         {

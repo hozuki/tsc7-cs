@@ -308,7 +308,7 @@ public sealed partial class NodeBuilderImpl
         if (symbolName.Length == 0)
         {
             Node? name = null;
-            foreach (var d in symbol.Declarations!)
+            foreach (var d in symbol.Declarations ?? [])
             {
                 name = GetNameOfDeclaration(d);
                 if (name is not null)
@@ -359,7 +359,7 @@ public sealed partial class NodeBuilderImpl
         if (index > stopper)
         {
             var lhs = CreateAccessFromSymbolChain(chain, index - 1, stopper, overrideTypeArguments);
-            if ((_ctx!._flags & NodeBuilderFlags.UseInstantiationExpressions) == 0 || IsEntityName(lhs) && (typeParameterNodes is null || typeParameterNodes.Nodes!.Length == 0))
+            if ((_ctx!._flags & NodeBuilderFlags.UseInstantiationExpressions) == 0 || IsEntityName(lhs) && (typeParameterNodes is null || (typeParameterNodes.Nodes?.Length ?? 0) == 0))
             {
                 return _f.NewQualifiedName(lhs, identifier);
             }

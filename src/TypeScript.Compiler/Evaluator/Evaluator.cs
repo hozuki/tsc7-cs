@@ -200,7 +200,7 @@ public static class EvaluatorFunctions
         sb.Append(template.Head!.Text());
         var resolvedOtherFiles = false;
         var hasExternalReferences = false;
-        foreach (var span in template.TemplateSpans!.Nodes!)
+        foreach (var span in template.TemplateSpans!.Nodes ?? [])
         {
             var spanResult = evaluate(span.Expression()!, location);
             if (spanResult.Value is null)

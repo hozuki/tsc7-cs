@@ -635,7 +635,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
             }
 
             EmitContext().StartVariableEnvironment();
-            Node[]? statements = SetCurrentClassElementAndVisitStatements(node, node.AsClassStaticBlockDeclaration()!.Body!.AsBlock()!.Statements!.Nodes!);
+            Node[]? statements = SetCurrentClassElementAndVisitStatements(node, node.AsClassStaticBlockDeclaration()!.Body!.AsBlock()!.Statements!.Nodes ?? []);
             statements = EmitContext().EndAndMergeVariableEnvironment(statements);
 
             var iife = Factory().NewImmediatelyInvokedArrowFunction(statements!);

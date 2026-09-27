@@ -54,7 +54,7 @@ internal sealed partial class EsDecoratorTransformer
         {
             var expression = Visitor().VisitNode(call.Expression);
             var argumentsList = Visitor().VisitNodes(call.Arguments);
-            var invocation = Factory().NewFunctionCallCall(expression!, _classThis, argumentsList!.Nodes!);
+            var invocation = Factory().NewFunctionCallCall(expression!, _classThis, argumentsList!.Nodes ?? []);
             EmitContext().SetOriginal(invocation, node);
             invocation.Loc = node.Loc;
             return invocation;

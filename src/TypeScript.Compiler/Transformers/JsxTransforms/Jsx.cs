@@ -225,7 +225,7 @@ public sealed partial class JSXTransformer : Transformer
 
         var visited = file.VisitEachChild(Visitor())!;
         EmitContext().AddEmitHelper(visited, EmitContext().ReadEmitHelpers());
-        var statements = visited.Statements()!;
+        var statements = visited.Statements() ?? [];
         var statementsUpdated = false;
         if (_filenameDeclaration is not null)
         {
@@ -311,10 +311,12 @@ public sealed partial class JSXTransformer : Transformer
     private Node VisitJsxElement(JsxElement element)
     {
         var location = NewTextRange(SkipTrivia(_currentSourceFile!.Text(), element.Pos()), element.End());
-        // Go: tagTransform := (*JSXTransformer).visitJsxOpeningLikeElementJSX，必要时改写为 …CreateElement
+        // Go: tagTransform := (*JSXTransformer).visitJsxOpeningLikeElementJSX，必要时改写为 …CreateElement；
+        // Go 传入的是 element.OpeningElement（不是 JsxElement 本身；getTagName/Attributes 只认 opening-like 节点）。
+        var openingElement = element.OpeningElement!;
         return ShouldUseCreateElement(element)
-            ? VisitJsxOpeningLikeElementCreateElement(element, element.Children, location)
-            : VisitJsxOpeningLikeElementJSX(element, element.Children, location);
+            ? VisitJsxOpeningLikeElementCreateElement(openingElement, element.Children, location)
+            : VisitJsxOpeningLikeElementJSX(openingElement, element.Children, location);
     }
 
     /// <summary>Go: <c>func (tx *JSXTransformer) visitJsxSelfClosingElement(element *ast.JsxSelfClosingElement) *ast.Node</c>（jsx.go:289-296）。</summary>
@@ -769,7 +771,7 @@ public static partial class JsxTransforms
     /// <summary>Go: <c>func hasProto(obj *ast.ObjectLiteralExpression) bool</c>（jsx.go:481-488）。</summary>
     internal static bool HasProto(ObjectLiteralExpression obj)
     {
-        foreach (var p in obj.Properties!.Nodes!)
+        foreach (var p in obj.Properties!.Nodes ?? [])
         {
             if (IsPropertyAssignment(p) && (IsStringLiteral(p.Name()!) || IsIdentifier(p.Name()!)) && p.Name()!.Text() == "__proto__")
             {

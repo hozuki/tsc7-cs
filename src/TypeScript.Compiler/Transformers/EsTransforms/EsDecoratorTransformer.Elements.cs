@@ -394,9 +394,10 @@ internal sealed partial class EsDecoratorTransformer
             {
                 // Inject var declarations at the start of the static block's body
                 var blockBody = result!.AsClassStaticBlockDeclaration()!.Body!.AsBlock()!;
-                var newStmts = new List<Node>(varStatements.Length + blockBody.Statements!.Nodes!.Length);
+                var blockBodyStatements = blockBody.Statements!.Nodes ?? [];
+                var newStmts = new List<Node>(varStatements.Length + blockBodyStatements.Length);
                 newStmts.AddRange(varStatements);
-                newStmts.AddRange(blockBody.Statements.Nodes);
+                newStmts.AddRange(blockBodyStatements);
                 result = f.NewClassStaticBlockDeclaration(null, f.NewBlock(f.NewNodeList(newStmts.ToArray()), blockBody.MultiLine));
             }
 

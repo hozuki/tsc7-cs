@@ -373,7 +373,8 @@ public sealed partial class Checker
                 return MemberOverrideStatus.HasInvalidOverride;
             }
 
-            if (prop != null && baseProp != null && baseProp.Declarations!.Length > 0 && _compilerOptions.NoImplicitOverride.IsTrue() && (node.Flags & NodeFlags.Ambient) == 0)
+            // Go: `len(baseProp.Declarations) > 0`（nil 切片长度为 0）
+            if (prop != null && baseProp != null && (baseProp.Declarations?.Length ?? 0) > 0 && _compilerOptions.NoImplicitOverride.IsTrue() && (node.Flags & NodeFlags.Ambient) == 0)
             {
                 var baseHasAbstract = Some(baseProp.Declarations, d => HasAbstractModifier(d));
                 if (memberHasOverrideModifier)

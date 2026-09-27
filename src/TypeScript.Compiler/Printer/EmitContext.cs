@@ -986,7 +986,7 @@ public sealed class EmitContext
             return nodeList;
         }
         Node[]? result = null;
-        var nodes = nodeList.Nodes!;
+        var nodes = nodeList.Nodes ?? [];
         for (var i = 0; i < nodes.Length; i++)
         {
             var parameter = nodes[i];
@@ -1165,7 +1165,7 @@ public sealed class EmitContext
         {
             if (IsBlock(updated!))
             {
-                statements.AddRange(updated!.Statements()!);
+                statements.AddRange(updated!.Statements() ?? []);
                 var statementsList = Factory.NewNodeList(statements.ToArray());
                 statementsList.Loc = updated.StatementList()!.Loc;
                 return Factory.UpdateBlock(updated.AsBlock()!, statementsList, updated.AsBlock()!.MultiLine);

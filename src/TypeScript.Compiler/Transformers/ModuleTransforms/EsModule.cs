@@ -88,7 +88,7 @@ public sealed class ESModuleTransformer : Transformer
         var externalHelpersImportDeclaration = ModuleTransforms.CreateExternalHelpersImportDeclarationIfNeeded(EmitContext(), result, _compilerOptions, _getEmitModuleFormatOfFile!(node), false /*hasExportStarsToExportValues*/, false /*hasImportStar*/, false /*hasImportDefault*/);
         if (externalHelpersImportDeclaration is not null || _importRequireStatements is not null)
         {
-            var (prologue, rest) = Factory().SplitStandardPrologue(result.Statements!.Nodes!);
+            var (prologue, rest) = Factory().SplitStandardPrologue(result.Statements!.Nodes ?? []);
             var (custom, restNodes) = Factory().SplitCustomPrologue(rest ?? []);
             var statements = new List<Node>(prologue);
             statements.AddRange(custom ?? []);
@@ -111,9 +111,9 @@ public sealed class ESModuleTransformer : Transformer
 
         if (IsExternalModule(result) &&
             _compilerOptions.GetEmitModuleKind() != ModuleKind.Preserve &&
-            !Some(result.Statements!.Nodes!, n => IsExternalModuleIndicator(n)))
+            !Some(result.Statements!.Nodes, n => IsExternalModuleIndicator(n)))
         {
-            var statements = new List<Node>(result.Statements!.Nodes!);
+            var statements = new List<Node>(result.Statements!.Nodes ?? []);
             statements.Add(ModuleTransforms.CreateEmptyImports(Factory()));
             var statementList = Factory().NewNodeList(statements.ToArray());
             statementList.Loc = result.Statements!.Loc;
@@ -282,7 +282,7 @@ public sealed class ESModuleTransformer : Transformer
     {
         if (_compilerOptions.RewriteRelativeImportExtensions.IsTrue())
         {
-            if (IsImportCall(node.AsNode()) && node.Arguments!.Nodes!.Length > 0 ||
+            if (IsImportCall(node.AsNode()) && (node.Arguments!.Nodes?.Length ?? 0) > 0 ||
                 IsInJSFile(node.AsNode()) && IsRequireCall(node.AsNode(), false /*requireStringLiteralLikeArgument*/))
             {
                 return VisitImportOrRequireCall(node);
@@ -294,7 +294,8 @@ public sealed class ESModuleTransformer : Transformer
     /// <summary>Go: <c>func (tx *ESModuleTransformer) visitImportOrRequireCall(node *ast.CallExpression) *ast.Node</c>。</summary>
     private Node? VisitImportOrRequireCall(CallExpression node)
     {
-        if (node.Arguments!.Nodes!.Length == 0)
+        var argumentNodes = node.Arguments!.Nodes ?? [];
+        if (argumentNodes.Length == 0)
         {
             return Visitor().VisitEachChild(node.AsNode());
         }
@@ -302,17 +303,17 @@ public sealed class ESModuleTransformer : Transformer
         var expression = Visitor().VisitNode(node.Expression)!;
 
         Node? argument;
-        if (IsStringLiteralLike(node.Arguments.Nodes[0]))
+        if (IsStringLiteralLike(argumentNodes[0]))
         {
-            argument = ModuleTransforms.RewriteModuleSpecifier(EmitContext(), node.Arguments.Nodes[0], _compilerOptions);
+            argument = ModuleTransforms.RewriteModuleSpecifier(EmitContext(), argumentNodes[0], _compilerOptions);
         }
         else
         {
-            argument = Factory().NewRewriteRelativeImportExtensionsHelper(node.Arguments.Nodes[0], _compilerOptions.Jsx == JsxEmit.Preserve);
+            argument = Factory().NewRewriteRelativeImportExtensionsHelper(argumentNodes[0], _compilerOptions.Jsx == JsxEmit.Preserve);
         }
 
         var arguments = new List<Node> { argument! };
-        var (rest, _) = Visitor().VisitSlice(node.Arguments.Nodes[1..]);
+        var (rest, _) = Visitor().VisitSlice(argumentNodes[1..]);
         arguments.AddRange(rest ?? []);
 
         var argumentList = Factory().NewNodeList(arguments.ToArray());

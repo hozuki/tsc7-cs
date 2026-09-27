@@ -570,6 +570,6 @@ public sealed partial class Checker
 
     internal static bool IsUnaryTupleTypeNode(Node node)
     {
-        return IsTupleTypeNode(node) && node.Elements()!.Length == 1;
+        return IsTupleTypeNode(node) && (node.Elements()?.Length ?? 0) == 1;
     }
 }

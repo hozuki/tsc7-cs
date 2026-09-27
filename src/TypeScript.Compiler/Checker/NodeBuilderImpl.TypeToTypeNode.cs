@@ -276,7 +276,7 @@ public sealed partial class NodeBuilderImpl
                         return _f.NewTypeReferenceNode(_f.NewIdentifier(""), typeArgumentNodes0);
                     }
 
-                    if (typeArgumentNodes0 is not null && typeArgumentNodes0.Nodes!.Length == 1 && sym == _ch._globalArrayType!._symbol)
+                    if (typeArgumentNodes0 is not null && (typeArgumentNodes0.Nodes?.Length ?? 0) == 1 && sym == _ch._globalArrayType!._symbol)
                     {
                         return _f.NewArrayTypeNode(typeArgumentNodes0.Nodes![0]);
                     }
@@ -396,7 +396,7 @@ public sealed partial class NodeBuilderImpl
                     }
 
                     var typeNodes = MapToTypeNodes(types, true /*isBareList*/);
-                    if (typeNodes is not null && typeNodes.Nodes!.Length > 0)
+                    if (typeNodes is not null && (typeNodes.Nodes?.Length ?? 0) > 0)
                     {
                         if ((t._flags & TypeFlags.Union) != 0)
                         {
@@ -564,7 +564,7 @@ public sealed partial class NodeBuilderImpl
 
     internal Node? CreateExpressionWithTypeArguments(Node? expr, NodeList? typeArguments)
     {
-        if (typeArguments is null || typeArguments.Nodes!.Length == 0)
+        if (typeArguments is null || (typeArguments.Nodes?.Length ?? 0) == 0)
         {
             return expr;
         }

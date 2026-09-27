@@ -132,7 +132,7 @@ public sealed partial class Checker
             // the binding pattern AST instance for '{ kind, payload }' as a pseudo-reference and narrow this reference
             // as if it occurred in the specified location. We then recompute the narrowed binding element type by
             // destructuring from the narrowed parent type.
-            if (IsBindingElement(declaration) && declaration.Initializer() is null && !HasDotDotDotToken(declaration) && declaration.Parent!.Elements()!.Length >= 2)
+            if (IsBindingElement(declaration) && declaration.Initializer() is null && !HasDotDotDotToken(declaration) && (declaration.Parent!.Elements()?.Length ?? 0) >= 2)
             {
                 // Go: case 体里的 `break` 跳出 switch（= 跳过本 case 的剩余语句）
                 var rootDeclaration = GetRootDeclaration(declaration);

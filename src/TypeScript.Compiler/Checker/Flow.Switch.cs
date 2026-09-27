@@ -86,7 +86,7 @@ public sealed partial class Checker
         var links = _switchStatementLinks.Get(node);
         if (!links._witnessesComputed)
         {
-            var clauses = node.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes!;
+            var clauses = node.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes ?? [];
             // Go 用 `witnesses = nil` 表示"不是全部 case 都是字符串字面量"；C# 里用非空局部数组写入、可空别名对外。
             var witnessesArray = new string[clauses.Length];
             string[]? witnesses = witnessesArray;
@@ -137,7 +137,7 @@ public sealed partial class Checker
         var links = _switchStatementLinks.Get(node);
         if (!links._switchTypesComputed)
         {
-            var clauses = node.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes!;
+            var clauses = node.AsSwitchStatement()!.CaseBlock!.AsCaseBlock()!.Clauses!.Nodes ?? [];
             var types = new Type[clauses.Length];
             for (var i = 0; i < clauses.Length; i++)
             {

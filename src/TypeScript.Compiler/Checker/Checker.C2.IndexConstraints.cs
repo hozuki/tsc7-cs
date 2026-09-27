@@ -189,13 +189,15 @@ public sealed partial class Checker
         // 3.7.4: An object type can contain at most one string index signature and one numeric index signature.
         // 8.5: A class declaration can have at most one string index member declaration and one numeric index member declaration
         var indexSymbol = GetIndexSymbol(GetSymbolOfDeclaration(node)!);
-        if (indexSymbol == null || indexSymbol.Declarations!.Length <= 1)
+        // Go: `len(indexSymbol.Declarations) <= 1`（nil 切片长度为 0）
+        var indexSymbolDeclarations = indexSymbol?.Declarations ?? [];
+        if (indexSymbolDeclarations.Length <= 1)
         {
             return;
         }
 
         var indexSignatureMap = new Dictionary<Type, List<Node>>();
-        foreach (var declaration in indexSymbol.Declarations)
+        foreach (var declaration in indexSymbolDeclarations)
         {
             if (IsIndexSignatureDeclaration(declaration))
             {

@@ -75,7 +75,7 @@ public sealed partial class Checker
                     {
                         deprecatedNode = accessNode;
                     }
-                    AddDeprecatedSuggestion(deprecatedNode!, prop.Declarations!, propName);
+                    AddDeprecatedSuggestion(deprecatedNode!, prop.Declarations, propName);
                 }
                 if (accessExpression != null)
                 {

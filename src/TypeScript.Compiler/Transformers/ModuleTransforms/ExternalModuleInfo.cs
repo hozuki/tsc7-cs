@@ -67,7 +67,7 @@ internal sealed class ExternalModuleInfoCollector
     {
         var hasImportStar = false;
         var hasImportDefault = false;
-        foreach (var node in _sourceFile.Statements!.Nodes!)
+        foreach (var node in _sourceFile.Statements!.Nodes ?? [])
         {
             // Look through NotEmittedStatement to find elided export= declarations
             // (e.g., `declare export = x` is elided by the type eraser but must still be collected)
@@ -177,7 +177,7 @@ internal sealed class ExternalModuleInfoCollector
                     var n = node.AsVariableStatement()!;
                     if (HasSyntacticModifier(node, ModifierFlags.Export))
                     {
-                        foreach (var decl in n.DeclarationList!.AsVariableDeclarationList()!.Declarations!.Nodes!)
+                        foreach (var decl in n.DeclarationList!.AsVariableDeclarationList()!.Declarations!.Nodes ?? [])
                         {
                             CollectExportedVariableInfo(decl);
                         }
@@ -265,7 +265,7 @@ internal sealed class ExternalModuleInfoCollector
     /// <summary>Go: <c>func (c *externalModuleInfoCollector) addExportedNamesForExportDeclaration(node *ast.ExportDeclaration)</c>。</summary>
     private void AddExportedNamesForExportDeclaration(ExportDeclaration node)
     {
-        foreach (var specifier in node.ExportClause!.Elements()!)
+        foreach (var specifier in node.ExportClause!.Elements() ?? [])
         {
             var specifierNameText = specifier.Name()!.Text();
             if (AddUniqueExport(specifierNameText))
@@ -330,7 +330,7 @@ internal sealed class ExternalModuleInfoCollector
     {
         if (IsBindingPattern(decl.Name()))
         {
-            foreach (var element in decl.Name()!.Elements()!)
+            foreach (var element in decl.Name()!.Elements() ?? [])
             {
                 var e = element.AsBindingElement()!;
                 if (e.Name() is not null)
@@ -533,7 +533,7 @@ public static partial class ModuleTransforms
         }
         var namedImports = bindings.AsNamedImports()!;
         var defaultRefCount = 0;
-        foreach (var binding in namedImports.Elements!.Nodes!)
+        foreach (var binding in namedImports.Elements!.Nodes ?? [])
         {
             if (IsNamedDefaultReference(binding))
             {
@@ -541,7 +541,7 @@ public static partial class ModuleTransforms
             }
         }
         // Import star is required if there's default named refs mixed with non-default refs, or if theres non-default refs and it has a default import
-        return (defaultRefCount > 0 && defaultRefCount != namedImports.Elements!.Nodes!.Length) || ((namedImports.Elements!.Nodes!.Length - defaultRefCount) != 0 && IsDefaultImport(node.AsNode()));
+        return (defaultRefCount > 0 && defaultRefCount != (namedImports.Elements!.Nodes?.Length ?? 0)) || (((namedImports.Elements!.Nodes?.Length ?? 0) - defaultRefCount) != 0 && IsDefaultImport(node.AsNode()));
     }
 
     /// <summary>Go: <c>func getImportNeedsImportDefaultHelper(node *ast.ImportDeclaration) bool</c>。</summary>

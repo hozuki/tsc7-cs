@@ -115,7 +115,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
         // classContainsConstructorReference checks if any member of a class contains
         // references to the class's own constructor. Replaces Strada's
         // resolver.hasNodeCheckFlag(node, NodeCheckFlags.ContainsConstructorReference).
-        foreach (var member in node.Members()!)
+        foreach (var member in node.Members() ?? [])
         {
             if (MemberContainsConstructorReference(member, node))
             {
@@ -147,7 +147,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
         var containsInstancePrivateElements = false;
         var containsInstanceAutoAccessors = false;
 
-        foreach (var member in node.Members()!)
+        foreach (var member in node.Members() ?? [])
         {
             if (IsStatic(member))
             {
@@ -733,7 +733,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
         // Declare private names
         if (_shouldTransformPrivateElementsOrClassStaticBlocks || _shouldTransformPrivateStaticElementsInFile)
         {
-            foreach (var member in node.Members()!)
+            foreach (var member in node.Members() ?? [])
             {
                 if (IsPrivateIdentifierClassElementDeclaration(member))
                 {
@@ -762,7 +762,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
 
             if (ShouldTransformAutoAccessorsInCurrentClass())
             {
-                foreach (var member in node.Members()!)
+                foreach (var member in node.Members() ?? [])
                 {
                     if (IsAutoAccessorPropertyDeclaration(member))
                     {
@@ -991,7 +991,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
             var tryBlock = superStatement.AsTryStatement()!.TryBlock!.AsBlock()!;
             var tryBlockStatements = TransformConstructorBodyWorker(
                 null,
-                tryBlock.Statements!.Nodes!,
+                tryBlock.Statements!.Nodes ?? [],
                 0, /*statementOffset*/
                 superPath,
                 superPathDepth + 1,
@@ -1112,7 +1112,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
             var body = constructor.Body.AsBlock()!;
 
             // Copy prologue
-            foreach (var stmt in body.Statements!.Nodes!)
+            foreach (var stmt in body.Statements!.Nodes ?? [])
             {
                 if (IsPrologueDirective(stmt))
                 {
@@ -1125,18 +1125,19 @@ public sealed partial class ClassFieldsTransformer : Transformer
             }
             var statementOffset = statements.Count;
 
-            var superPath = FindSuperStatementIndexPath(body.Statements.Nodes!, statementOffset);
+            var superPath = FindSuperStatementIndexPath(body.Statements.Nodes ?? [], statementOffset);
             if (superPath.Length > 0)
             {
-                statements = TransformConstructorBodyWorker(statements, body.Statements.Nodes!, statementOffset, superPath, 0, initializerStatements, constructor);
+                statements = TransformConstructorBodyWorker(statements, body.Statements.Nodes ?? [], statementOffset, superPath, 0, initializerStatements, constructor);
             }
             else
             {
                 // parameter-property assignments should occur immediately after the prologue and `super()`,
                 // so only count the statements that immediately follow.
-                while (statementOffset < body.Statements.Nodes!.Length)
+                var bodyStatementNodes = body.Statements.Nodes ?? [];
+                while (statementOffset < bodyStatementNodes.Length)
                 {
-                    var stmt = body.Statements.Nodes[statementOffset];
+                    var stmt = bodyStatementNodes[statementOffset];
                     var orig = EmitContext().MostOriginal(stmt);
                     if (IsParameterPropertyDeclaration(orig, constructor.AsNode()))
                     {
@@ -1148,7 +1149,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
                     }
                 }
                 statements.AddRange(initializerStatements);
-                var (visited, _) = Visitor().VisitSlice(body.Statements.Nodes![statementOffset..]);
+                var (visited, _) = Visitor().VisitSlice((body.Statements.Nodes ?? [])[statementOffset..]);
                 statements.AddRange(visited!);
             }
         }
@@ -1184,7 +1185,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
 
         bool multiLine;
         if (constructor != null && constructor.Body != null &&
-            constructor.Body.AsBlock()!.Statements!.Nodes!.Length >= finalStatements.Length)
+            (constructor.Body.AsBlock()!.Statements!.Nodes?.Length ?? 0) >= finalStatements.Length)
         {
             multiLine = constructor.Body.AsBlock()!.MultiLine;
         }

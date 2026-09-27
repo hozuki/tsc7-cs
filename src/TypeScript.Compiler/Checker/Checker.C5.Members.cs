@@ -538,7 +538,8 @@ public sealed partial class Checker
 
             if (!PopTypeResolution() && t._symbol!.Declarations != null)
             {
-                foreach (var declaration in t._symbol!.Declarations!)
+                // Go: `for _, declaration := range t.symbol.Declarations`（checker.go:19528）
+                foreach (var declaration in t._symbol!.Declarations ?? [])
                 {
                     if (IsClassDeclaration(declaration) || IsInterfaceDeclaration(declaration))
                     {

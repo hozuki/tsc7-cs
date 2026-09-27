@@ -307,7 +307,7 @@ public sealed partial class Checker
         }
         if (IsArrayLiteralExpression(parent) || IsArrayBindingPattern(parent))
         {
-            name = Array.IndexOf(parent.Elements()!, node).ToString(CultureInfo.InvariantCulture);
+            name = Array.IndexOf(parent.Elements() ?? [], node).ToString(CultureInfo.InvariantCulture);
             return true;
         }
         name = "";

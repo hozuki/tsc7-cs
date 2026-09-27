@@ -36,7 +36,9 @@ public sealed partial class Checker
         var result = NewSymbol(symbol.Flags, symbol.Name);
 
         // Force reallocation if anything is ever appended to declarations
-        result.Declarations = symbol.Declarations![0..symbol.Declarations!.Length];
+        // Go: `symbol.Declarations[0:len(symbol.Declarations):len(symbol.Declarations)]`（checker.go:14572；
+        // nil 切片取 0:0 得空切片，C# 要在 null 上兜住）
+        result.Declarations = symbol.Declarations is { } symbolDeclarations ? symbolDeclarations[0..symbolDeclarations.Length] : [];
         result.Parent = symbol.Parent;
         result.ValueDeclaration = symbol.ValueDeclaration;
         result.Members = symbol.Members is null ? null : CloneSymbolTable(symbol.Members);

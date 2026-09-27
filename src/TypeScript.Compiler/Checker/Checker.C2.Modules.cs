@@ -138,7 +138,7 @@ public sealed partial class Checker
                 var checkBody = isGlobalAugmentation || (GetSymbolOfDeclaration(node)!.Flags & SymbolFlags.Transient) != 0;
                 if (checkBody && node.Body() != null)
                 {
-                    foreach (var statement in node.Body()!.Statements()!)
+                    foreach (var statement in node.Body()!.Statements() ?? [])
                     {
                         CheckModuleAugmentationElement(statement);
                     }
@@ -245,7 +245,8 @@ public sealed partial class Checker
         {
             case Kind.VariableStatement:
                 // error each individual name in variable statement instead of marking the entire variable statement
-                foreach (var decl in node.AsVariableStatement()!.DeclarationList!.AsVariableDeclarationList()!.Declarations!.Nodes!)
+                // Go: `for _, decl := range ...Declarations.Nodes`（NodeList.Nodes 是 nil 切片；`Declarations` 本身是指针，保留 `!`）
+                foreach (var decl in node.AsVariableStatement()!.DeclarationList!.AsVariableDeclarationList()!.Declarations!.Nodes ?? [])
                 {
                     CheckModuleAugmentationElement(decl);
                 }
@@ -540,7 +541,7 @@ public sealed partial class Checker
         {
             var symbol = NewSymbol(SymbolFlags.ObjectLiteral, InternalSymbolNameImportAttributes);
             var members = new SymbolTable();
-            foreach (var attribute in node.AsImportAttributes()!.Attributes!.Nodes!)
+            foreach (var attribute in node.AsImportAttributes()!.Attributes!.Nodes ?? [])
             {
                 var member = NewSymbol(SymbolFlags.Property, attribute!.Name()!.Text());
                 _valueSymbolLinks.Get(member)._resolvedType = GetRegularTypeOfLiteralType(CheckExpressionCached(attribute.AsImportAttribute()!.Value!));
@@ -564,7 +565,7 @@ public sealed partial class Checker
                 return GetTypeFromImportAttributes(GetImportAttributes(parent));
             case { } when IsLiteralTypeNode(parent) && IsLiteralImportTypeNode(parent.Parent!):
                 return GetTypeFromImportAttributes(GetImportAttributes(parent.Parent!));
-            case { } when IsImportCall(parent) && parent.Arguments()!.Length > 1:
+            case { } when IsImportCall(parent) && (parent.Arguments()?.Length ?? 0) > 1:
                 {
                     var options = parent.Arguments()![1];
                     return GetTypeOfPropertyOfTypeWorker(CheckExpressionCached(options), "with");

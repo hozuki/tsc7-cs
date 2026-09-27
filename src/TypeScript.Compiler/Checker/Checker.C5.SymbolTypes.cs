@@ -997,7 +997,7 @@ public sealed partial class Checker
         var inferences = new List<Type>();
         if (t._symbol != null && (t._symbol.Declarations?.Length ?? 0) != 0)
         {
-            foreach (var declaration in t._symbol.Declarations!)
+            foreach (var declaration in t._symbol.Declarations ?? [])
             {
                 if (IsInferTypeNode(declaration.Parent!))
                 {

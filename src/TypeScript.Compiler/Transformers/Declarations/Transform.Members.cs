@@ -244,7 +244,7 @@ public sealed partial class DeclarationTransformer : Transformer
         var heritageClause = input.AsHeritageClause();
         if (heritageClause != null)
         {
-            var heritageTypes = heritageClause.Types!.Nodes!;
+            var heritageTypes = heritageClause.Types!.Nodes ?? [];
             if (heritageTypes.Length == 0 || (heritageTypes.Length == 1 && NodeIsMissing(heritageTypes[0])))
             {
                 return null;
@@ -443,7 +443,7 @@ public sealed partial class DeclarationTransformer : Transformer
         {
             return null; // elide empty clause
         }
-        if (retainedClauses.Length == clause.Types!.Nodes!.Length)
+        if (retainedClauses.Length == (clause.Types!.Nodes?.Length ?? 0))
         {
             return Visitor().VisitEachChild(clause);
         }
@@ -585,7 +585,7 @@ public sealed partial class DeclarationTransformer : Transformer
             // `const {x, y: z} = require("something")` -> `import {x, y as z} from "something"`
             var b = input.Name()!.AsBindingPattern()!;
             var importSpecifiers = new List<Node>();
-            foreach (var elem in b.Elements!.Nodes!)
+            foreach (var elem in b.Elements!.Nodes ?? [])
             {
                 if (!IsIdentifier(elem.Name()!))
                 {
@@ -608,7 +608,7 @@ public sealed partial class DeclarationTransformer : Transformer
     private Node? RecreateBindingPattern(BindingPattern input)
     {
         var results = new List<Node>();
-        foreach (var elem in input.Elements!.Nodes!)
+        foreach (var elem in input.Elements!.Nodes ?? [])
         {
             var result = RecreateBindingElement(elem.AsBindingElement()!);
             if (result == null)
@@ -776,7 +776,7 @@ public sealed partial class DeclarationTransformer : Transformer
             Node? valueParam = null;
             if (!isPrivate)
             {
-                var setAccessorParameters = input.AsSetAccessorDeclaration()!.Parameters!.Nodes!;
+                var setAccessorParameters = input.AsSetAccessorDeclaration()!.Parameters!.Nodes ?? [];
                 if (newParams.Count == 1 && setAccessorParameters.Length >= 2)
                 {
                     valueParam = EnsureParameter(setAccessorParameters[1].AsParameterDeclaration()!);
@@ -834,7 +834,8 @@ public sealed partial class DeclarationTransformer : Transformer
     /// <summary>Go: <c>func (tx *DeclarationTransformer) omitPrivateMethodType(input *ast.Node) *ast.Node</c>（transform.go:1096-1120）。</summary>
     private Node? OmitPrivateMethodType(Node input)
     {
-        if (input.Symbol != null && input.Symbol!.Declarations!.Length > 0 && input.Symbol!.Declarations![0] != input)
+        var symbolDeclarations = input.Symbol?.Declarations ?? [];
+        if (input.Symbol != null && symbolDeclarations.Length > 0 && symbolDeclarations[0] != input)
         {
             return null;
         }
@@ -918,7 +919,7 @@ public static partial class Declarations
     /// <summary>Go: <c>func hasAnyBindingInitializers(bindingPattern *ast.BindingPattern) bool</c>（transform.go:859-873）。</summary>
     internal static bool HasAnyBindingInitializers(BindingPattern bindingPattern)
     {
-        foreach (var elem in bindingPattern.Elements!.Nodes!)
+        foreach (var elem in bindingPattern.Elements!.Nodes ?? [])
         {
             if (!IsBindingElement(elem))
             {

@@ -29,6 +29,7 @@ internal static class Program
         var limit = int.MaxValue;
         var maxDiffs = 10;
         var caseTimeoutSeconds = 0;
+        var offset = 0;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -46,6 +47,9 @@ internal static class Program
                     break;
                 case "--limit":
                     limit = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    break;
+                case "--offset":
+                    offset = int.Parse(args[++i], CultureInfo.InvariantCulture);
                     break;
                 case "--diff":
                     maxDiffs = int.Parse(args[++i], CultureInfo.InvariantCulture);
@@ -81,21 +85,29 @@ internal static class Program
         Console.WriteLine($"suites          = {string.Join(", ", suites)}");
         Console.WriteLine($"case filters    = {(cases.Count == 0 ? "<none>" : string.Join(", ", cases))}");
         Console.WriteLine($"limit           = {(limit == int.MaxValue ? "<none>" : limit.ToString(CultureInfo.InvariantCulture))}");
+        Console.WriteLine($"offset          = {offset}");
         Console.WriteLine($"baseline track  = {(trackingDir.Length == 0 ? "<off>" : trackingDir)}");
         Console.WriteLine();
 
         var report = new RunReport();
-        var root = HarnessTest.Root(report, [.. cases]);
 
         var selectedBySuite = new Dictionary<string, List<string>>();
         foreach (var suite in suites)
         {
-            var files = SelectCases(suite, cases, limit);
+            var files = SelectCases(suite, cases, limit, offset);
             selectedBySuite[suite] = files;
             Console.WriteLine($"[{suite}] selected {files.Count} case(s)");
         }
 
         AssertUniqueBasenames(selectedBySuite);
+
+        // 分批/选择语义：`--limit/--offset` 与 `--case` 都必须同时约束"执行"（否则 runner 会跑全量用例）。
+        var only = cases.Count > 0
+            ? null
+            : limit == int.MaxValue && offset == 0
+                ? null
+                : selectedBySuite.Values.SelectMany(v => v).Select(GetBaseFileName).ToHashSet(StringComparer.Ordinal);
+        var root = HarnessTest.Root(report, [.. cases], only);
 
         // 用法护栏：显式给了 `--case` 却一个都没选中 → 明确报错退出（否则会被当成"全跑但全被过滤"而给出令人误解的 FAIL）。
         if (cases.Count > 0 && selectedBySuite.Values.Sum(v => v.Count) == 0)
@@ -198,12 +210,14 @@ internal static class Program
         _ => throw new ArgumentException("unknown suite: " + suite),
     };
 
-    /// <summary>按 `--case`/`--limit` 选用例；skippedTests（Go compiler_runner.go:78-124）不参与选择
-    /// （Go 的 runner 也会跳过它们，选进来只会让 expected baseline 变成假缺失）。</summary>
-    private static List<string> SelectCases(string suite, List<string> cases, int limit)
+    /// <summary>按 `--case`/`--limit`/`--offset` 选用例；skippedTests（Go compiler_runner.go:78-124）不参与选择
+    /// （Go 的 runner 也会跳过它们，选进来只会让 expected baseline 变成假缺失）。
+    /// `--offset` 只用于**分批跑**（跳过前 N 个已选中的用例），不属于 Go 原逻辑。</summary>
+    private static List<string> SelectCases(string suite, List<string> cases, int limit, int offset)
     {
         var runner = CreateRunner(suite);
         var selected = new List<string>();
+        var matched = 0;
         foreach (var file in runner.EnumerateTestFiles())
         {
             var basename = GetBaseFileName(file);
@@ -212,6 +226,10 @@ internal static class Program
                 continue;
             }
             if (cases.Count > 0 && !cases.Any(c => basename.Contains(c, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+            if (matched++ < offset)
             {
                 continue;
             }

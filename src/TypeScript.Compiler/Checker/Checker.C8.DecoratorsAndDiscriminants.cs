@@ -56,7 +56,7 @@ public sealed partial class Checker
         {
             var first = -1;
             var last = -1;
-            var elements = node.Elements()!;
+            var elements = node.Elements() ?? [];
             for (var i = 0; i < elements.Length; i++)
             {
                 var element = elements[i];
@@ -815,7 +815,7 @@ public sealed partial class Checker
         var discriminated = GetMatchingUnionConstituentForObjectLiteral(contextualType, node);
         if (discriminated == null)
         {
-            var discriminantProperties = Filter(node.Properties()!, p =>
+            var discriminantProperties = Filter(node.Properties(), p =>
             {
                 var symbol = p.Symbol;
                 if (symbol == null)
@@ -848,7 +848,7 @@ public sealed partial class Checker
         var keyPropertyName = GetKeyPropertyName(unionType);
         if (keyPropertyName != "")
         {
-            Node? propNode = Find(node.Properties()!, p => p.Symbol != null && IsPropertyAssignment(p) && p.Symbol!.Name == keyPropertyName && IsPossiblyDiscriminantValue(p.Initializer()!));
+            Node? propNode = Find(node.Properties(), p => p.Symbol != null && IsPropertyAssignment(p) && p.Symbol!.Name == keyPropertyName && IsPossiblyDiscriminantValue(p.Initializer()!));
             if (propNode != null)
             {
                 var propType = GetContextFreeTypeOfExpression(propNode.Initializer()!)!;

@@ -280,7 +280,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
         {
             return false;
         }
-        foreach (var member in _currentClassContainer!.Members()!)
+        foreach (var member in _currentClassContainer!.Members() ?? [])
         {
             if (IsPropertyDeclaration(member) && !HasStaticModifier(member) &&
                 member.Name() != null && IsComputedPropertyName(member.Name()!))

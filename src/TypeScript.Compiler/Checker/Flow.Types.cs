@@ -225,7 +225,7 @@ public sealed partial class Checker
         }
         else if (!HasDotDotDotToken(node))
         {
-            t = GetTypeOfDestructuredArrayElement(parentType, Array.IndexOf(pattern.Elements()!, node));
+            t = GetTypeOfDestructuredArrayElement(parentType, Array.IndexOf(pattern.Elements() ?? [], node));
         }
         else
         {
@@ -277,7 +277,7 @@ public sealed partial class Checker
 
     internal Type GetAssignedTypeOfArrayLiteralElement(Node node, Node element)
     {
-        return GetTypeOfDestructuredArrayElement(GetAssignedType(node), Array.IndexOf(node.Elements()!, element));
+        return GetTypeOfDestructuredArrayElement(GetAssignedType(node), Array.IndexOf(node.Elements() ?? [], element));
     }
 
     internal Type GetTypeOfDestructuredArrayElement(Type t, int index)

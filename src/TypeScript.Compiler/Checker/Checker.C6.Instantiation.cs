@@ -34,9 +34,12 @@
 //     （Type/Symbol/Signature/IndexInfo）全是引用类型，语义都是引用相等。`values == null`（Go 的 nil slice）与空
 //     slice 一样都当空处理，直接返回空数组（Go 返回 nil slice；调用点只做长度/`Core.Same` 判断，等价）。
 // 12) Go 的递归闭包 `var instantiateConstituent func(*Type) *Type` → C# 局部函数 `InstantiateConstituent`。
-// 13) `InstantiateType`/`InstantiateTypeWithAlias` 的首参声明为**非空** `Type`：已落地的调用点
-//     （Mapper.cs:199/276 要求非空返回值、Checker.C6.InstantiatedSymbols.cs:82 对可空实参加 `!`）都按非空使用；
-//     因此 Go 的 `t == nil` 分支删除，`m == nil` 分支保留（m 仍可空）。
+// 13) `InstantiateType`/`InstantiateTypeWithAlias` 的首参声明为 `Type?`：Go 的 `t == nil` 分支**已按原样还原**
+//     （`if t == nil || m == nil || !(...) { return t }`）。Go 里调用点确实会传 nil——典型是
+//     `getConstraintFromTypeParameter` 的 `instantiateType(c.getConstraintOfTypeParameter(tp.target), tp.mapper)`，
+//     其中 `getConstraintOfTypeParameter` 遇循环约束时返回 nil——此时必须原样返回 nil 而不是解引用 t。
+//     返回类型仍按非空 `Type` 注解（调用点 `Mapper.cs:199/276` 等要求非空，`Checker.C5.SymbolTypes.cs:949` 的
+//     可空实参由 `constraint == null → _noConstraintType` 兜住），nil 只经由 `t` 传入时传出，与 Go 完全一致。
 namespace TypeScript.Checker;
 
 using System;
@@ -57,20 +60,23 @@ using Core = TypeScript.Core.Core;
 public sealed partial class Checker
 {
     // Go: checker.go:22459
-    internal Type InstantiateType(Type t, TypeMapper? m)
+    internal Type InstantiateType(Type? t, TypeMapper? m)
     {
         return InstantiateTypeWithAlias(t, m, null /*alias*/);
     }
 
     // Go: checker.go:22463
-    internal Type InstantiateTypeWithAlias(Type t, TypeMapper? m, TypeAlias? alias)
+    internal Type InstantiateTypeWithAlias(Type? t, TypeMapper? m, TypeAlias? alias)
     {
         // Check for type variables in the alias, so things like `type Brand<T> = number & {}` can potentially be copied with new alias type args, despite them being unreferenced.
         // This is the behavior most people using aliases expect, and prevents the cache from leaking type parameters outside their scope of validity.
         // tests/cases/compiler/declarationEmitArrowFunctionNoRenaming.ts contains an example of this, which previously only worked in strada via some input node reuse logic instead.
-        if (m == null || !(_couldContainTypeVariables(t) || (t._alias != null && (t._alias._typeArguments?.Length ?? 0) > 0 && Core.Some(t._alias._typeArguments, _couldContainTypeVariables))))
+        // Go: `if t == nil || m == nil || !(...) { return t }` —— 入参 t 可能为 nil（例如
+        // getConstraintFromTypeParameter 里 `instantiateType(c.getConstraintOfTypeParameter(tp.target), tp.mapper)`
+        // 的实参可为 nil），此时按 Go 语义原样返回 nil，绝不能去解引用 t。
+        if (t == null || m == null || !(_couldContainTypeVariables(t) || (t._alias != null && (t._alias._typeArguments?.Length ?? 0) > 0 && Core.Some(t._alias._typeArguments, _couldContainTypeVariables))))
         {
-            return t;
+            return t!; // Go: return t —— t 为 nil 时原样返回 nil
         }
         if (_instantiationDepth == 100 || _instantiationCount >= 5_000_000)
         {

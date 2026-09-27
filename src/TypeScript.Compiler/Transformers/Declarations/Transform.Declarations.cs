@@ -342,9 +342,10 @@ public sealed partial class DeclarationTransformer
             {
                 return mods;
             }
-            if (CanReuseModifierNodes(mods.Nodes!))
+            var modifierNodes = mods.Nodes ?? [];
+            if (CanReuseModifierNodes(modifierNodes))
             {
-                return Factory().NewModifierList(Filter(mods.Nodes, IsModifier));
+                return Factory().NewModifierList(Filter(modifierNodes, IsModifier));
             }
         }
         var result = CreateModifiersFromModifierFlags(newFlags, Factory().NewModifier);

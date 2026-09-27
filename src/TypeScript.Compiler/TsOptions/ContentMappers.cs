@@ -81,12 +81,16 @@ public static partial class TsOptions
         }
         cm.CompilerOptions.TryGetValue(out var compilerOptions);
         cm.DynamicConfig.TryGetValue(out var dynamicConfig);
+        // Go: `compilerOptions, _ := cm.CompilerOptions.GetValue()` 在字段缺失时是 nil 切片，而 Go 的
+        // `len(nil) == 0` / `range nil` 都合法。C# 的 `Expected<T>.TryGetValue` 失败时 out 参数是 null
+        // （见 PackageJson/Expected.cs 文件头第 6 条），落进 `Manifest.CompilerOptions` 会让后续
+        // `CompilerOptions.Length`（内容映射器 transform identity）抛 NRE → 按 Go 语义非空化为 `[]`。
         return (new Manifest
         {
             Name = name,
             Version = version,
             Exec = exec,
-            CompilerOptions = compilerOptions,
+            CompilerOptions = compilerOptions ?? [],
             DynamicConfig = dynamicConfig,
         }, packageDirectory, null);
     }

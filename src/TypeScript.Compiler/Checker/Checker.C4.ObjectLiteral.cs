@@ -44,7 +44,7 @@ public sealed partial class Checker
     internal Type CheckObjectLiteral(Node node, CheckMode checkMode)
     {
         // Expando object literals have empty properties but filled exports
-        if (node.Properties()!.Length == 0 && node.Symbol is not null && (node.Symbol!.Exports?.Count ?? 0) != 0)
+        if ((node.Properties()?.Length ?? 0) == 0 && node.Symbol is not null && (node.Symbol!.Exports?.Count ?? 0) != 0)
         {
             var expandoResult = NewAnonymousType(node.Symbol!, node.Symbol!.Exports, null, null, null);
             if (IsInJSFile(node) && !IsInJsonFile(node))
@@ -99,7 +99,7 @@ public sealed partial class Checker
         // Spreads may cause an early bail; ensure computed names are always checked (this is cached)
         // As otherwise they may not be checked until exports for the type at this position are retrieved,
         // which may never occur.
-        foreach (var elem in node.Properties()!)
+        foreach (var elem in node.Properties() ?? [])
         {
             if (elem.Name() is not null && IsComputedPropertyName(elem.Name()!))
             {
@@ -148,7 +148,7 @@ public sealed partial class Checker
             return result;
         }
 
-        foreach (var memberDecl in node.Properties()!)
+        foreach (var memberDecl in node.Properties() ?? [])
         {
             var member = GetSymbolOfDeclaration(memberDecl)!;
             Type? computedNameType = null;
@@ -350,7 +350,7 @@ public sealed partial class Checker
     internal void CheckContextualDeprecations(Node node)
     {
         var contextualType = GetApparentTypeOfContextualType(node, ContextFlags.None);
-        foreach (var property in node.Properties()!)
+        foreach (var property in node.Properties() ?? [])
         {
             if (IsCanceled())
             {
@@ -382,7 +382,8 @@ public sealed partial class Checker
 
         if (IsDeprecatedSymbol(prop))
         {
-            AddDeprecatedSuggestion(name, prop.Declarations!, name.Text());
+            // Go: `c.addDeprecatedSuggestion(name, prop.Declarations, name.Text())`（形参本就是切片，nil 可 range）
+            AddDeprecatedSuggestion(name, prop.Declarations, name.Text());
         }
     }
 
@@ -759,7 +760,7 @@ public sealed partial class Checker
         }
 
         var importCall = FindAncestor(options, IsImportCall);
-        return importCall is not null && importCall.Arguments()!.Length > 1 && SkipParentheses(importCall.Arguments()![1]) == options;
+        return importCall is not null && (importCall.Arguments()?.Length ?? 0) > 1 && SkipParentheses(importCall.Arguments()![1]) == options;
     }
 
     /// <summary>Go: <c>func (c *Checker) isValidConstAssertionArgument(node *ast.Node) bool</c>。</summary>

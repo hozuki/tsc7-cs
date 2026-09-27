@@ -960,7 +960,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
     private Node[] GetProperties(Node node, bool requireInitializer, bool isStatic)
     {
         var result = new List<Node>();
-        foreach (var member in node.Members()!)
+        foreach (var member in node.Members() ?? [])
         {
             if (IsPropertyDeclaration(member) &&
                 (!requireInitializer || member.Initializer() != null) &&
@@ -976,7 +976,7 @@ public sealed partial class ClassFieldsTransformer : Transformer
     private Node[] GetStaticPropertiesAndClassStaticBlock(Node node)
     {
         var result = new List<Node>();
-        foreach (var member in node.Members()!)
+        foreach (var member in node.Members() ?? [])
         {
             if (IsClassStaticBlockDeclaration(member) || (IsPropertyDeclaration(member) && HasStaticModifier(member)))
             {
@@ -1115,7 +1115,7 @@ public static partial class EsTransforms
     /// <summary>Go: <c>func classHasClassThisAssignment(emitContext *printer.EmitContext, node *ast.Node) bool</c>（classfields.go:3423-3430）。</summary>
     internal static bool ClassHasClassThisAssignment(EmitContext emitContext, Node node)
     {
-        foreach (var member in node.Members()!)
+        foreach (var member in node.Members() ?? [])
         {
             if (IsClassThisAssignmentBlock(emitContext, member))
             {

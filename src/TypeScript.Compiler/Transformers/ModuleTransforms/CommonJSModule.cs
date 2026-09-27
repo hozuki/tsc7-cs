@@ -398,7 +398,7 @@ public sealed partial class CommonJSModuleTransformer : Transformer
         EmitContext().StartVariableEnvironment();
 
         // emit standard prologue directives (e.g. "use strict")
-        var (prologue, rest) = Factory().SplitStandardPrologue(node.Statements!.Nodes!);
+        var (prologue, rest) = Factory().SplitStandardPrologue(node.Statements!.Nodes ?? []);
         var statements = new List<Node>(prologue);
 
         // emit custom prologues from other transformations
@@ -483,7 +483,7 @@ public sealed partial class CommonJSModuleTransformer : Transformer
         if (externalHelpersImportDeclaration is not null)
         {
             // Go 在这里重新 `:=` 声明 prologue/rest（遮蔽外层）→ C# 用不同名字保持一致语义。
-            var (prologue2, rest2) = Factory().SplitStandardPrologue(result.Statements!.Nodes!);
+            var (prologue2, rest2) = Factory().SplitStandardPrologue(result.Statements!.Nodes ?? []);
             var (custom2, restAfterCustom2) = Factory().SplitCustomPrologue(rest2 ?? []);
             var statements2 = new List<Node>(prologue2);
             statements2.AddRange(custom2 ?? []);
@@ -573,7 +573,7 @@ public sealed partial class CommonJSModuleTransformer : Transformer
                     break;
 
                 case Kind.NamedImports:
-                    foreach (var importBinding in namedBindings.Elements()!)
+                    foreach (var importBinding in namedBindings.Elements() ?? [])
                     {
                         statements = AppendExportsOfDeclaration(statements, importBinding, seen, true /*liveBinding*/);
                     }
@@ -606,7 +606,7 @@ public sealed partial class CommonJSModuleTransformer : Transformer
             return statements;
         }
 
-        foreach (var decl in node.Declarations!.Nodes!)
+        foreach (var decl in node.Declarations!.Nodes ?? [])
         {
             statements = AppendExportsOfBindingElement(statements, decl, isForInOrOfInitializer);
         }
@@ -628,7 +628,7 @@ public sealed partial class CommonJSModuleTransformer : Transformer
 
         if (IsBindingPattern(decl.Name()))
         {
-            foreach (var element in decl.Name()!.Elements()!)
+            foreach (var element in decl.Name()!.Elements() ?? [])
             {
                 if (!IsOmittedExpression(element))
                 {

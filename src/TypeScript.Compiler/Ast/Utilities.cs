@@ -1676,7 +1676,7 @@ public static partial class Ast
             var tags = jsdoc.AsJSDoc()!.Tags;
             if (tags is not null)
             {
-                foreach (var tag in tags.Nodes!)
+                foreach (var tag in tags.Nodes ?? [])
                 {
                     if (IsJSDocDeprecatedTag(tag))
                     {
@@ -4125,7 +4125,7 @@ public static partial class Ast
             return false;
         }
 
-        var arguments = call.Arguments!.Nodes!;
+        var arguments = call.Arguments!.Nodes ?? [];
         if (arguments.Length != 1)
         {
             return false;

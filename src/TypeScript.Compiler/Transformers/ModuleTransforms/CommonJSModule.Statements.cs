@@ -154,7 +154,7 @@ public sealed partial class CommonJSModuleTransformer
             EmitContext().AssignCommentAndSourceMapRanges(varStatement, node.AsNode());
             statements.Add(varStatement);
 
-            foreach (var specifier in node.ExportClause.Elements()!)
+            foreach (var specifier in node.ExportClause.Elements() ?? [])
             {
                 var specifierName = specifier.PropertyNameOrName()!;
                 var exportNeedsImportDefault = ModuleExportNameIsDefault(specifierName);
@@ -361,7 +361,7 @@ public sealed partial class CommonJSModuleTransformer
             }
 
             // If we're exporting these variables, then these just become assignments to 'exports.x'.
-            foreach (var variable in node.DeclarationList!.AsVariableDeclarationList()!.Declarations!.Nodes!)
+            foreach (var variable in node.DeclarationList!.AsVariableDeclarationList()!.Declarations!.Nodes ?? [])
             {
                 var v = variable.AsVariableDeclaration()!;
                 var updatedVariable = variable;
@@ -576,7 +576,7 @@ public sealed partial class CommonJSModuleTransformer
                 {
                     var block = body!.AsBlock()!;
                     var bodyStatements = new List<Node>(exportStatements);
-                    bodyStatements.AddRange(block.Statements!.Nodes!);
+                    bodyStatements.AddRange(block.Statements!.Nodes ?? []);
                     var bodyStatementList = Factory().NewNodeList(bodyStatements.ToArray());
                     bodyStatementList.Loc = block.Statements!.Loc;
                     body = Factory().UpdateBlock(block, bodyStatementList, block.MultiLine);

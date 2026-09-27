@@ -241,7 +241,9 @@ public sealed partial class Relater
         {
             if (_c.IsArrayOrTupleType(source))
             {
-                if (target.TargetTupleType()!._readonly && (_c.IsReadonlyArrayType(source) || IsTupleTypeWorker(source) && source.TargetTupleType()!._readonly))
+                // Go: `if !target.TargetTupleType().readonly && (isReadonlyArrayType(source) || isTupleType(source) && source.TargetTupleType().readonly)`
+                // —— 只有「目标可变 + 源只读」才不相关；C# 之前漏了 `!`，把 readonly → readonly 也判成 False。
+                if (!target.TargetTupleType()!._readonly && (_c.IsReadonlyArrayType(source) || IsTupleTypeWorker(source) && source.TargetTupleType()!._readonly))
                 {
                     return Ternary.False;
                 }
