@@ -138,8 +138,8 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 
 - 单元测试：`tests/TypeScript.Compiler.Tests`，xunit，按包分目录，1:1 复刻 Go 的 `*_test.go`。Go 的表驱动测试用 `[Theory]`/`[MemberData]`。
 - 集成测试（后续）：`tests/TypeScript.Harness` 跑 TSGO `tsc/testdata`（`tests/cases/**` + `baselines/reference/**`）。TSGO 仓库根目录由环境变量 `TSGO_ROOT` 指定，默认探测 `D:\Source\GitHub\TypeScript-Go`。
-- 差分验证：本机有全局 `tsc`（TSGO 的 CLI），可用它产生期望输出交叉验证。
-- 本机没有 Go 工具链，也没有 `D:\Source\GitHub\TypeScript-Go\node_modules`：任何"必须跑 Go 才能得到"的期望值，改为从 TSGO 已提交的 baseline / 测试数据里取。
+- 差分验证：本机有全局 `tsc`（TSGO 的 CLI，7.0.2）与 `node`（v24），可用它们产生期望输出交叉验证：JSON 格式用 `tsc --showConfig`/`--generateTrace` 取证（`docs/json.md` §1，`artifacts/json-oracle`），JS 数字语义用 Node/V8 交叉验证（`JsNum` 的测试里已有 10 条真实 Node 对照）。
+- 本机没有 Go 工具链，也没有 `D:\Source\GitHub\TypeScript-Go\node_modules`：任何"必须跑 Go 才能得到"的期望值，改为从 TSGO 已提交的 baseline / 测试数据里取（或用独立实现重算，如 `artifacts/gen-verify` 用 JS 重写 Go 的 `unicode.Is` 来校验生成表）。
 
 ## 6. 里程碑
 
@@ -147,8 +147,8 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 | --- | --- | --- |
 | M0 | 工程骨架：slnx、编译器库、测试工程、CodeGen 工具；移植规范定稿 | done |
 | M1a | `Debug`、`StringUtil`（含 Unicode 生成表 + CodeGen 生成器）、`TSPath` | done（200 测试通过；表数据与 Go 源对拍一致） |
-| M1b | `Collections`（含 OrderedMap 的 JSON 钩子）、`Json`、`JsNum` | Collections+Json 完成；JsNum 进行中 |
-| M2 | `Core`（`Text`、枚举、`CompilerOptions`…） | |
+| M1b | `Collections`（含 OrderedMap 的 JSON 钩子）、`Json`、`JsNum` | done（JsNum 的 JS 数字语义与真 Node/V8 交叉验证） |
+| M2 | `Core`（`Text`、枚举、`CompilerOptions`、`Arena`、`Semaphore`、`Workgroup`、`Bfs`、`LinkStore`…） | done |
 | M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | |
 | M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | |
 | M5 | `Binder`、`Checker` → 语义错误基线 | |
