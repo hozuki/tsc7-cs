@@ -188,7 +188,7 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 | M1b | `Collections`（含 OrderedMap 的 JSON 钩子）、`Json`、`JsNum` | done（JsNum 的 JS 数字语义与真 Node/V8 交叉验证） |
 | M2 | `Core`（`Text`、枚举、`CompilerOptions`、`Arena`、`Semaphore`、`Workgroup`、`Bfs`、`LinkStore`…） | done |
 | M3 | `Ast`（由 `ast.json` 生成 + 手写工具函数）、`Diagnostics`（由 `diagnosticMessages.json` 生成）、`Locale` | done（Ast 生成物+核心+`utilities.go`+`SourceFile`+`precedence`/`deepclone`/`diagnostic`；`Diagnostics` 2213 条消息与 Go 生成物逐字段全等；13 个语言的本地化数据按 TSGO 产物嵌入。缺口：`deepclone_test.go` 需 parser 才能跑；`PositionMap` 在 C# 里是恒等映射（§3.1），非 ASCII 用例按 C# 契约改写） |
-| M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | 进行中（前置：`SpanMap`/`SourceFile`/`utilities.go`/`Diagnostics`/`Locale` 已就位） |
+| M4 | `Scanner`、`Parser` → 能 parse 出 AST，跑 parser 基线 | done（scanner：与真 tsc 对拍 27 例的（诊断码, UTF-16 位置）0 不匹配 + 16 万 token 不变量审计；parser：6 个分片按 Go 行范围移植、语料测试 17,423 unit / 111,860 语句 / 2,585,355 节点 0 违反、与 tsc 差分 130 例 0 不一致、baseline 反方向审计 92 条缺失全部归因到 M5/惰性 JSDoc。基线对比本身属 M6 的 harness） |
 | M5 | `Binder`、`Checker` → 语义错误基线 | |
 | M6 | `Printer` + transformers → emit 基线（`tests/cases/compiler` 通过） | |
 | M7 | `Compiler`/`Program` → `tsc` 可编译真实工程 | |
