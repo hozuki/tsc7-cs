@@ -292,3 +292,7 @@ __pycache__/
 # --- 曾经导致 Debug 包没进版本库。新增移植文件夹时若与模板的构建产物规则同名，在这里放行。
 !src/TypeScript.Compiler/Debug/
 !tests/TypeScript.Compiler.Tests/Debug/
+
+# xunit 测试结果（本地产物）
+tsc-test-results/
+TestResults/
