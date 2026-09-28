@@ -36,7 +36,7 @@ public static partial class Format
             }
         }
 
-        TokenRange AnyTokenExcept(params Kind[] tokens)
+        TokenRange AnyTokenExcept(params ReadOnlySpan<Kind> tokens)
         {
             var newTokens = new List<Kind>(allTokens.Count);
             foreach (var token in allTokens)

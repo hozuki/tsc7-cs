@@ -5,7 +5,11 @@
 // 1) `type CacheHashKey xxh3.Uint128` → `public readonly struct CacheHashKey`（全仓共用形状，逐字保持）；
 //    `xxh3.Uint128` → `System.UInt128`；`xxh3.Hash128`/`HashString128` → `Xxh3.Xxh3.Hash128`/`HashString128`
 //    （命名空间 `TypeScript.Xxh3`，先例 `ContentMapper/ContentMapper.cs`、`ContentMapper/HostImpl.cs`）。
-// 2) 未导出类型 `keyBuilder` → `internal sealed class KeyBuilder`；未导出字段 → `_camelCase`（§5.5）。
+// 2) 未导出类型 `keyBuilder` → `internal struct KeyBuilder`（**值类型**，2026-09-28 实测改造）；未导出字段 →
+//    `_camelCase`（§5.5）。Go 的 `keyBuilder` 是栈上值类型，其 `inlineBuffer [192]byte` **内联在结构体里**；
+//    C# 的 class 版本会让每个 keyBuilder 额外分配一个 192 字节的 `byte[]`（真实语料 197.9 MB = 总分配的
+//    13.6%，`AllocReport` 归因的头名）。这里用 C# 12 的 `[InlineArray]` 把 192 字节内联回结构体，
+//    由调用点的 `new KeyBuilder()` 在栈上承担 ⇒ 该分配归零（见 docs/architecture.md §3.8.1.3）。
 //    该类型**跨片共享**：flow.go:1658/1665（`getFlowReferenceKey`/`writeFlowCacheKey`）与 checker.go:22484
 //    （`instantiateTypeWithAlias`）也用它，成员名/签名按 Go 的 PascalCase 固定（Hash/Spill/Write*）。
 // 3) Go 的 `overflowBuffer []byte` + `append` → `byte[]? _overflowBuffer`（容量数组）+ `internal int _overflowLength;`
@@ -31,6 +35,7 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using TypeScript.Ast;
 using static TypeScript.Ast.Ast;
@@ -56,27 +61,41 @@ public readonly struct CacheHashKey : IEquatable<CacheHashKey>
     public static explicit operator CacheHashKey(UInt128 value) => new(value);  // Go: CacheHashKey(x)
 }
 
-/// <summary>Go: <c>type keyBuilder struct</c>（checker.go:17701）。跨片共享（flow.go/checker.go 也用）。</summary>
-internal sealed class KeyBuilder
+/// <summary>Go 的 <c>inlineBuffer [192]byte</c>：C# 12 的 <c>[InlineArray]</c> 让这 192 字节**内联在 KeyBuilder
+/// 结构体里**（而不是每个实例一个独立的 <c>byte[]</c>）。</summary>
+[InlineArray(192)] // = KeyBuilder.InlineBufferSize（Go: inlineBuffer [192]byte）
+internal struct KeyBuilderInlineBuffer
 {
+    private byte _element0;
+}
+
+/// <summary>Go: <c>type keyBuilder struct</c>（checker.go:17701）。跨片共享（flow.go/checker.go 也用）。</summary>
+internal struct KeyBuilder
+{
+    internal const int InlineBufferSize = 192;
+
     internal int _inlineLength;                     // Go: inlineLength
     internal byte[]? _overflowBuffer;               // Go: overflowBuffer（容量数组，逻辑长度为 _overflowLength）
     internal int _overflowLength;                   // Go: len(overflowBuffer)
-    internal byte[] _inlineBuffer = new byte[192];  // Go: inlineBuffer [192]byte
+    /// <summary>Go: <c>inlineBuffer [192]byte</c>。取用方式：`Span&lt;byte&gt; buffer = _inlineBuffer;`（`[InlineArray]`
+    /// 到 `Span&lt;byte&gt;` 的隐式转换，零分配、直接指向结构体自身）。取用时**必须**落在方法体内的局部量上
+    /// ——C# 不允许结构体成员把引用 `this` 字段的 `Span`/`ref` 返回出去（CS8170），所以各方法各自取局部量。</summary>
+    private KeyBuilderInlineBuffer _inlineBuffer;   // Go: inlineBuffer [192]byte（内联，不单独分配）
 
     /// <summary>Go: <c>func (b *keyBuilder) hash() CacheHashKey</c>。</summary>
     internal CacheHashKey Hash()
     {
+        Span<byte> inline = _inlineBuffer;
         if (_overflowBuffer == null)
         {
-            return new CacheHashKey(Xxh3.Xxh3.Hash128(_inlineBuffer.AsSpan(0, _inlineLength)));
+            return new CacheHashKey(Xxh3.Xxh3.Hash128(inline[.._inlineLength]));
         }
 
         // Go: xxh3.Hash128(append(b.overflowBuffer, b.inlineBuffer[:b.inlineLength]...))
         // 照抄 append 的语义：只把 inline 字节写进容量区尾部，**不**改 overflowBuffer 的逻辑长度。
         EnsureOverflowCapacity(_overflowLength + _inlineLength);
         var buffer = _overflowBuffer!;
-        _inlineBuffer.AsSpan(0, _inlineLength).CopyTo(buffer.AsSpan(_overflowLength));
+        inline[.._inlineLength].CopyTo(buffer.AsSpan(_overflowLength));
         return new CacheHashKey(Xxh3.Xxh3.Hash128(buffer.AsSpan(0, _overflowLength + _inlineLength)));
     }
 
@@ -87,18 +106,20 @@ internal sealed class KeyBuilder
     /// </summary>
     internal void Spill()
     {
-        AppendOverflow(_inlineBuffer.AsSpan(0, _inlineLength));
+        Span<byte> buffer = _inlineBuffer;
+        AppendOverflow(buffer[.._inlineLength]);
         _inlineLength = 0;
     }
 
     /// <summary>Go: <c>func (b *keyBuilder) writeByte(c byte)</c>。</summary>
     internal void WriteByte(byte c)
     {
-        if (_inlineLength == _inlineBuffer.Length)
+        if (_inlineLength == InlineBufferSize)
         {
             Spill();
         }
-        _inlineBuffer[_inlineLength] = c;
+        Span<byte> buffer = _inlineBuffer;
+        buffer[_inlineLength] = c;
         _inlineLength++;
     }
 
@@ -107,10 +128,10 @@ internal sealed class KeyBuilder
     {
         // Go 的 len(s) 是 UTF-8 字节数（Go 的 string 是字节序列）。
         var byteCount = Encoding.UTF8.GetByteCount(s);
-        if (_inlineLength + byteCount > _inlineBuffer.Length)
+        if (_inlineLength + byteCount > InlineBufferSize)
         {
             Spill();
-            if (byteCount > _inlineBuffer.Length)
+            if (byteCount > InlineBufferSize)
             {
                 // Go: b.overflowBuffer = append(b.overflowBuffer, s...)
                 AppendOverflowString(s, byteCount);
@@ -118,28 +139,28 @@ internal sealed class KeyBuilder
             }
         }
         // Go: b.inlineLength += copy(b.inlineBuffer[b.inlineLength:], s)
-        _inlineLength += Encoding.UTF8.GetBytes(s, _inlineBuffer.AsSpan(_inlineLength));
+        _inlineLength += Encoding.UTF8.GetBytes(s, ((Span<byte>)_inlineBuffer)[_inlineLength..]);
     }
 
     /// <summary>Go: <c>func (b *keyBuilder) writeUint32(v uint32)</c>。</summary>
     internal void WriteUint32(uint v)
     {
-        if (_inlineLength + 4 > _inlineBuffer.Length)
+        if (_inlineLength + 4 > InlineBufferSize)
         {
             Spill();
         }
-        BinaryPrimitives.WriteUInt32LittleEndian(_inlineBuffer.AsSpan(_inlineLength), v);
+        BinaryPrimitives.WriteUInt32LittleEndian(((Span<byte>)_inlineBuffer)[_inlineLength..], v);
         _inlineLength += 4;
     }
 
     /// <summary>Go: <c>func (b *keyBuilder) writeUint64(v uint64)</c>。</summary>
     internal void WriteUint64(ulong v)
     {
-        if (_inlineLength + 8 > _inlineBuffer.Length)
+        if (_inlineLength + 8 > InlineBufferSize)
         {
             Spill();
         }
-        BinaryPrimitives.WriteUInt64LittleEndian(_inlineBuffer.AsSpan(_inlineLength), v);
+        BinaryPrimitives.WriteUInt64LittleEndian(((Span<byte>)_inlineBuffer)[_inlineLength..], v);
         _inlineLength += 8;
     }
 
@@ -194,46 +215,49 @@ internal sealed class KeyBuilder
     {
         var constrained = false;
         var typeParameters = new List<Type>(8); // Go: make([]*Type, 0, 8)
-        void WriteTypeReference(Type @ref, int depth)
+        WriteGenericTypeReference(ref typeParameters, source, 0, ignoreConstraints, ref constrained);
+        WriteByte((byte)',');
+        WriteGenericTypeReference(ref typeParameters, target, 0, ignoreConstraints, ref constrained);
+        return constrained;
+    }
+
+    /// <summary>Go 里是 `writeGenericTypeReferences` 内的闭包（捕获 b/typeParameters/ignoreConstraints/constrained）；
+    /// C# 的结构体**不允许**局部函数访问 `this` 的实例成员（CS1673），故提为私有方法、捕获量走参数。</summary>
+    private void WriteGenericTypeReference(ref List<Type> typeParameters, Type @ref, int depth, bool ignoreConstraints, ref bool constrained)
+    {
+        WriteType(@ref.Target()!);
+        var typeArguments = @ref.AsTypeReference()!._resolvedTypeArguments;
+        if (typeArguments != null)
         {
-            WriteType(@ref.Target()!);
-            var typeArguments = @ref.AsTypeReference()!._resolvedTypeArguments;
-            if (typeArguments != null)
+            foreach (var t in typeArguments)
             {
-                foreach (var t in typeArguments)
+                if ((t._flags & TypeFlags.TypeParameter) != 0)
                 {
-                    if ((t._flags & TypeFlags.TypeParameter) != 0)
+                    if (ignoreConstraints || t._checker!.GetConstraintOfTypeParameterWorker(t) == null)
                     {
-                        if (ignoreConstraints || t._checker!.GetConstraintOfTypeParameterWorker(t) == null)
+                        var index = typeParameters.FindIndex(x => ReferenceEquals(x, t));
+                        if (index < 0)
                         {
-                            var index = typeParameters.FindIndex(x => ReferenceEquals(x, t));
-                            if (index < 0)
-                            {
-                                index = typeParameters.Count;
-                                typeParameters.Add(t);
-                            }
-                            WriteByte((byte)'=');
-                            WriteInt(index);
-                            continue;
+                            index = typeParameters.Count;
+                            typeParameters.Add(t);
                         }
-                        constrained = true;
-                    }
-                    else if (depth < 4 && Checker.IsTypeReferenceWithGenericArguments(t))
-                    {
-                        WriteByte((byte)'<');
-                        WriteTypeReference(t, depth + 1);
-                        WriteByte((byte)'>');
+                        WriteByte((byte)'=');
+                        WriteInt(index);
                         continue;
                     }
-                    WriteByte((byte)'-');
-                    WriteType(t);
+                    constrained = true;
                 }
+                else if (depth < 4 && Checker.IsTypeReferenceWithGenericArguments(t))
+                {
+                    WriteByte((byte)'<');
+                    WriteGenericTypeReference(ref typeParameters, t, depth + 1, ignoreConstraints, ref constrained);
+                    WriteByte((byte)'>');
+                    continue;
+                }
+                WriteByte((byte)'-');
+                WriteType(t);
             }
         }
-        WriteTypeReference(source, 0);
-        WriteByte((byte)',');
-        WriteTypeReference(target, 0);
-        return constrained;
     }
 
     /// <summary>Go: <c>func (b *keyBuilder) writeNodeId(id ast.NodeId)</c>。</summary>

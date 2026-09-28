@@ -65,9 +65,11 @@ public sealed partial class Scanner
     // hasJSDocTag reports whether text starts with one of the given tag names followed
     // by a valid JSDoc tag terminator (whitespace, '}', '*', or end-of-string).
     //
-    // 参数 `text` 是 span（见 ScanJSDocCommentForTags 的说明）；`tags` 保持 Go 的 `...string` 形状
-    // （Go 的变参同样每次调用分配一个切片，故不在此处偏离）。
-    internal static bool HasJSDocTag(ReadOnlySpan<char> text, params string[] tags)
+    // 参数 `text` 是 span（见 ScanJSDocCommentForTags 的说明）；`tags` 是 `params ReadOnlySpan&lt;string&gt;`：
+    // Go 的变参 `tags ...string` 每次调用分配一个切片，而它在 ScanJSDocCommentForTags 的循环里**每个 '@' 都要
+    // 调两次**（1 元素 + 4 元素各一次）⇒ 这是扫描相位里纯为变参服务的分配。C# 13 的 `params ReadOnlySpan&lt;string&gt;`
+    // 由编译器在调用点 `stackalloc`（先例 `Ast/Utilities.cs` 的 `NodeKindIs`），这里是有实测依据的刻意偏离。
+    internal static bool HasJSDocTag(ReadOnlySpan<char> text, params ReadOnlySpan<string> tags)
     {
         foreach (var tag in tags)
         {

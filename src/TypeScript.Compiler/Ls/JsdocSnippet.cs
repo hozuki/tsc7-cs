@@ -586,12 +586,10 @@ public static partial class Ls
         {
             return false;
         }
-        for (var i = start + 1; i < trimmed.Length; i++)
+        // Go 的 `for i := start + 1; i < len(trimmed); i++ { if trimmed[i] != '*' { return false } }`。
+        if (trimmed.AsSpan(start + 1).IndexOfAnyExcept('*') >= 0)
         {
-            if (trimmed[i] != '*')
-            {
-                return false;
-            }
+            return false;
         }
         return trimmed.Length - start >= 3;
     }
@@ -624,12 +622,10 @@ public static partial class Ls
         {
             return false;
         }
-        for (var i = 0; i < trimmed.Length - 1; i++)
+        // Go 的 `for i := 0; i < len(trimmed)-1; i++ { if trimmed[i] != '*' { return false } }`（末尾那个 '/' 不检查）。
+        if (trimmed.AsSpan(0, trimmed.Length - 1).IndexOfAnyExcept('*') >= 0)
         {
-            if (trimmed[i] != '*')
-            {
-                return false;
-            }
+            return false;
         }
         return true;
     }

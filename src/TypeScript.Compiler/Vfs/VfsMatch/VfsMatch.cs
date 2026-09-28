@@ -738,14 +738,7 @@ public static partial class VfsMatch
     {
         // Preallocate based on wildcard count: each wildcard contributes 1 segment,
         // and each wildcard can split literals into at most one extra literal segment.
-        var wildcards = 0;
-        for (var i = 0; i < s.Length; i++)
-        {
-            if (s[i] == '*' || s[i] == '?')
-            {
-                wildcards++;
-            }
-        }
+        var wildcards = s.AsSpan().Count('*') + s.AsSpan().Count('?');
 
         var result = new List<PatternSegment>(2 * wildcards + 1);
         var start = 0;

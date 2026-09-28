@@ -98,7 +98,7 @@ public static partial class Format
         object right,
         ContextPredicate[] context,
         RuleAction action,
-        params RuleFlags[] flags)
+        params ReadOnlySpan<RuleFlags> flags)
     {
         var flag = RuleFlags.None;
         if (flags.Length > 0)

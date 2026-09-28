@@ -675,10 +675,7 @@ internal sealed class FilesParser
 
         var allFiles = new SourceFile[libFilesArray.Length + files.Count];
         libFilesArray.CopyTo(allFiles, 0);
-        for (var i = 0; i < files.Count; i++)
-        {
-            allFiles[libFilesArray.Length + i] = files[i];
-        }
+        files.CopyTo(allFiles, libFilesArray.Length);
 
         if (redirectFilesByPath is not null)
         {

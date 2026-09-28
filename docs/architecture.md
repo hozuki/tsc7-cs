@@ -377,7 +377,142 @@ ticks/rep 量级；字节数与"整进程采样和"≈ 精确计数器的 print 
 
 **留给下一个负责人的两项**（都在本任务文件范围外，是真实编译分配榜的第 1、2 名，合计 **24.6%**）：
 `Checker.KeyBuilder..ctor` 的 `Byte[]` **197.9 MB**（13.6%，`ALLOC_KEY=type` 归因）与
-`Checker.RegisterForUnusedIdentifiersCheck` 的 `Node[]` **173.6 MB**（11.9%）。
+`Checker.RegisterForUnusedIdentifiersCheck` 的 `Node[]` **173.6 MB**（11.9%）。—— 第 1 项已在 §3.8.1.3 处理，
+第 2 项由 fd00fcd 的 `registerForUnusedIdentifiersCheck` 修复覆盖。
+
+#### 3.8.1.3 内置 API 替换：数组拷贝/查找/扫描、变参 → span、`KeyBuilder` 值类型化（实测，2026-09-28 第四批）
+
+**口径与仪器**：两个真实基准 —— TS 6.0.3 `src/compiler`（`artifacts/bench-tsc6/tsconfig.json`，124 文件）与
+naxiale（`D:/Source/JavaScript/naxiale/naxiale/tsconfig.json`，`--outDir` 落 `artifacts/`）；**AOT 交付产物**
+（`dotnet publish src/tsc -c Release -r win-x64 -p:PublishAot=true`，`System.GC.DynamicAdaptationMode=0` 已在
+`Directory.Build.targets` 烘焙、不依赖环境变量），**交错 5 次取中位**；分配字节用 `--extendedDiagnostics` 的
+`Memory allocs`（同机同负载逐位级稳定，第四批里 ±0.05%）。脚本与原始输出：`artifacts/_sweep/ab.ps1`
+（`aot-baseline` = 改前产物、`aot-new` = 改后产物）。
+
+| 基准 | 指标 | 改前 | 改后 | 变化 |
+| --- | --- | ---: | ---: | ---: |
+| TS6（124 文件） | **Memory allocs** | 1,306,383,448 / 1,306,500,296 | 1,049,848,992 / 1,051,166,416 | **−19.5…−19.6%** |
+| TS6 | wall（AOT，中位） | 1.117 / 1.092 s | 1.028 / 1.033 s | **−5.4…−8.0%** |
+| TS6 | Parse / Check / Emit / Total | 0.045 / 0.697 / 0.037 / 0.815 s | 0.048 / 0.646 / 0.037 / 0.772 s | Check −6.4…−7.3%、Total −5.3% |
+| TS6 | 诊断条数 | 85 | 85 | 0 差异（逐条一致） |
+| naxiale | **Memory allocs** | 478,879,928 / 478,944,648 | 408,720,368 / 408,694,144 | **−14.7%** |
+| naxiale | wall（AOT，中位） | 0.522 / 0.443 s | 0.434 / 0.428 s | **−3.4…−16.9%** |
+| naxiale | Check / Total | 0.207 / 0.340 s | 0.193 / 0.252 s | −6.3…−6.8% / −25.9% |
+| naxiale | 诊断条数 | 0 | 0 | 0 差异 |
+
+（"改前/改后"各列是两个独立的 5 次交错会话，原始输出 `artifacts/_sweep/AB-aot.txt`；`aot-baseline` 产物保留在
+`artifacts/_sweep/aot-baseline`，交付产物 `artifacts/bench-tsc6/aot` 已用本批代码重新发布。）
+
+**对 Go 的整体位置**（同机、同两个基准、3 次交错，`artifacts/_sweep/VS-GO.txt`，`tsgo` =
+`@typescript/typescript-win32-x64`）：`Total time` 已经**追平** Go（TS6 0.775 s vs 0.767 s，naxiale 0.244 s vs
+0.259 s），差距只剩进程固定开销（wall：TS6 1.011 vs 0.839 s、naxiale 0.414 vs 0.318 s）。
+
+##### (1) `Checker.KeyBuilder` 值类型化 —— 本批的绝对大头
+
+Go 的 `keyBuilder` 是**栈上值类型**，`inlineBuffer [192]byte` 内联在结构体里；C# 原来的 `sealed class` 让每个实例
+额外分配一个 192 字节的 `byte[]`（`ALLOC_KEY=type` 榜首：**197.9 MB = 13.6%**）+ 对象头本身 ≈ 51 MB。改成
+`internal struct KeyBuilder`，192 字节用 C# 12 的 `[InlineArray(192)] struct KeyBuilderInlineBuffer` 内联回去；
+所有 14 个构造点都是 `var b = new KeyBuilder();`（栈上）⇒ 分配归零。三处语言限制及其解法（都写在源码注释里）：
+
+* `flow.go` 的 `writeFlowCacheKey` 会改 `b` ⇒ 签名改 `ref KeyBuilder b`（含 4 处递归调用点）；
+* 结构体里的**局部函数不能访问 `this`**（CS1673）⇒ `WriteGenericTypeReferences` 的内层闭包提成私有方法
+  `WriteGenericTypeReference(ref List<Type>, …, ref bool)`；
+* 结构体成员**不能把引用 `this` 字段的 `Span` 返回出去**（CS8170）⇒ 不能用返回 span 的属性，改成各方法内
+  `Span<byte> buffer = _inlineBuffer;`（`[InlineArray]` 的隐式 span 转换，零分配）。
+
+单变量 A/B（managed `tsc.dll`，`--project artifacts/bench-tsc6/tsconfig.json`）：
+`Memory allocs` **1,336,767,360 → 1,081,403,816（−255.4 MB / −19.1%）**；交错 A/B 的 Check 中位 1.678 → 1.667 s
+（不退化）。
+
+##### (2) `params T[]` → `params ReadOnlySpan<T>`（13 个方法）
+
+判据（照 `Ast/Utilities.cs` 的 `NodeKindIs(Node?, params ReadOnlySpan<Kind>)` 先例）：**只对"调用点传内联字面量/
+集合表达式"的变参有收益**（编译器在调用点 `stackalloc`，等价于 Go 的 `slices.Contains([]T{…}, x)`）；调用点本来就传
+**数组变量**的 ⇒ 零收益（数组→span 只是包装，仍兼容）；**会被存下来的**（`params object?[]` 诊断 args 等）**绝不改**。
+
+| 方法 | 调用点 | 判定 |
+| --- | --- | --- |
+| `TSPath.Path.CombinePaths` / `ResolvePath` | 159 / 21（几乎都是 1 个附加 path） | 改（模块解析热路径） |
+| `Core.Splice` | 16（`types, i, 1` 形态为主） | 改（顺手把 `Array.Copy(items,…)` 换成 `items.CopyTo`） |
+| `Core.FirstNonZero<T>` / `FirstNonZero(string?)` | 3 | 改 |
+| `Scanner.JSDoc.HasJSDocTag` | 2（在"每个 `@` 调两次"的循环里） | 改（源码里原注释"保持 Go 形状"已按实测改写） |
+| `Printer.EmitContext.AddEmitHelper` | 8+（emit 路径） | 改 |
+| `Transformers.…ClassFields.Properties.AddPendingExpressions` | 4（全是内联单元素） | 改 |
+| `Compiler.IncludeProcessor.AddProcessingDiagnostic` | 4 | 改 |
+| `Format.Rules.AnyTokenExcept` / `Format.Rule.Rule(…, RuleFlags)` / `Format.Indent.ShouldIndentChildNode` | 3 / 多处 / 4 | 改（`Kind`/`RuleFlags`/`bool`；不在两个基准窗口内，按"零成本"处理） |
+| `Format.Rules.TokenRangeFrom` | 3 | **不改**：方法体把数组**存进** `TokenRange._tokens`，改成 span 只会多一次 `ToArray()` |
+| `Collections.NewSetFromItems` / `Transformers…BuildClassMembers` | 15 / 2 | **不改**：调用点全部传已有数组（`Map(...)`/`extraMembers`），零收益 |
+| `Json.Json.Marshal/Unmarshal*`（18 个 `params JsonOptions[]`） | 全部零参或已带数组 | **不改**：零参时 Roslyn 发 `Array.Empty<T>()`，无分配可省 |
+| `Transformers.Chain.Chain` | 8 | **不改**：`transforms` 被返回的 lambda 捕获，span 不能进闭包 |
+| `Compiler.IncludeProcessor` 之外的 `params object?[]`（134 处） | — | **不改**：诊断 args 会存进 `Message.Args`/buildinfo，必须物化 |
+
+实测：managed `Memory allocs` 1,081,403,816 → **1,080,869,904（−0.53 MB / −0.05%）**——恰好落在计数器的
+0.5 MB 级噪声底上，即**收益≈0**。原因与上表一致：真正省下来的点是"每个调用点一个 `T[1]`"，而这些点多在
+LS / 格式化 / 构建模式，不在两个基准的窗口里。保留理由：改动是**纯减分配**（不存在更差的方向）、语义与 Go 一致
+（只有 `HasJSDocTag` 是有意偏离并在注释里写明），且与已有先例同一形状；不保留的理由只有"diff 更大"。
+
+##### (3) 手写循环 → 内置 API（`Array.Copy` / `IndexOf*` / `IndexOfAnyExcept` / `Count` / `SequenceEqual`）
+
+全仓清点（742 个 `.cs`、840 个 `for`、673 个"无嵌套循环体"）：**没有一处是纯 `dst[i] = src[i]` 的同构拷贝**；
+绝大多数 `result[i] = f(a[i])` 是 Go 的 `core.Map`/gather（逐元素取值或散列取值，没有 memmove 等价物）；`fill` 只有 1 处
+且是带条件的合并逻辑。本批实际改动的 8 处：
+
+| 位置 | Go 语义 | 换成 |
+| --- | --- | --- |
+| `Core.Version.ComputeVersionMajorMinor` | `strings.IndexFunc` 找第二个 `.` | `string.IndexOf(char)`（ordinal） |
+| `Glob.Glob.Split` | 找第一个非 `/` | `ReadOnlySpan<char>.IndexOfAnyExcept('/')` |
+| `Ls.JsdocSnippet.IsJSDocSnippetPrefix` / `IsJSDocSnippetSuffix` | "剩下全是 `*`" 判定 | `Span.IndexOfAnyExcept('*') < 0` |
+| `Vfs.VfsMatch.ParseSegments` | 数 `*`/`?` 个数 | `Span.Count('*') + Span.Count('?')` |
+| `TSPath.Path.GetPathComponentsRelativeTo` | `for j := start; …; result[i] = toComponents[j]` | `Array.Copy(toComponents, start, result, i, …)` |
+| `Compiler.FilesParser` | 把 `files` 续到 `libFilesArray` 之后 | `List<SourceFile>.CopyTo(allFiles, libFilesArray.Length)` |
+| `Execute.Incremental.Program.SequenceEqual` / `Execute.Watcher.SameStringArray` | `slices.Equal` | `left.AsSpan().SequenceEqual(right.AsSpan())`（与 `Core.SameElements` 同口径） |
+
+实测：**分配字节 0 变化**（这些循环本来就不分配，换的是 memmove/intrinsic 路径），墙钟在两组基准上都低于噪声
+（与第 (2) 批一起进 A/B，无法单独归因到 ≤0.5% 的量级）⇒ 保留（无害、更短、与 §3.8 的 span 约定一致）。
+
+##### (4) `Core.Every/Some/Find*` → `Array.TrueForAll/Exists/Find*`：**实测拒绝**（保留手写）
+
+微观基准 `artifacts/_sweep/predbench`（`int[]`/`string[]`/`Box[]`，len=1/4/16，每格 2,000,000 次；
+`B/call` = `GC.GetAllocatedBytesForCurrentThread()` 差值 ÷ 次数；原始输出 `artifacts/_sweep/predbench.txt`；
+下表取 len=1 的 `int[]`）：
+
+| 形态（len=1） | B/call | ns/call | 备注 |
+| --- | ---: | ---: | --- |
+| 手写 `foreach` + `Func<T,bool>`，**静态**方法组 | **0** | 3.1–19.2 | 现有 `Core.Some/Every/Find`；Roslyn 把静态方法组缓存进静态字段 |
+| 手写 `foreach` + `Func<T,bool>`，**实例**方法组 | **56** | 20.7 | 与"手写 vs 内置"无关：**实例**方法组每次求值都新建委托（见 (6)） |
+| `Array.*` + `new Predicate<T>(f)`（选项 b：不动形参） | **56**（实例方法组时 **112**） | 43.6 | 每次调用多一个委托包装 ⇒ **更差** |
+| `Array.*` + `Predicate<T>` 形参（选项 a：改形参） | 0 | 19.4 / 20.8 | 无分配但也**无提速**（静态方法组） |
+
+BCL 的 `Array.Exists/TrueForAll/Find/FindLast/FindIndex/FindLastIndex` 是**普通托管循环**（没有向量化/intrinsic——
+有 intrinsic 的是 `Array.Copy`/`Array.IndexOf`/`Array.LastIndexOf`/`Array.Fill`/`Array.Clear` 与
+`MemoryExtensions.*` 那几个 span 算子），所以"换成内置"既不省时间、选项 (b) 还多一次
+委托分配、选项 (a) 要改所有把 `Func<T,bool>` **变量**传进来的调用点 ⇒ **`Core.cs` 的 Some/Every/Find/FindLast/
+FindIndex/FindLastIndex 全部保持手写**。`Core.Or`（`params Func<T,bool>[]` 组合器）在 BCL 里没有任何对应物，不动。
+
+##### (5) 本批实测后"不换/不能换"的其它项
+
+| 项 | 依据 | 结论 |
+| --- | --- | --- |
+| `Json.FloatFormat.FormatExponent` 的 `destination[i] = reverse[count-1-i]` | `count ≤ 4` 的栈上反转；用 `CopyTo + Reverse` 要两趟 | 不改（更长更慢） |
+| `Ipc.Timing` 的 `recent[i] = _ring[(_head+i) % _ring.Count]`、`Patience/Lcs`、`SpanMap.maxEnds` 等 | 环形回绕 / 逐元素取**字段**（非连续），没有单次 memmove 等价物 | 不改 |
+| `Printer/Checker` 里的 `Map`/`Filter` 手写循环 | Go 的 `core.Map/Filter` 就是循环；`Map` 已是 `new U[n]` + 写满 | 不改（无内置等价物，LINQ 在本仓禁用） |
+| `Scanner.SkipTriviaEx` 的逐字符 `switch` | 空白/换行各自带副作用（`StopAfterLineBreak`/`canConsumeStar`），批量跳必须拆开语义 | 不改（风险 > 收益） |
+
+##### (6) 交给下一个负责人（本批实测的新发现，都**没有**在本批改）
+
+| 项 | 量（真实编译） | 说明 |
+| --- | ---: | --- |
+| `Checker.IsDeprecatedSymbol` 的 `Some(declarations, IsDeprecatedDeclaration)` | `Func<Node,bool>` **20.3 MB**（1.9%） | **实例方法组**每次求值都新建委托（Roslyn 只缓存静态方法组）。把委托提成 `Checker` 字段或写内联循环即可归零；但会动 Checker 的分配/生命周期形状 ⇒ 留给所有者定 |
+| `Checker.GetNarrowableTypeForReference` | `Func<Type,bool>` **14.6 MB**（1.4%） | 同上 |
+| `Checker.RegisterForUnusedIdentifiersCheck` 的 `Node[]`（第三批登记的 11.9%） | 已不在本批 trace 的榜首 | fd00fcd 已修 |
+
+**门禁（本批）**：`dotnet build TypeScript.slnx`（Debug、Release 各一次）**0 警告 / 0 错误**；
+`dotnet test tests/TypeScript.Compiler.Tests -c Release` **4,305 通过 / 0 失败 / 2 跳过**；
+harness `--suite compiler --limit 1000 --offset 0`（914 executed）与 `--offset 3000`（951 executed）、
+`--suite conformance --limit 1000 --offset 0`（738 executed）全部 `cases with failures = 0` 且 `mismatch = 0`
+（基线 3458 / 3374 / 3812 逐字节一致）；额外跑 `--suite fourslash --limit 400` = PASS（`mismatch = 0`），覆盖本批动过的
+`Ls/JsdocSnippet`、`Format/**`；两个真实基准的诊断条数逐条不变（TS6 85、naxiale 0）。原始日志：
+`artifacts/_sweep/harness-*.txt`。
 
 ### 3.9 深度递归必须跑在大栈线程上（实测，M5 结论）
 

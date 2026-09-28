@@ -1053,14 +1053,9 @@ public sealed class Watcher : TscNs.Watcher
         {
             return false;
         }
-        for (var i = 0; i < a.Length; i++)
-        {
-            if (a[i] != b[i])
-            {
-                return false;
-            }
-        }
-        return true;
+
+        // 内置 span 序列比较（`string` 元素 → `EqualityComparer<string>.Default`，与 `a[i] != b[i]` 同语义）。
+        return a.AsSpan().SequenceEqual(b.AsSpan());
     }
 
     private static bool SameBytes(byte[]? a, byte[]? b)

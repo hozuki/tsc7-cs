@@ -397,9 +397,14 @@ public sealed partial class ClassFieldsTransformer : Transformer
     }
 
     /// <summary>Go: <c>func (tx *classFieldsTransformer) addPendingExpressions(exprs ...*ast.Expression)</c>（classfields.go:2936-2938）。</summary>
-    private void AddPendingExpressions(params Node[] exprs)
+    /// <remarks>`params ReadOnlySpan&lt;Node&gt;`：调用点全部是内联单元素（`AddPendingExpressions(assignment)` 之类），
+    /// 由编译器 `stackalloc`（Go 的变参每次调用分配一个切片）。</remarks>
+    private void AddPendingExpressions(params ReadOnlySpan<Node> exprs)
     {
-        _pendingExpressions.AddRange(exprs);
+        foreach (var expr in exprs)
+        {
+            _pendingExpressions.Add(expr);
+        }
     }
 
     /// <summary>Go: <c>func (tx *classFieldsTransformer) addPrivateIdentifierPropertyDeclarationToEnvironment(node *ast.Node, name *ast.Node)</c>（classfields.go:2940-2979）。</summary>

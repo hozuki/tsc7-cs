@@ -136,7 +136,12 @@ public static partial class TSPath
     //	CombinePaths("file:///path", "to", "file.ext") === "file:///path/to/file.ext"
     //	CombinePaths("file:///path", "file:///to", "file.ext") === "file:///to/file.ext"
     //	```
-    public static string CombinePaths(string firstPath, params string[] paths)
+    /// <remarks>`paths` 是 `params ReadOnlySpan&lt;string&gt;`（不是 `string[]`）：Go 的 `paths ...string` 变参每次调用
+    /// 分配一个切片，而 C# 13 的 `params ReadOnlySpan&lt;T&gt;` 在调用点由编译器 `stackalloc`（先例
+    /// `Ast/Utilities.cs` 的 `NodeKindIs(bool, params ReadOnlySpan&lt;Kind&gt;)`）。本方法 159 个调用点里绝大多数字面量
+    /// 只带 1 个额外 path，省掉的就是每个调用点一个 `string[1]`；传已有数组的调用点写 `CombinePaths(a, b)` 一行不改
+    /// （`string[]` 隐式转 `ReadOnlySpan&lt;string&gt;`）。</remarks>
+    public static string CombinePaths(string firstPath, params ReadOnlySpan<string> paths)
     {
         // TODO (drosen): There is potential for a fast path here.
         // In the case where we find the last absolute path and just path.Join from there.
@@ -428,7 +433,7 @@ public static partial class TSPath
     // resolvePath("/path", "to", "file.ext/") == "path/to/file.ext/"
     // resolvePath("/path", "dir", "..", "to", "file.ext") == "path/to/file.ext"
     // ```
-    public static string ResolvePath(string path, params string[] paths)
+    public static string ResolvePath(string path, params ReadOnlySpan<string> paths)
     {
         var combinedPath = paths.Length > 0 ? CombinePaths(path, paths) : NormalizeSlashes(path);
         return NormalizePath(combinedPath);
@@ -1067,11 +1072,9 @@ public static partial class TSPath
         }
 
         // Now add all the remaining components of the "to" path.
-        for (var j = start; j < toComponents.Length; j++)
-        {
-            result[i] = toComponents[j];
-            i++;
-        }
+        // Go 的 `for j := start; j < len(toComponents); j++ { result[i] = toComponents[j]; i++ }` ⇒ 连续区间，
+        // 用内置的 `Array.Copy`（memmove）取代手写循环。
+        Array.Copy(toComponents, start, result, i, toComponents.Length - start);
 
         return result;
     }

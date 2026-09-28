@@ -383,15 +383,10 @@ public sealed class Glob
             return;
         }
         first = input[..i];
-        for (var j = i; j < input.Length; j++)
-        {
-            if (input[j] != '/')
-            {
-                rest = input[j..];
-                return;
-            }
-        }
-        rest = default;
+        // Go 的 `for j := i; j < len(input); j++ { if input[j] != '/' { ... } }`：找第一个非 '/' 的位置。
+        // 用内置的 `IndexOfAnyExcept`（对 char 有向量化实现）取代手写循环。
+        var j = input[i..].IndexOfAnyExcept('/');
+        rest = j < 0 ? default : input[(i + j)..];
     }
 }
 

@@ -376,15 +376,16 @@ public static partial class Core
             return false;
         }
 
-        for (var i = 0; i < len1; i++)
+        if (len1 == 0)
         {
-            if (!EqualityComparer<T>.Default.Equals(s1![i], s2![i]))
-            {
-                return false;
-            }
+            return true;
         }
 
-        return true;
+        // 用 .NET 内置的 span 序列比较：对 `int`/`char`/`uint` 等基元元素会走**向量化**路径（BCL 的
+        // `MemoryExtensions.SequenceEqual` 有 intrinsic 实现），其余元素类型退化为 `EqualityComparer<T>.Default`
+        // 逐元素比较 —— 与 Go `slices.Equal` 的元素语义一致（引用类型按引用、值类型按 `IEquatable<T>`/字段），
+        // 且省掉了手写循环的每次边界检查。注意上方的长度检查已保证两个 span 等长。
+        return s1.AsSpan(0, len1).SequenceEqual(s2.AsSpan(0, len1));
     }
 
     public static bool Some<T>(T[]? slice, Func<T, bool> f)
@@ -560,7 +561,7 @@ public static partial class Core
         return default!;
     }
 
-    public static T FirstNonZero<T>(params T[] values)
+    public static T FirstNonZero<T>(params ReadOnlySpan<T> values)
     {
         foreach (var value in values)
         {
@@ -576,7 +577,7 @@ public static partial class Core
     // Go: `FirstNonZero[T comparable]`（core.go:295-303）取第一个**非零值**，零值判据是 `value != zero` ——
     // `T = string` 时零值是 `""`（不是 nil）。C# 的无约束泛型只能给出 default(T)（string 为 null），会把 `""`
     // 误判成"非零值"直接返回，故 string 单独重载（见文件头第 13 条）：null 与 "" 都算零值，全零时返回 Go 的零值 ""。
-    public static string FirstNonZero(params string?[] values)
+    public static string FirstNonZero(params ReadOnlySpan<string?> values)
     {
         foreach (var value in values)
         {
@@ -607,7 +608,7 @@ public static partial class Core
         return result;
     }
 
-    public static T[] Splice<T>(T[]? s1, int start, int deleteCount, params T[] items)
+    public static T[] Splice<T>(T[]? s1, int start, int deleteCount, params ReadOnlySpan<T> items)
     {
         s1 ??= [];
         if (start < 0)
@@ -638,7 +639,7 @@ public static partial class Core
 
         var result = new T[start + items.Length + (s1.Length - end)];
         Array.Copy(s1, 0, result, 0, start);
-        Array.Copy(items, 0, result, start, items.Length);
+        items.CopyTo(result.AsSpan(start));
         Array.Copy(s1, end, result, start + items.Length, s1.Length - end);
         return result;
     }

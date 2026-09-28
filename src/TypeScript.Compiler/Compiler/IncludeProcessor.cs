@@ -81,9 +81,12 @@ internal sealed class IncludeProcessor
         return diagnostics;
     }
 
-    internal void AddProcessingDiagnostic(params ProcessingDiagnostic[] d)
+    internal void AddProcessingDiagnostic(params ReadOnlySpan<ProcessingDiagnostic> d)
     {
-        _processingDiagnostics.AddRange(d);
+        foreach (var diagnostic in d)
+        {
+            _processingDiagnostics.Add(diagnostic);
+        }
     }
 
     internal void AddProcessingDiagnosticsForFileCasing(Path file, string existingCasing, string currentCasing, FileIncludeReason reason)

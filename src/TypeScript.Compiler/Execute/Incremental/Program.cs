@@ -639,13 +639,9 @@ public static partial class Incremental
         {
             return false;
         }
-        for (var i = 0; i < left.Length; i++)
-        {
-            if (left[i] != right[i])
-            {
-                return false;
-            }
-        }
-        return true;
+
+        // 内置 span 序列比较（对基元元素向量化；`string` 元素走 `EqualityComparer<string>.Default`，
+        // 与 `left[i] != right[i]` 的字符串值比较同语义）。
+        return left.AsSpan().SequenceEqual(right.AsSpan());
     }
 }

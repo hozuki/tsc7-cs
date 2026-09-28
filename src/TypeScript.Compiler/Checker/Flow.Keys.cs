@@ -107,14 +107,14 @@ public sealed partial class Checker
     internal CacheHashKey GetFlowReferenceKey(FlowState f)
     {
         var b = new KeyBuilder();
-        if (WriteFlowCacheKey(b, f._reference!, f._declaredType!, f._initialType!, f._flowContainer))
+        if (WriteFlowCacheKey(ref b, f._reference!, f._declaredType!, f._initialType!, f._flowContainer))
         {
             return b.Hash();
         }
         return _nonDottedNameCacheKey; // Reference isn't a dotted name
     }
 
-    internal bool WriteFlowCacheKey(KeyBuilder b, Node node, Type declaredType, Type initialType, Node? flowContainer)
+    internal bool WriteFlowCacheKey(ref KeyBuilder b, Node node, Type declaredType, Type initialType, Node? flowContainer)
     {
         switch (node.Kind)
         {
@@ -145,9 +145,9 @@ public sealed partial class Checker
                 return true;
             case Kind.NonNullExpression:
             case Kind.ParenthesizedExpression:
-                return WriteFlowCacheKey(b, node.Expression()!, declaredType, initialType, flowContainer);
+                return WriteFlowCacheKey(ref b, node.Expression()!, declaredType, initialType, flowContainer);
             case Kind.QualifiedName:
-                if (!WriteFlowCacheKey(b, node.AsQualifiedName()!.Left!, declaredType, initialType, flowContainer))
+                if (!WriteFlowCacheKey(ref b, node.AsQualifiedName()!.Left!, declaredType, initialType, flowContainer))
                 {
                     return false;
                 }
@@ -158,7 +158,7 @@ public sealed partial class Checker
             case Kind.ElementAccessExpression:
                 if (TryGetAccessedPropertyName(node, out var propName))
                 {
-                    if (!WriteFlowCacheKey(b, node.Expression()!, declaredType, initialType, flowContainer))
+                    if (!WriteFlowCacheKey(ref b, node.Expression()!, declaredType, initialType, flowContainer))
                     {
                         return false;
                     }
@@ -171,7 +171,7 @@ public sealed partial class Checker
                     var symbol = GetResolvedSymbolWorker(node.AsElementAccessExpression()!.ArgumentExpression!);
                     if (IsConstantVariable(symbol) || IsParameterOrMutableLocalVariable(symbol) && !IsSymbolAssigned(symbol))
                     {
-                        if (!WriteFlowCacheKey(b, node.Expression()!, declaredType, initialType, flowContainer))
+                        if (!WriteFlowCacheKey(ref b, node.Expression()!, declaredType, initialType, flowContainer))
                         {
                             return false;
                         }

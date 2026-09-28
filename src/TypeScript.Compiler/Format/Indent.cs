@@ -807,7 +807,7 @@ public static partial class Format
     /// True when the parent node should indent the given child by an explicit rule.
     /// </summary>
     /// <param name="isNextChildArg">If true, we are judging indent of a hypothetical child *after* this one, not the current child.</param>
-    public static bool ShouldIndentChildNode(FormatCodeSettings settings, Node parent, Node? child, SourceFile sourceFile, params bool[] isNextChildArg)
+    public static bool ShouldIndentChildNode(FormatCodeSettings settings, Node parent, Node? child, SourceFile sourceFile, params ReadOnlySpan<bool> isNextChildArg)
     {
         var isNextChild = false;
         if (isNextChildArg.Length > 0)

@@ -22,23 +22,9 @@ public static partial class Core
     private static string ComputeVersionMajorMinor()
     {
         // Go 的 strings.IndexFunc：返回**第二个** '.' 的下标（只见过一个 '.' 时返回 -1）。
-        var seenMajor = false;
-        var i = -1;
-        for (var j = 0; j < _version.Length; j++)
-        {
-            if (_version[j] != '.')
-            {
-                continue;
-            }
-
-            if (seenMajor)
-            {
-                i = j;
-                break;
-            }
-
-            seenMajor = true;
-        }
+        // 用 `string.IndexOf(char)`（ordinal、向量化）取代手写扫描。
+        var firstDot = _version.IndexOf('.');
+        var i = firstDot < 0 ? -1 : _version.IndexOf('.', firstDot + 1);
 
         if (i == -1)
         {

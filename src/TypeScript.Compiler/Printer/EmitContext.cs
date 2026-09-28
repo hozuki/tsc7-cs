@@ -844,7 +844,7 @@ public sealed class EmitContext
         return helpers.ToArray();
     }
 
-    public void AddEmitHelper(Node node, params EmitHelper[] helper)
+    public void AddEmitHelper(Node node, params ReadOnlySpan<EmitHelper> helper)
     {
         var emitNode = _emitNodes.Get(node);
         foreach (var h in helper)
