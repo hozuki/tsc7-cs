@@ -74,7 +74,7 @@ public sealed class TscInput
     public string Cwd = "";
 
     /// <summary>Go: <c>edits []*tscEdit</c>。</summary>
-    public List<TscEdit> Edits = [];
+    public TscEdit[] Edits = [];
 
     /// <summary>Go: <c>env map[string]string</c>（nil = 无环境变量）。</summary>
     public Dictionary<string, string>? Env;
@@ -150,9 +150,11 @@ public sealed class TscInput
         var unexpectedDiff = new StringBuilder();
         unexpectedDiff.Append(sys.BaselinePrograms(baselineBuilder, "Initial build"));
 
-        for (var index = 0; index < Edits.Count; index++)
+        // Go 的 `for … range test.Edits` 在 nil 切片上迭代零次（`edits: nil` 是合法用例），C# 里要先落成空数组。
+        var edits = Edits ?? [];
+        for (var index = 0; index < edits.Length; index++)
         {
-            var do_ = Edits[index];
+            var do_ = edits[index];
             sys.ClearOutput();
             var commandLineArgs = do_.CommandLineArgs ?? CommandLineArgs;
 
@@ -183,7 +185,7 @@ public sealed class TscInput
             var nonIncrementalSys = TestSys.NewTestSys(this, forIncrementalCorrectness: true);
             for (var i = 0; i < index + 1; i++)
             {
-                Edits[i].Edit?.Invoke(nonIncrementalSys);
+                edits[i].Edit?.Invoke(nonIncrementalSys);
             }
 
             Exec.CommandLine(ctx, nonIncrementalSys, commandLineArgs ?? [], nonIncrementalSys);
