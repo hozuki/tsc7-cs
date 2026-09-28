@@ -1091,7 +1091,6 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
     {
         var method = req.Method.Value;
         var stack = Environment.StackTrace;
-        try { System.IO.File.AppendAllText(@"D:\Source\VS\TEMP\tsc-cs-go\artifacts\probe-hover-stacks.txt", $"\n===== {method} =====\n{error}\n===== Environment.StackTrace =====\n{stack}\n"); } catch { }
         _logger.Errorf("panic handling request {0}: {1}\n{2}", method, error.Message, stack);
         if (req.ID is not null)
         {

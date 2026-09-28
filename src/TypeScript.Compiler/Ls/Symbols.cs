@@ -470,7 +470,9 @@ public static partial class Ls
             string? containerName = null;
             if (container is not null)
             {
-                containerName = GetDeclarationName(container);
+                // symbols.go:590：`containerName = strPtrTo(ast.GetDeclarationName(container))`
+                // —— Go 的 strPtrTo 把 "" 折成 nil（completions.go:3014-3019），空名不能写成 `"containerName": ""`。
+                containerName = StrPtrTo(GetDeclarationName(container));
             }
 
             // Use the name node's span so that VS selects just the symbol name (matching

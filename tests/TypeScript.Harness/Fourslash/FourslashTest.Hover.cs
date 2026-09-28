@@ -10,8 +10,9 @@
 //    `f.writeToBaseline` → `WriteToBaseline`；`f.getScriptInfo` → `GetScriptInfo`（返回 `ScriptInfo?`，Go 为 nil 指针）。
 // 3) 闭包签名：Go `getRange func(item T) *lsproto.Range` → `Func<T, Range?>`；Go
 //    `getTooltipLines func(item, prev T) []string` → `Func<T, T?, string[]>`（`prev` 的首项是 Go 的零值 nil）。
-//    Go 闭包里对 `item` 的解引用都发生在 annotateContentWithTooltips 的 `item != *new(T)` 守卫之后，
-//    C# 侧同理由 `AnnotateContentWithTooltips` 的 `item is not null` 守卫 ⇒ 闭包参数 `item` 是非空 T。
+//    `getTooltipLines` 的解引用发生在 annotateContentWithTooltips 的 `item != *new(T)` 守卫之后 ⇒ 参数是非空 T；
+//    但 `getRange` 在守卫**之前**被调用（baselineutil.go:696）⇒ 它必须自己容忍 nil，与 Go 的
+//    `if item == nil || item.Range == nil { return nil }`（fourslash.go:2945-2950）一致 ⇒ 写成 `item?.Range`。
 // 4) `core.StringifyJson(v, "", "  ")` 的 `(string, error)` → `StringifyJson(v, "", "  ")` 只返回 string
 //    （错误路径是 Json.MarshalIndent 抛 JsonException，见 Core.cs:869 与 docs §3.2）⇒ Go 的
 //    `t.Fatalf("Failed to stringify markers and items for baseline: %v", err)` 分支在 C# 不存在。
@@ -79,7 +80,10 @@ public sealed partial class FourslashTest
             t,
             markersAndItems,
             "quickinfo",
-            static item => item.Range,
+            // Go 的 getRange 自带 nil 守卫（`if item == nil || item.Range == nil { return nil }`，
+            // fourslash.go:2945-2950）：hover 可能在某个 marker 上返回 null（基线里写 "No quickinfo at …"），
+            // 而此时 annotateContentWithTooltips 的 `item != *new(T)` 守卫还没跑 ⇒ 这里必须 `?.`。
+            static item => item?.Range,
             static (item, _) => HoverContentsLines(item.Contents)));
         WriteToBaseline(BaselineCommand.QuickInfo, StringifyJson(markersAndItems, "", "  "));
     }
@@ -108,7 +112,7 @@ public sealed partial class FourslashTest
             t,
             markersAndItems,
             "vsquickinfo",
-            static item => item.Range,
+            static item => item?.Range,
             static (item, _) =>
             {
                 if (item.VSRawContent is null)

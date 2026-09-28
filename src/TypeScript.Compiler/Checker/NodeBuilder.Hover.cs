@@ -429,7 +429,8 @@ public sealed partial class NodeBuilderImpl
         if (staticBaseType is not null)
         {
             var baseSigs = _ch.GetSignaturesOfTypeWorker(staticBaseType, SignatureKind.Construct) ?? [];
-            if (baseSigs.Length == 0 && Every(signatures, sig => sig._parameters!.Length == 0))
+            // Go: `len(sig.parameters)`（nil 切片长度为 0）⇒ 用 `Parameters()`（`_parameters ?? []`），不能 `_parameters!.Length`。
+            if (baseSigs.Length == 0 && Every(signatures, sig => sig.Parameters().Length == 0))
             {
                 return [];
             }
@@ -468,7 +469,7 @@ public sealed partial class NodeBuilderImpl
                     null, _f.NewNodeList([]), null, null, null)];
             }
         }
-        else if (Every(signatures, sig => sig._parameters!.Length == 0))
+        else if (Every(signatures, sig => sig.Parameters().Length == 0))
         {
             return [];
         }
@@ -565,7 +566,11 @@ public sealed partial class NodeBuilderImpl
             members.Add(sym);
         }
 
-        _ch.SortSymbols(members.ToArray());
+        // Go: `b.ch.sortSymbols(members)`（utilities.go:361-363，`slices.SortFunc` 就地排序切片）⇒ C# 的
+        // `SortSymbols` 也是就地排序（`Array.Sort`），必须把排好序的数组拿来迭代；
+        // 传 `members.ToArray()` 这种临时拷贝会让排序结果丢掉（成员保持 exports 表的插入序）。
+        var sortedMembers = members.ToArray();
+        _ch.SortSymbols(sortedMembers);
         _ctx!._approximateLength += 14;
 
         // Use the same name as symbol display.
@@ -583,14 +588,14 @@ public sealed partial class NodeBuilderImpl
 
         var bodyStmts = new List<HoverStatement>();
         var emittedLocals = new Set<Symbol>();
-        for (var i = 0; i < members.Count; i++)
+        for (var i = 0; i < sortedMembers.Length; i++)
         {
-            var m = members[i];
-            if (CheckTruncationLengthIfExpanding() && i + 3 < members.Count - 1)
+            var m = sortedMembers[i];
+            if (CheckTruncationLengthIfExpanding() && i + 3 < sortedMembers.Length - 1)
             {
                 _ctx!._expansionTruncated = true;
-                bodyStmts.Add(new HoverStatement { _node = _f.NewExpressionStatement(_f.NewIdentifier($"... ({members.Count - i - 1} more) ...")) });
-                i = members.Count - 2; // skip to last member after i++ at end of iteration
+                bodyStmts.Add(new HoverStatement { _node = _f.NewExpressionStatement(_f.NewIdentifier($"... ({sortedMembers.Length - i - 1} more) ...")) });
+                i = sortedMembers.Length - 2; // skip to last member after i++ at end of iteration
                 continue;
             }
 

@@ -484,7 +484,7 @@ public sealed class ConfigurationParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (ConfigurationParams)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -1329,7 +1329,7 @@ public sealed class SelectionRangeParams : IJsonMarshaler, IJsonUnmarshaler, Has
         {
             var t = (SelectionRangeParams)target;
             enc.WriteToken(JsonToken.String("positions"));
-            if (t.Positions is null) { MarshalEncode(enc, null); }
+            if (t.Positions is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -1939,7 +1939,7 @@ public sealed class CallHierarchyIncomingCall : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CallHierarchyIncomingCall)target;
             enc.WriteToken(JsonToken.String("fromRanges"));
-            if (t.FromRanges is null) { MarshalEncode(enc, null); }
+            if (t.FromRanges is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2074,7 +2074,7 @@ public sealed class CallHierarchyOutgoingCall : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CallHierarchyOutgoingCall)target;
             enc.WriteToken(JsonToken.String("fromRanges"));
-            if (t.FromRanges is null) { MarshalEncode(enc, null); }
+            if (t.FromRanges is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2201,7 +2201,7 @@ public sealed class SemanticTokens : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (SemanticTokens)target;
             enc.WriteToken(JsonToken.String("data"));
-            if (t.Data is null) { MarshalEncode(enc, null); }
+            if (t.Data is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2242,7 +2242,7 @@ public sealed class SemanticTokensPartialResult : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (SemanticTokensPartialResult)target;
             enc.WriteToken(JsonToken.String("data"));
-            if (t.Data is null) { MarshalEncode(enc, null); }
+            if (t.Data is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2505,7 +2505,7 @@ public sealed class SemanticTokensDelta : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (SemanticTokensDelta)target;
             enc.WriteToken(JsonToken.String("edits"));
-            if (t.Edits is null) { MarshalEncode(enc, null); }
+            if (t.Edits is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2546,7 +2546,7 @@ public sealed class SemanticTokensDeltaPartialResult : IJsonMarshaler, IJsonUnma
         {
             var t = (SemanticTokensDeltaPartialResult)target;
             enc.WriteToken(JsonToken.String("edits"));
-            if (t.Edits is null) { MarshalEncode(enc, null); }
+            if (t.Edits is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2873,7 +2873,7 @@ public sealed class LinkedEditingRanges : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (LinkedEditingRanges)target;
             enc.WriteToken(JsonToken.String("ranges"));
-            if (t.Ranges is null) { MarshalEncode(enc, null); }
+            if (t.Ranges is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -2989,7 +2989,7 @@ public sealed class CreateFilesParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CreateFilesParams)target;
             enc.WriteToken(JsonToken.String("files"));
-            if (t.Files is null) { MarshalEncode(enc, null); }
+            if (t.Files is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -3152,7 +3152,7 @@ public sealed class FileOperationRegistrationOptions : IJsonMarshaler, IJsonUnma
         {
             var t = (FileOperationRegistrationOptions)target;
             enc.WriteToken(JsonToken.String("filters"));
-            if (t.Filters is null) { MarshalEncode(enc, null); }
+            if (t.Filters is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -3196,7 +3196,7 @@ public sealed class RenameFilesParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (RenameFilesParams)target;
             enc.WriteToken(JsonToken.String("files"));
-            if (t.Files is null) { MarshalEncode(enc, null); }
+            if (t.Files is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -3240,7 +3240,7 @@ public sealed class DeleteFilesParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (DeleteFilesParams)target;
             enc.WriteToken(JsonToken.String("files"));
-            if (t.Files is null) { MarshalEncode(enc, null); }
+            if (t.Files is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -4712,7 +4712,7 @@ public sealed class WorkspaceDiagnosticParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (WorkspaceDiagnosticParams)target;
             enc.WriteToken(JsonToken.String("previousResultIds"));
-            if (t.PreviousResultIds is null) { MarshalEncode(enc, null); }
+            if (t.PreviousResultIds is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -4755,7 +4755,7 @@ public sealed class WorkspaceDiagnosticReport : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (WorkspaceDiagnosticReport)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -4798,7 +4798,7 @@ public sealed class WorkspaceDiagnosticReportPartialResult : IJsonMarshaler, IJs
         {
             var t = (WorkspaceDiagnosticReportPartialResult)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -4934,7 +4934,7 @@ public sealed class InlineCompletionList : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (InlineCompletionList)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -5208,7 +5208,7 @@ public sealed class TextDocumentContentRegistrationOptions : IJsonMarshaler, IJs
         {
             var t = (TextDocumentContentRegistrationOptions)target;
             enc.WriteToken(JsonToken.String("schemes"));
-            if (t.Schemes is null) { MarshalEncode(enc, null); }
+            if (t.Schemes is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -5289,7 +5289,7 @@ public sealed class RegistrationParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (RegistrationParams)target;
             enc.WriteToken(JsonToken.String("registrations"));
-            if (t.Registrations is null) { MarshalEncode(enc, null); }
+            if (t.Registrations is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -5329,7 +5329,7 @@ public sealed class UnregistrationParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (UnregistrationParams)target;
             enc.WriteToken(JsonToken.String("unregisterations"));
-            if (t.Unregisterations is null) { MarshalEncode(enc, null); }
+            if (t.Unregisterations is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -6001,7 +6001,7 @@ public sealed class DidChangeTextDocumentParams : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (DidChangeTextDocumentParams)target;
             enc.WriteToken(JsonToken.String("contentChanges"));
-            if (t.ContentChanges is null) { MarshalEncode(enc, null); }
+            if (t.ContentChanges is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -6336,7 +6336,7 @@ public sealed class DidChangeWatchedFilesParams : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (DidChangeWatchedFilesParams)target;
             enc.WriteToken(JsonToken.String("changes"));
-            if (t.Changes is null) { MarshalEncode(enc, null); }
+            if (t.Changes is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -6377,7 +6377,7 @@ public sealed class DidChangeWatchedFilesRegistrationOptions : IJsonMarshaler, I
         {
             var t = (DidChangeWatchedFilesRegistrationOptions)target;
             enc.WriteToken(JsonToken.String("watchers"));
-            if (t.Watchers is null) { MarshalEncode(enc, null); }
+            if (t.Watchers is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -6451,7 +6451,7 @@ public sealed class PublishDiagnosticsParams : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (PublishDiagnosticsParams)target;
             enc.WriteToken(JsonToken.String("diagnostics"));
-            if (t.Diagnostics is null) { MarshalEncode(enc, null); }
+            if (t.Diagnostics is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -6987,7 +6987,7 @@ public sealed class CompletionList : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CompletionList)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -7475,7 +7475,7 @@ public sealed class SignatureHelp : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (SignatureHelp)target;
             enc.WriteToken(JsonToken.String("signatures"));
-            if (t.Signatures is null) { MarshalEncode(enc, null); }
+            if (t.Signatures is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -9958,7 +9958,7 @@ public sealed class DocumentRangesFormattingParams : IJsonMarshaler, IJsonUnmars
         {
             var t = (DocumentRangesFormattingParams)target;
             enc.WriteToken(JsonToken.String("ranges"));
-            if (t.Ranges is null) { MarshalEncode(enc, null); }
+            if (t.Ranges is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -10470,7 +10470,7 @@ public sealed class ExecuteCommandRegistrationOptions : IJsonMarshaler, IJsonUnm
         {
             var t = (ExecuteCommandRegistrationOptions)target;
             enc.WriteToken(JsonToken.String("commands"));
-            if (t.Commands is null) { MarshalEncode(enc, null); }
+            if (t.Commands is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -11421,7 +11421,7 @@ public sealed class WorkspaceFoldersChangeEvent : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (WorkspaceFoldersChangeEvent)target;
             enc.WriteToken(JsonToken.String("added"));
-            if (t.Added is null) { MarshalEncode(enc, null); }
+            if (t.Added is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -11436,7 +11436,7 @@ public sealed class WorkspaceFoldersChangeEvent : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (WorkspaceFoldersChangeEvent)target;
             enc.WriteToken(JsonToken.String("removed"));
-            if (t.Removed is null) { MarshalEncode(enc, null); }
+            if (t.Removed is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -12123,7 +12123,7 @@ public sealed class TextDocumentEdit : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (TextDocumentEdit)target;
             enc.WriteToken(JsonToken.String("edits"));
-            if (t.Edits is null) { MarshalEncode(enc, null); }
+            if (t.Edits is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -13233,7 +13233,7 @@ public sealed class RelatedFullDocumentDiagnosticReport : IJsonMarshaler, IJsonU
         {
             var t = (RelatedFullDocumentDiagnosticReport)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -13392,7 +13392,7 @@ public sealed class DocumentDiagnosticReportPartialResult : IJsonMarshaler, IJso
         {
             var t = (DocumentDiagnosticReportPartialResult)target;
             enc.WriteToken(JsonToken.String("relatedDocuments"));
-            if (t.RelatedDocuments is null) { MarshalEncode(enc, null); }
+            if (t.RelatedDocuments is null) { enc.WriteToken(BeginObject); enc.WriteToken(EndObject); }
             else
             {
                 enc.WriteToken(BeginObject);
@@ -13793,7 +13793,7 @@ public sealed class TextDocumentContentOptions : IJsonMarshaler, IJsonUnmarshale
         {
             var t = (TextDocumentContentOptions)target;
             enc.WriteToken(JsonToken.String("schemes"));
-            if (t.Schemes is null) { MarshalEncode(enc, null); }
+            if (t.Schemes is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -16965,7 +16965,7 @@ public sealed class CodeActionContext : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CodeActionContext)target;
             enc.WriteToken(JsonToken.String("diagnostics"));
-            if (t.Diagnostics is null) { MarshalEncode(enc, null); }
+            if (t.Diagnostics is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -17700,7 +17700,7 @@ public sealed class ExecuteCommandOptions : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (ExecuteCommandOptions)target;
             enc.WriteToken(JsonToken.String("commands"));
-            if (t.Commands is null) { MarshalEncode(enc, null); }
+            if (t.Commands is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -17818,7 +17818,7 @@ public sealed class SemanticTokensLegend : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (SemanticTokensLegend)target;
             enc.WriteToken(JsonToken.String("tokenTypes"));
-            if (t.TokenTypes is null) { MarshalEncode(enc, null); }
+            if (t.TokenTypes is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -17833,7 +17833,7 @@ public sealed class SemanticTokensLegend : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (SemanticTokensLegend)target;
             enc.WriteToken(JsonToken.String("tokenModifiers"));
-            if (t.TokenModifiers is null) { MarshalEncode(enc, null); }
+            if (t.TokenModifiers is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -18397,7 +18397,7 @@ public sealed class FullDocumentDiagnosticReport : IJsonMarshaler, IJsonUnmarsha
         {
             var t = (FullDocumentDiagnosticReport)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -18544,7 +18544,7 @@ public sealed class WorkspaceFullDocumentDiagnosticReport : IJsonMarshaler, IJso
         {
             var t = (WorkspaceFullDocumentDiagnosticReport)target;
             enc.WriteToken(JsonToken.String("items"));
-            if (t.Items is null) { MarshalEncode(enc, null); }
+            if (t.Items is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -23615,7 +23615,7 @@ public sealed class SemanticTokensClientCapabilities : IJsonMarshaler, IJsonUnma
         {
             var t = (SemanticTokensClientCapabilities)target;
             enc.WriteToken(JsonToken.String("tokenTypes"));
-            if (t.TokenTypes is null) { MarshalEncode(enc, null); }
+            if (t.TokenTypes is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -23630,7 +23630,7 @@ public sealed class SemanticTokensClientCapabilities : IJsonMarshaler, IJsonUnma
         {
             var t = (SemanticTokensClientCapabilities)target;
             enc.WriteToken(JsonToken.String("tokenModifiers"));
-            if (t.TokenModifiers is null) { MarshalEncode(enc, null); }
+            if (t.TokenModifiers is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -23645,7 +23645,7 @@ public sealed class SemanticTokensClientCapabilities : IJsonMarshaler, IJsonUnma
         {
             var t = (SemanticTokensClientCapabilities)target;
             enc.WriteToken(JsonToken.String("formats"));
-            if (t.Formats is null) { MarshalEncode(enc, null); }
+            if (t.Formats is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -24257,7 +24257,7 @@ public sealed class StaleRequestSupportOptions : IJsonMarshaler, IJsonUnmarshale
         {
             var t = (StaleRequestSupportOptions)target;
             enc.WriteToken(JsonToken.String("retryOnContentModified"));
-            if (t.RetryOnContentModified is null) { MarshalEncode(enc, null); }
+            if (t.RetryOnContentModified is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -24735,7 +24735,7 @@ public sealed class ClientSymbolTagOptions : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (ClientSymbolTagOptions)target;
             enc.WriteToken(JsonToken.String("valueSet"));
-            if (t.ValueSet is null) { MarshalEncode(enc, null); }
+            if (t.ValueSet is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -24785,7 +24785,7 @@ public sealed class ClientSymbolResolveOptions : IJsonMarshaler, IJsonUnmarshale
         {
             var t = (ClientSymbolResolveOptions)target;
             enc.WriteToken(JsonToken.String("properties"));
-            if (t.Properties is null) { MarshalEncode(enc, null); }
+            if (t.Properties is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25285,7 +25285,7 @@ public sealed class ClientCodeActionResolveOptions : IJsonMarshaler, IJsonUnmars
         {
             var t = (ClientCodeActionResolveOptions)target;
             enc.WriteToken(JsonToken.String("properties"));
-            if (t.Properties is null) { MarshalEncode(enc, null); }
+            if (t.Properties is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25335,7 +25335,7 @@ public sealed class CodeActionTagOptions : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CodeActionTagOptions)target;
             enc.WriteToken(JsonToken.String("valueSet"));
-            if (t.ValueSet is null) { MarshalEncode(enc, null); }
+            if (t.ValueSet is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25385,7 +25385,7 @@ public sealed class ClientCodeLensResolveOptions : IJsonMarshaler, IJsonUnmarsha
         {
             var t = (ClientCodeLensResolveOptions)target;
             enc.WriteToken(JsonToken.String("properties"));
-            if (t.Properties is null) { MarshalEncode(enc, null); }
+            if (t.Properties is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25663,7 +25663,7 @@ public sealed class ClientInlayHintResolveOptions : IJsonMarshaler, IJsonUnmarsh
         {
             var t = (ClientInlayHintResolveOptions)target;
             enc.WriteToken(JsonToken.String("properties"));
-            if (t.Properties is null) { MarshalEncode(enc, null); }
+            if (t.Properties is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25755,7 +25755,7 @@ public sealed class CompletionItemTagOptions : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (CompletionItemTagOptions)target;
             enc.WriteToken(JsonToken.String("valueSet"));
-            if (t.ValueSet is null) { MarshalEncode(enc, null); }
+            if (t.ValueSet is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25805,7 +25805,7 @@ public sealed class ClientCompletionItemResolveOptions : IJsonMarshaler, IJsonUn
         {
             var t = (ClientCompletionItemResolveOptions)target;
             enc.WriteToken(JsonToken.String("properties"));
-            if (t.Properties is null) { MarshalEncode(enc, null); }
+            if (t.Properties is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25855,7 +25855,7 @@ public sealed class ClientCompletionItemInsertTextModeOptions : IJsonMarshaler, 
         {
             var t = (ClientCompletionItemInsertTextModeOptions)target;
             enc.WriteToken(JsonToken.String("valueSet"));
-            if (t.ValueSet is null) { MarshalEncode(enc, null); }
+            if (t.ValueSet is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25947,7 +25947,7 @@ public sealed class ClientCodeActionKindOptions : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (ClientCodeActionKindOptions)target;
             enc.WriteToken(JsonToken.String("valueSet"));
-            if (t.ValueSet is null) { MarshalEncode(enc, null); }
+            if (t.ValueSet is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -25997,7 +25997,7 @@ public sealed class ClientDiagnosticsTagOptions : IJsonMarshaler, IJsonUnmarshal
         {
             var t = (ClientDiagnosticsTagOptions)target;
             enc.WriteToken(JsonToken.String("valueSet"));
-            if (t.ValueSet is null) { MarshalEncode(enc, null); }
+            if (t.ValueSet is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -26679,7 +26679,7 @@ public sealed class VSOnAutoInsertOptions : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (VSOnAutoInsertOptions)target;
             enc.WriteToken(JsonToken.String("_vs_triggerCharacters"));
-            if (t.VSTriggerCharacters is null) { MarshalEncode(enc, null); }
+            if (t.VSTriggerCharacters is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -27382,7 +27382,7 @@ public sealed class ContentMapperManifest : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (ContentMapperManifest)target;
             enc.WriteToken(JsonToken.String("exec"));
-            if (t.Exec is null) { MarshalEncode(enc, null); }
+            if (t.Exec is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -27544,7 +27544,7 @@ public sealed class ContentMapperContribution : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (ContentMapperContribution)target;
             enc.WriteToken(JsonToken.String("extensions"));
-            if (t.Extensions is null) { MarshalEncode(enc, null); }
+            if (t.Extensions is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -27602,7 +27602,7 @@ public sealed class SetContentMapperContributionsParams : IJsonMarshaler, IJsonU
         {
             var t = (SetContentMapperContributionsParams)target;
             enc.WriteToken(JsonToken.String("contributions"));
-            if (t.Contributions is null) { MarshalEncode(enc, null); }
+            if (t.Contributions is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -27617,7 +27617,7 @@ public sealed class SetContentMapperContributionsParams : IJsonMarshaler, IJsonU
         {
             var t = (SetContentMapperContributionsParams)target;
             enc.WriteToken(JsonToken.String("openDocuments"));
-            if (t.OpenDocuments is null) { MarshalEncode(enc, null); }
+            if (t.OpenDocuments is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -28341,7 +28341,7 @@ public sealed class ProjectInfoTelemetryEvent : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (ProjectInfoTelemetryEvent)target;
             enc.WriteToken(JsonToken.String("properties"));
-            if (t.Properties is null) { MarshalEncode(enc, null); }
+            if (t.Properties is null) { enc.WriteToken(BeginObject); enc.WriteToken(EndObject); }
             else
             {
                 enc.WriteToken(BeginObject);
@@ -28595,7 +28595,7 @@ public sealed class MultiDocumentHighlight : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (MultiDocumentHighlight)target;
             enc.WriteToken(JsonToken.String("highlights"));
-            if (t.Highlights is null) { MarshalEncode(enc, null); }
+            if (t.Highlights is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -28674,7 +28674,7 @@ public sealed class MultiDocumentHighlightParams : IJsonMarshaler, IJsonUnmarsha
         {
             var t = (MultiDocumentHighlightParams)target;
             enc.WriteToken(JsonToken.String("filesToSearch"));
-            if (t.FilesToSearch is null) { MarshalEncode(enc, null); }
+            if (t.FilesToSearch is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -28823,7 +28823,7 @@ public sealed class VSClassifiedTextElement : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (VSClassifiedTextElement)target;
             enc.WriteToken(JsonToken.String("Runs"));
-            if (t.Runs is null) { MarshalEncode(enc, null); }
+            if (t.Runs is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);
@@ -29012,7 +29012,7 @@ public sealed class VSContainerElement : IJsonMarshaler, IJsonUnmarshaler
         {
             var t = (VSContainerElement)target;
             enc.WriteToken(JsonToken.String("Elements"));
-            if (t.Elements is null) { MarshalEncode(enc, null); }
+            if (t.Elements is null) { enc.WriteToken(BeginArray); enc.WriteToken(EndArray); }
             else
             {
                 enc.WriteToken(BeginArray);

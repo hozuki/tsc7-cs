@@ -62,6 +62,16 @@
 //
 // 15) 深递归：本文件与 Go 一样用 `ForEachChild` 递归（`FindSignatureHelpFromNamedDeclarations` 会遍历整棵源文件树），
 //     入口由调用方跑在 64 MiB 大栈线程上（本仓既定做法）。
+//
+// 16) `checker.GetExpandedParameters` 返回的 `[][]*ast.Symbol` 内层在 Go 里**可能是 nil slice**
+//     （nodebuilderimpl.go 的 `return [][]*ast.Symbol{sig.parameters}`，无参签名时 `sig.parameters == nil`），
+//     Go 的 `len(nil) == 0` 让它天然可用；C# 侧该元素是 **null 数组**，直接取 `.Length` 会 NRE
+//     （历史上 6 个用例的 `textDocument/signatureHelp` panic 就是这个）⇒ `itemInfoForTypeParameters` /
+//     `itemInfoForParameters` 里统一 `lists[i] ?? []`。
+//
+// 17) ⚠ `itemInfoForTypeParameters` 的 `signatureHelpItemInfo.parameters` 在 Go 里赋的是
+//     **`signatureHelpTypeParameters`**（类型形参），不是循环里累积的 value 形参（signaturehelp.go:582；
+//     那个局部 `parameters` 在 Go 里是 dead store）。1:1 保留，勿"顺手改成" value 形参。
 using System;
 using System.Text;
 using TypeScript.Ast;
@@ -792,7 +802,10 @@ public sealed partial class LanguageService
         var result = new SignatureHelpItemInfo[lists.Length];
         for (var i = 0; i < lists.Length; i++)
         {
-            var parameterList = lists[i];
+            // Go 的 `[][]*ast.Symbol` 内层可能是 **nil slice**（无参签名：`CheckFlags.restParameter` 检查外的
+            // `return [][]*ast.Symbol{sig.parameters}`），Go 里 `len(nil) == 0`；C# 里元素是 null
+            // ⇒ 必须显式补 `?? []`（先例：本仓"nil 切片 → T[]? + ?? []"约定）。
+            var parameterList = lists[i] ?? [];
             var paramDpw = new DisplayPartsWriter(vsCapability);
             paramDpw.WriteFrom(dpw);
 
@@ -823,7 +836,12 @@ public sealed partial class LanguageService
             result[i] = new SignatureHelpItemInfo
             {
                 _isVariadic = false,
-                _parameters = parameters.ToArray(),
+                // ⚠ Go 在这里赋的是 **类型形参**（`parameters: signatureHelpTypeParameters`），而不是上面循环里
+                // 累积的 value 形参 —— 后者在 Go 里是 dead store（signaturehelp.go:553-584）。类型实参列表
+                // （`f<…`）的 activeParameter 因此指向 `<T, U, …>` 里的类型形参；用例
+                // TestSignatureHelpTypeArguments（ParameterName "T"）与 TestSignatureHelpTypeParametersNotVariadic
+                // （isVariadic=false，harness 按 Parameters 里是否有 "..." 判定）都依赖这一点。
+                _parameters = signatureHelpTypeParameters,
                 _writer = paramDpw,
             };
         }
@@ -904,7 +922,8 @@ public sealed partial class LanguageService
         var result = new SignatureHelpItemInfo[lists.Length];
         for (var i = 0; i < lists.Length; i++)
         {
-            var parameterList = lists[i];
+            // 同上：Go 的内层切片可能是 nil（无参签名），Go `len(nil) == 0` ⇒ C# 补 `?? []`。
+            var parameterList = lists[i] ?? [];
             var parameters = new SignatureHelpParameter[parameterList.Length];
             var paramDpw = new DisplayPartsWriter(vsCapability);
             paramDpw.WriteFrom(dpw);
@@ -1431,6 +1450,7 @@ public static partial class Ls
                     isTypeParameterList = true;
                 }
             }
+
 
             return new ArgumentListInfo
             {

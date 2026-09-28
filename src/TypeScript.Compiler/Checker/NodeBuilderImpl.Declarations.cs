@@ -403,8 +403,11 @@ public sealed partial class NodeBuilderImpl
         if ((targetSymbol.Flags & (SymbolFlags.Class | SymbolFlags.Interface | SymbolFlags.Alias)) != 0)
         {
             var results = new List<Node>();
+            // 偏离（nil 切片）：Go `for _, param := range params`（nodebuilderimpl.go:1700-1703）对 nil 切片安全；
+            // `GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker` 在无匹配声明时返回 null（checker.go:24210-24212
+            // 的 `append(nil, …)` 零次迭代 ⇒ nil），故 C# 侧补 `?? []`（= Go 的 nil 切片）。
             var @params = _ch.GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker(symbol);
-            foreach (var param in @params)
+            foreach (var param in @params ?? [])
             {
                 results.Add(TypeParameterToDeclaration(param)!);
             }

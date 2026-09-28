@@ -587,7 +587,10 @@ public sealed partial class NodeBuilderImpl
     {
         var result = new List<Type>();
         result.AddRange(_ch.GetOuterTypeParametersOfClassOrInterface(symbol) ?? []);
-        result.AddRange(_ch.GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker(symbol));
+        // 偏离（nil 切片）：Go `result = append(result, …)`（nodebuilderimpl.go:1030-1033）对 nil 切片安全；
+        // `GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker` 在无匹配声明时返回 null（checker.go:24210-24212
+        // 的 `append(nil, …)` 零次迭代 ⇒ nil），故 C# 侧补 `?? []`（= Go 的 nil 切片）。
+        result.AddRange(_ch.GetLocalTypeParametersOfClassOrInterfaceOrTypeAliasWorker(symbol) ?? []);
         return result.ToArray();
     }
 
