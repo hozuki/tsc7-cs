@@ -1,6 +1,6 @@
 <Project>
 
-  <!-- 可执行程序用 Server GC。理由与实测（docs/architecture.md §18.4m）：本移植的编译器在混合前缀上把
+  <!-- 可执行程序用 Server GC。理由与实测（docs/architecture.md §3.11）：本移植的编译器在混合前缀上把
        45% 的 CPU 花在 GC 里（dotnet-trace 采样），而它的分配以**常驻**类型/成员表为主、单次集合很贵——
        正是 Server GC 的适用面。同一构建、同一 workload 的配对实测（`DOTNET_gcServer` 开关，分配字节与诊断
        数逐位不变）：
@@ -17,5 +17,25 @@
   <PropertyGroup Condition="'$(OutputType)' == 'Exe'">
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
+
+  <!-- 关掉 DATAS（Dynamic Adaptation To Application Sizes）。.NET 9+ 的 Server GC 默认开启 DATAS，它按
+       **存活集大小**给 gen0 预算、并"先只起 1 个堆、跨多次 GC 再逐步增加"，目标是长寿命进程的内存/吞吐平衡。
+       对本编译器这种"**秒级进程 + 开头就高分配率**（parse 相位是进程最早的 ~117 MB）"的负载，它反而更差：
+
+       同一环境、交错 5 次中位、同一 AOT 产物（`docs/architecture.md §3.11`、`artifacts/parse-profile/NOTES.md`）：
+
+         场景                         DATAS 开        DATAS 关        tsgo(Go)
+         并行 Parse（AOT）            0.189 s         0.048 s         0.057 s
+         单线程 Parse（AOT）          0.184 s         0.141 s         0.135 s
+         gen0 / gen1 每 rep           3.7 / 1.7       0.2 / 0         —
+         GC pause 占 wall（并行）     54.5%           10.9%           —
+         并行加速比                   1.0×（被吃掉）  2.77×           2.55×
+
+       注意：只影响 `OutputType=Exe` 的项目（CLI）；**库消费者不受影响**（它们自己的 runtimeconfig 说了算，
+       宿主若也跑短命/高分配负载，可照抄本设置）。AOT 下该项由 `RuntimeHostConfigurationOption` 在 publish 时
+       烘焙，不依赖 runtimeconfig.json（我们的 AOT 产物本就没有它）。 -->
+  <ItemGroup Condition="'$(OutputType)' == 'Exe'">
+    <RuntimeHostConfigurationOption Include="System.GC.DynamicAdaptationMode" Value="0" Trim="false" />
+  </ItemGroup>
 
 </Project>

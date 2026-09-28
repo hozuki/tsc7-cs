@@ -433,6 +433,79 @@ Go 的 goroutine 栈是**可增长**的，TSGO 的 binder/checker/printer 依赖
 1. **"每帧 await（哪怕已完成）"会让可递归深度减半、每帧更贵**；"只在叶子 yield" 最差（整条链都压在栈上，且每帧多了 async 帧）——所以 gist 的 async 用法**不能**用来解决深递归。
 2. 只有**周期性真正让出**（每 64 层 `Task.Yield()`）才把深度上界抬到几十万级，代价 ~90 ns/帧。这印证 §3.9 的默认方案（大栈线程），并给出"若某条路径必须留在池线程上"时的备选实现与价格。
 
+### 3.11 Server GC 的 DATAS：Parse 相位 3× 的元凶（实测，2026‑09‑28）
+
+**现象**：AOT 产物（`artifacts/bench-tsc6/aot/tsc.exe`，`Directory.Build.targets` 已开 ServerGC，.NET 9+ 的
+Server GC **默认启用 DATAS**）在真实基准语料（TS 6.0.3 `src/compiler` 77 文件 + lib 链 + node_modules = **124
+文件 / 202,758 行 / 9,843,912 字符**）上是 `Parse 0.189 s / Check 0.941 s / Total 1.303 s`（5 次交错中位），
+而 Go 原生 tsgo 是 `0.057 / 0.678 / 0.820` ⇒ Parse **3.3×**。**这 3.3× 不是代码质量，是 GC 配置**：
+把 DATAS 关掉（`System.GC.DynamicAdaptationMode=0`，堆数仍是 24）后我们变成
+`Parse 0.048 s / Check 0.746 s / Total 0.887 s` ⇒ Parse **比 tsgo 还快（0.84×）**，Total 1.08×。
+
+**为什么 DATAS 在这里帮倒忙**（官方文档 + 实测一致）：
+
+- DATAS 按**存活集（long-lived data）**给 gen0 预算，`f(size_MB) = (20 - conserveMemory)/sqrt(size_MB)`；
+  而经典 Server GC 按**吞吐**给预算。我们的编译进程存活集只有几十 MB、单个 Parse 相位却分配 117 MB
+  （12.47 B/char，精确计数器）⇒ gen0 预算被压到很小。
+- DATAS **总是从 1 个堆起步**，要靠"几次 GC"才长到核数；而 Parse 相位正好是进程最开头的那 117 MB。
+- 文档原文：*"With DATAS enabled, the number of Gen0 and Gen1 GCs is significantly higher."*、
+  *"When a process starts, DATAS always starts with one heap… allocating threads might experience waits… it takes
+  a few GCs before the number of heaps gets increased."*（<https://learn.microsoft.com/dotnet/standard/garbage-collection/datas>）
+- 实测完全吻合：gen0 **3.7/rep + gen1 1.7/rep**（DATAS 开）vs **0.2 / 0**（关），
+  `GC.GetTotalPauseDuration()` 15.5–28.9 ms/rep vs 0.2–9.2 ms/rep；并行 parse 时暂停占 wall **54.5% vs 10.9%**，
+  且**并行度被杀到 ≈1.0**（Parse：并行 0.189 s vs `--singleThreaded` 0.184 s），关掉 DATAS 后并行度恢复到
+  2.8×（0.141 → 0.051 s，tsgo 是 0.135 → 0.053 s，2.5×）。
+- **DATAS 没有换到内存**：`Memory used` 302.9 MB（开）vs 302.9 MB（关），Go 是 289.1 MB。
+
+**测量矩阵**（AOT，全部交错、中位数；原始日志 `artifacts/parse-profile/logs/matrix*.txt`）：
+
+| 配置 | Parse | Bind | Check | Emit | Total | Memory used |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| tsgo（原生 Go） | 0.057 | 0.021 | 0.678 | 0.063 | 0.820 | 289,136K |
+| 默认：ServerGC + DATAS（24 堆） | 0.189 | 0.040 | 0.941 | 0.051 | 1.303 | 302,863K |
+| **`DynamicAdaptationMode=0`（堆数 24）** | **0.048** | 0.020 | 0.746 | 0.039 | 0.887 | 302,867K |
+| `GCHeapCount=20` | 0.047 | 0.020 | 0.774 | 0.041 | 0.901 | 302,886K |
+| `GCHeapCount=16` | 0.048 | 0.021 | 0.787 | 0.041 | 0.919 | 302,872K |
+| `GCHeapCount=12` | 0.047 | 0.020 | 0.767 | 0.041 | 0.894 | 302,891K |
+| `GCHeapCount=8` | 0.069 | 0.057 | 0.827 | 0.037 | 1.008 | 302,994K |
+| `GCHeapCount=4` | 0.086 | 0.025 | 0.858 | 0.036 | 1.046 | 302,924K |
+| `gcServer=0`（工作站 GC） | 0.245 | 0.142 | 1.351 | 0.066 | 1.823 | 319,749K |
+
+要点：**设 `GCHeapCount` 同时也关掉 DATAS**（文档：设置 HeapCount 会使 DATAS 失效），所以 12/16/20 三档
+快只是"DATAS 被关"的副作用，不是堆数本身；堆数降到 8/4 反而变慢 ⇒ **不要顺手固定堆数**。
+核数可移植性（`DOTNET_PROCESSOR_COUNT` 模拟 4/8/12/24 核）：DATAS 关掉在各档都更快
+（Parse 2.0×/2.1×/3.4×/4.3×），且不需要任何"与核数相关的公式" ⇒ **推荐式与核数无关**。
+
+**落地（AOT 与 JIT 都是"构建时烘焙"，AOT 没有 runtimeconfig.json 可改）**：
+
+```xml
+<!-- src/tsc/tsc.csproj（或 Directory.Build.targets 的 Exe 分支）——SDK 自带属性名，
+     写进 JIT 的 runtimeconfig.json，并在 NativeAOT 下由 ilc 烘焙进镜像 -->
+<GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
+```
+
+若只想给单个项目加、或要给 CLR 不认的键（`GCHeapCount` 没有 SDK 属性）用显式 item：
+
+```xml
+<ItemGroup>
+  <RuntimeHostConfigurationOption Include="System.GC.DynamicAdaptationMode" Value="0" Trim="false" />
+  <!-- 只在实测证明某核数上更优时才加：<RuntimeHostConfigurationOption Include="System.GC.HeapCount" Value="12" Trim="false" /> -->
+</ItemGroup>
+```
+
+**验证方法（已实测，二进制级）**：`dotnet publish src/tsc -c Release -r win-x64 -p:PublishAot=true
+-p:GarbageCollectionAdaptationMode=0 -o <out>`，**不设任何环境变量**跑：
+`Parse 0.048 s / Total 0.864 s`（对照现产物 0.155 / 1.029），再把环境变量设回 `DOTNET_GCDynamicAdaptationMode=1`
+应能复现 `0.167 / 1.063`（env 覆盖构建值）⇒ 说明烘焙生效。JIT 侧同样有效（`dotnet tsc.dll`：Parse 0.255 →
+0.152 s，−40%）。
+
+**适用条件 / 风险**：CLI 是短命进程、存活集小、分配率高 —— DATAS 的目标（按存活集缩堆）正好拿不到收益却付
+吞吐代价，实测内存还完全不变，故对 `src/tsc` 与内置宿主（`TypeScript.Compiler` 被嵌入时）建议**关闭**；
+长命的 LSP/watch 进程若在内存受限环境跑，可先测 TCP（`% pause time in GC`）再决定 —— DATAS 的设计目标是
+内存，不是吞吐。**库消费者（把 `TypeScript.Compiler` 嵌进自己进程）不受我们产物配置影响**，宿主若同样是
+"短命 + 高分配率"请自行设 `System.GC.DynamicAdaptationMode=0`。
+仪器与全部原始数字：`artifacts/parse-profile/NOTES.md`。
+
 ## 4. 生成代码
 
 TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.json`、`internal/stringutil/_scripts` 的 Unicode 数据、`diagnostics/diagnosticMessages.json`…）。C# 侧由 `tools/TypeScript.CodeGen` 消费同一份输入生成 `*.Generated.cs`：
