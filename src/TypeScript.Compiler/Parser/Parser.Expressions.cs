@@ -314,12 +314,15 @@ public sealed partial class Parser
     // ported from: internal/parser/parser.go:3753-3760
     private string GetTemplateLiteralRawText(int endLength)
     {
-        var tokenText = _scanner.TokenText();
+        // Go: tokenText := p.scanner.TokenText(); ... tokenText[1:len(tokenText)-endLength] —— 两处都是切片（零拷贝），
+        // 只有最终值存进 AST 时才物化。C# 若照抄 string 版会复制**两次**（TokenText 一次 + 切片一次），
+        // 故用 TokenTextSpan()（Go 的 s.text[s.tokenStart:s.pos]）+ 一次 ToString()。
         if ((_scanner.TokenFlags & TokenFlags.Unterminated) != 0)
         {
             endLength = 0;
         }
-        return tokenText[1..^endLength];
+
+        return _scanner.TokenTextSpan()[1..^endLength].ToString();
     }
 
     // ported from: internal/parser/parser.go:3761-3773

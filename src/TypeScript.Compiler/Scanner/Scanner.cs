@@ -188,6 +188,15 @@ public sealed partial class Scanner
 
     public string TokenText() => _text[_tokenStart.._pos];
 
+    /// <summary>
+    /// Go: <c>s.text[s.tokenStart:s.pos]</c>（scanner.go:277）的**零拷贝**视图。Go 里 <c>TokenText()</c> 返回的就是
+    /// 这个切片，调用方要用 string 时才自己物化；C# 的 <c>string</c> 不能做视图，所以 <c>TokenText()</c> 必然复制。
+    /// 只读用途（取长度、前缀比较、再切一刀后物化、喂给 span 版 API）应改用本方法，把复制推迟到真正需要 string 的地方。
+    /// 与 <c>TokenText()</c> 同窗口语义：<c>_text</c> 保持全文，越界由 <see cref="SetText(string, int)"/> 收窄的 <c>_end</c> 保证
+    /// （<c>_pos ≤ _end</c>）。<c>ReadOnlySpan</c> 是 ref struct：不得存进字段、不得跨 await/迭代器。
+    /// </summary>
+    public ReadOnlySpan<char> TokenTextSpan() => _text.AsSpan(_tokenStart, _pos - _tokenStart);
+
     public string TokenValue() => _tokenValue;
 
     public TextRange TokenRange() => new(_tokenStart, _pos);
@@ -688,7 +697,9 @@ public sealed partial class Scanner
                         if (isJSDoc)
                         {
                             _tokenFlags |= TokenFlags.PrecedingJSDocComment;
-                            ScanJSDocCommentForTags(_text[_tokenStart.._pos]);
+                            // Go: s.scanJSDocCommentForTags(s.text[s.tokenStart:s.pos])（scanner.go:679）——切片，零拷贝。
+                            // C# 用同一段 [tokenStart, pos) 的 span（_text 始终是全文；pos ≤ _end，故与 Go 收窄后的切片逐字符相同）。
+                            ScanJSDocCommentForTags(_text.AsSpan(_tokenStart, _pos - _tokenStart));
                         }
 
                         ProcessCommentDirective(lastLineStart, _pos, true);

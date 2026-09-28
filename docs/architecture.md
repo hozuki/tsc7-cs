@@ -174,6 +174,71 @@ Go 版本大量用**切片视图**（`s[i:j]`、`bytes`、`[]T` 的子切片）�
 
 审计要求：热路径（scanner/parser/binder/checker/printer 以及所有逐字符/逐元素循环）里出现 `Substring`/`ToArray`/`ToCharArray`/`Encoding.*GetBytes`/LINQ 时必须能给出理由，否则改成 span 写法。
 
+#### 3.8.1 读取路径不物化 `string`（实测契约）
+
+**约定（本仓字符串/span 的铁律）**：**读取用 `ReadOnlySpan<char>`（≈ Go 的 `string` 切片），只在必须建新对象
+（存入 AST/缓存/返回给外部调用方/进诊断参数）时才物化 `string`。**
+
+Go 的 `s[a:b]` 是**零拷贝**的（string 头 + 原底层数组），所以 TSGO 里满屏的 `s.text[a:b]`、
+`commentText[i+1:]`、`TokenText()` 都**不分配**；C# 的 `string` 不能做视图，同样的写法每次都会 `Substring`（O(len) 复制）。
+必须在 C# 侧也写成"读用 span、存才物化"，否则一个 O(1) 的切片会变成 O(n) 的 memcpy。
+
+**扫描窗口（Go 的 `s.text[a:b]` 的等价物）**：Go 的 `s.text` 与 `s.end` 是两个字段，调用方可以只把扫描限制在
+`[0, end)`（`s.SetText(text[:end])`，scanner.go:396-400）。C# 的 `string` 没法截断成视图，所以：
+
+| Go | C# | 说明 |
+| --- | --- | --- |
+| `s.text` | `Scanner.Text()`（全文 string） | `_text` 永远是**全文**，从不复制成子串 |
+| `s.SetText(text[:end])` | `Scanner.SetText(string text, int end)`（internal） | 只收窄 `_end`，零拷贝 |
+| `len(s.text)` | `_end`（不是 `_text.Length`） | 收窄后所有边界判断必须用 `_end` |
+| `s.text[pos:]` | `Scanner.TextFrom(int pos)`（internal，`_text.AsSpan(pos, _end - pos)`） | 以 `_end` 为界的零拷贝视图 |
+| `s.text[s.tokenStart:s.pos]` | `Scanner.TokenTextSpan()`（public） | `TokenText()` 是物化版（保留给"存起来"的调用点） |
+
+`ReadOnlySpan<char>` 是 ref struct：**不得存字段、不得跨 `await`/`yield`**；span 本身可以在同一次调用里随便切
+（切片只移动 start/length；`_text` 是 immutable 的，后续 `NextToken()` 不会让已有 span 失效）。
+
+**必须仍然是 `string` 的地方（刻意保留，不是漏改）**：
+
+- AST 上存文本的字段（`Identifier.Text`、`TemplateHead.RawText`…）——Go 侧（`ast.Node.Text string`）同样物化；
+- `Scanner.TokenValue()`（Go 的 `s.tokenValue` 也是 string）、`Scanner.ScanIdentifier` 的 `_tokenValue = _text[start.._pos]`
+  ——值会被 parser 拿进 AST；Go 的切片在这里是"pre-materialized"，C# 没有等价物；
+- parser 的 **scratch 集合**（`_jsdocCommentsSpace: List<string>`、`ParseTagComments` 的 `comments`/`indents`/JSDoc link 的 `text`）
+  ——Go 侧同样是 `[]string`（只能存 string），且后续还要 `RemoveLeadingNewlines`/`TrimEnd` 就地改元素；
+- 诊断参数（`ErrorCallback` 的 `params object?[]`）——必须是 object/string。
+
+**本次实测（`artifacts/span-audit`，2026-09-28，Release，305 文件 / 2.72 MB 语料，`-n 5`，分配字节稳定 ±0.1%）**：
+
+逐阶段（每批改动都在同一 instrument 上复测；`alloc B/char` 是"该相位分配字节 ÷ 语料字符数 ÷ reps"）：
+
+| 阶段 | scan B/char | parse B/char | 说明（改了什么） |
+| --- | --- | --- | --- |
+| 基线 | 3.999 | 11.280 | — |
+| + 批 1 | 2.106 | 9.838 | `Scanner.ScanJSDocCommentForTags/_text[...]` 与 `ScanTemplateAndSetTokenValue` 同时落地 |
+| + 批 2 | **1.945** | 9.836 | `ScanTemplateAndSetTokenValue` 无转义时走单段直达（不建 parts 表） |
+| + 批 3 | 1.945 | **9.777** | `GetTemplateLiteralRawText` 用 `TokenTextSpan()`（1 次物化而非 2 次） |
+
+批 1 的两条改动各自对应一条 Go 依据（都在 `artifacts/span-audit/logs/*.nettrace` 的调用栈归因里）：
+`Scanner.scanJSDocCommentForTags` 收到的是 `s.text[s.tokenStart:s.pos]` **切片**（scanner.go:679），循环里
+`commentText[i+1:]` 也是切片（scanner.go:364）——C# 原来是"整段注释 `Substring` 一次 + 每个 `@` 再 `Substring` 一次"；
+`scanTemplateAndSetTokenValue` 是 `parts []string` + `strings.Join(parts, "")`（scanner.go:1637-1682，**一次分配**）
+——C# 原来是 `StringBuilder` 的多次 `ExpandByABlock` + `ToString`（trace 里占 scan 相位分配的 51%）。
+
+**净效果**：scan **-51.3%**（3.999 → 1.945 B/char，51.9 → 25.3 MB / 5 reps），parse **-13.3%**（11.280 → 9.777 B/char，
+146.4 → 127.0 MB / 5 reps）。JSDoc 懒解析路径（parse + 全树 `node.JSDoc(file)`，即 Api/Encoder 场景）：
+**-3.1%**（15.359 → 14.875 B/char，119.6 → 115.9 MB，批 4 的 `asterisk`/`whitespace` 局部量 span 化，
+用 A/B 单变量测得）。
+
+参考基线（同批未改的相位）：bind 2.812 B/char、print 23.3 B/char（printer **不在**本轮 span 审计的文件范围内，仅记录）。
+
+**同批测量后判定"不值得改/不能改"的项（如实记录）**：
+
+| 热点 | 依据 | 结论 |
+| --- | --- | --- |
+| `Scanner.ScanIdentifier` 的 `_tokenValue = _text[start.._pos]`（parse 相位 8.6%） | Go `scanner.go:1497/1515` 同样是切片，但值是 parser 要存进 AST 的 `tokenValue` | 物化不可避免（除非把 `tokenValue` 改成"start/end + 懒物化"，会动 `ScannerState`/`Rewind`/所有 `_tokenValue` 写入点，风险 >> 收益） |
+| `Parser.ParseModifiersEx` 的 `new List<Node>()`（parse 相位 16%） | Go `parser.go:3921` `make([]*ast.Node, 0, 16)` 恒分配 128 B | **不是** Go 移植偏差（C# 40 B 反而更省）；懒分配虽可再省，但属"超出 span 审计"的另一类改动，本轮不做 |
+| `ParserJsDoc` 里 15 处存进 `List<string>` 的 `TokenText()` | Go 侧 `comments []string` 也是存 string；且 `RemoveLeadingNewlines`/`RemoveTrailingWhitespace` 要就地改元素 | 必须物化（要改就得把集合换成 `(start,len)` 视图并重写这些 helper，收益/风险不划算） |
+| printer 的 `StringBuilder.ExpandByABlock`（print 相位 23.3 B/char，全局最大） | — | 不在本轮文件范围（`Printer/**`），交由 printer 负责人 |
+
 ### 3.9 深度递归必须跑在大栈线程上（实测，M5 结论）
 
 Go 的 goroutine 栈是**可增长**的，TSGO 的 binder/checker/printer 依赖这一点处理深度嵌套的 AST。.NET 的线程栈是**固定大小**，且 `StackOverflowException` 在 .NET Core 上**不可捕获**（进程直接死）。

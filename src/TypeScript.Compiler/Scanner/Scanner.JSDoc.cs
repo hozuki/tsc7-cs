@@ -27,7 +27,13 @@ public sealed partial class Scanner
 
     // scanJSDocCommentForTags scans a JSDoc comment for @deprecated, @see, and @link tags,
     // setting the appropriate token flags. Called during scanning when a JSDoc comment is detected.
-    private void ScanJSDocCommentForTags(string commentText)
+    //
+    // 与 Go 的对应：Go 的 `scanJSDocCommentForTags(commentText string)` 收到的是 `s.text[s.tokenStart:s.pos]`
+    // **切片**（scanner.go:679），循环里 `commentText = commentText[i+1:]` 也是切片（scanner.go:364）——全是零拷贝。
+    // C# 的 `string` 不能做视图，若照抄 `string` 参数则每次调用复制整段注释、每个 '@' 再复制一次后缀。
+    // 所以这里（与 Scanner.SetText(string,int)/TextFrom 同一套思路）把参数收成 `ReadOnlySpan<char>`：
+    // 切片就是 Go 的切片，`_text` 始终是全文、越界由调用方切出的长度挡住。
+    private void ScanJSDocCommentForTags(ReadOnlySpan<char> commentText)
     {
         while (true)
         {
@@ -58,7 +64,10 @@ public sealed partial class Scanner
 
     // hasJSDocTag reports whether text starts with one of the given tag names followed
     // by a valid JSDoc tag terminator (whitespace, '}', '*', or end-of-string).
-    internal static bool HasJSDocTag(string text, params string[] tags)
+    //
+    // 参数 `text` 是 span（见 ScanJSDocCommentForTags 的说明）；`tags` 保持 Go 的 `...string` 形状
+    // （Go 的变参同样每次调用分配一个切片，故不在此处偏离）。
+    internal static bool HasJSDocTag(ReadOnlySpan<char> text, params string[] tags)
     {
         foreach (var tag in tags)
         {

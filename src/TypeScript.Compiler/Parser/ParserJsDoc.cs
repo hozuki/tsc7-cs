@@ -403,12 +403,13 @@ public sealed partial class Parser
 
                 case Kind.AsteriskToken:
                     {
-                        var asterisk = _scanner.TokenText();
+                        // Go: asterisk := s.tokenText()（切片）；只有真正存进 comments 时才需要 string。
+                        var asterisk = _scanner.TokenTextSpan();
                         if (state == JSDocState.SawAsterisk)
                         {
                             // If we've already seen an asterisk, then we can no longer parse a tag on this line
                             state = JSDocState.SavingComments;
-                            PushComment(asterisk);
+                            PushComment(asterisk.ToString());
                         }
                         else
                         {
@@ -433,7 +434,8 @@ public sealed partial class Parser
                         }
 
                         // only collect whitespace if we're already saving comments or have just crossed the comment indent margin
-                        var whitespace = _scanner.TokenText();
+                        // Go: whitespace := s.tokenText()（切片）——长度判断是只读用途，只有越界那一片才物化。
+                        var whitespace = _scanner.TokenTextSpan();
                         if (margin > -1 && indent + whitespace.Length > margin)
                         {
                             var existingIndent = margin - indent;
@@ -447,7 +449,7 @@ public sealed partial class Parser
                                 existingIndent = 0;
                             }
 
-                            comments.Add(whitespace[existingIndent..]);
+                            comments.Add(whitespace[existingIndent..].ToString());
                         }
 
                         indent += whitespace.Length;
@@ -945,11 +947,12 @@ public sealed partial class Parser
                             throw new DebugFailureException("whitespace shouldn't come from the scanner while saving comment text");
                         }
 
-                        var whitespace = _scanner.TokenText();
+                        // Go: whitespace := s.tokenText()（切片）——同上：长度判断零分配，越界那一片才物化。
+                        var whitespace = _scanner.TokenTextSpan();
                         // if the whitespace crosses the margin, take only the whitespace that passes the margin
                         if (margin > -1 && indent + whitespace.Length > margin)
                         {
-                            comments.Add(whitespace[Math.Max(margin - indent, 0)..]);
+                            comments.Add(whitespace[Math.Max(margin - indent, 0)..].ToString());
                             if (inFencedCodeBlock)
                             {
                                 state = JSDocState.SavingBackticks;

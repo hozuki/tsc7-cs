@@ -230,13 +230,30 @@ public sealed partial class Scanner
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Go: <c>parts []string</c> + <c>strings.Join(parts, "")</c>（scanner.go:1640-1682）里的一段。
+    /// Go 的每个 part 都是 <c>s.text[a:b]</c> 切片或 <c>scanEscapeSequence</c> 的返回值——前者零拷贝，
+    /// 只有最后 <c>strings.Join</c> 时才一次性分配 tokenValue。C# 的 <c>string</c> 不能做视图，所以把
+    /// "text 切片"记成 <c>(Start, Length)</c>（<see cref="Text"/> 为 null），转义结果才物化成 <c>string</c>；
+    /// 最后用 <see cref="JoinTemplateParts"/> 一次性算出长度并物化（= Go 的 Join，一次分配）。
+    /// 这消除了原实现里 StringBuilder 的多次扩容（ExpandByABlock）+ ToString 的中间拷贝。
+    /// </summary>
+    private readonly struct TemplatePart(int start, int length, string? text)
+    {
+        public readonly int Start = start;
+        public readonly int Length = length;
+        public readonly string? Text = text;
+    }
+
     private Kind ScanTemplateAndSetTokenValue(bool shouldEmitInvalidEscapeError)
     {
         var startedWithBacktick = Char() == '`';
         _pos++;
         var start = _pos;
-        // Go: parts := make([]string, 0, 4) + strings.Join(parts, "")；C# 用 StringBuilder 直接累积（等价、少一次拼接）。
-        var parts = new StringBuilder();
+        // Go: parts := make([]string, 0, 4)（scanner.go:1640）。只有当模板里出现转义或 CR 时才有多个 part，
+        // 那时才真的建表（Go 是 `make(..., 4)` 恒分配；C# 按需分配是对 Go 的**性能改进**，行为不变）。
+        List<TemplatePart>? parts = null;
+        var textEnd = _pos;
         Kind token;
         while (true)
         {
@@ -244,7 +261,7 @@ public sealed partial class Scanner
             var ch = Char();
             if (ch < 0 || ch == '`')
             {
-                parts.Append(_text, start, _pos - start);
+                textEnd = _pos;
                 if (ch == '`')
                 {
                     _pos++;
@@ -261,7 +278,7 @@ public sealed partial class Scanner
 
             if (ch == '$' && CharAt(1) == '{')
             {
-                parts.Append(_text, start, _pos - start);
+                textEnd = _pos;
                 _pos += 2;
                 token = IfElse(startedWithBacktick, Kind.TemplateHead, Kind.TemplateMiddle);
                 break;
@@ -269,8 +286,8 @@ public sealed partial class Scanner
 
             if (ch == '\\')
             {
-                parts.Append(_text, start, _pos - start);
-                parts.Append(ScanEscapeSequence(EscapeSequenceScanningFlags.String | IfElse(shouldEmitInvalidEscapeError, EscapeSequenceScanningFlags.ReportErrors, EscapeSequenceScanningFlags.None)));
+                (parts ??= []).Add(new TemplatePart(start, _pos - start, null));
+                parts.Add(new TemplatePart(0, 0, ScanEscapeSequence(EscapeSequenceScanningFlags.String | IfElse(shouldEmitInvalidEscapeError, EscapeSequenceScanningFlags.ReportErrors, EscapeSequenceScanningFlags.None))));
                 start = _pos;
                 continue;
             }
@@ -279,14 +296,14 @@ public sealed partial class Scanner
             // <CR><LF> and <CR> LineTerminatorSequences are normalized to <LF> for Template Values
             if (ch == '\r')
             {
-                parts.Append(_text, start, _pos - start);
+                (parts ??= []).Add(new TemplatePart(start, _pos - start, null));
                 _pos++;
                 if (Char() == '\n')
                 {
                     _pos++;
                 }
 
-                parts.Append('\n');
+                parts.Add(new TemplatePart(0, 0, "\n"));
                 start = _pos;
                 continue;
             }
@@ -294,8 +311,54 @@ public sealed partial class Scanner
             _pos++;
         }
 
-        _tokenValue = parts.ToString();
+        if (parts == null)
+        {
+            // 单段（无转义、无 CR）：`s.text[start:_pos]` 的物化就是 Go 的 `strings.Join` 结果。
+            _tokenValue = _text[start..textEnd];
+        }
+        else
+        {
+            parts.Add(new TemplatePart(start, textEnd - start, null));
+            _tokenValue = JoinTemplateParts(parts);
+        }
+
         return token;
+    }
+
+    /// <summary>
+    /// Go: <c>strings.Join(parts, "")</c>（scanner.go:1682）。先算总长，再一次性物化（<c>string.Create</c>）
+    /// —— 与 Go 一样只有**一次**分配，没有 StringBuilder 的扩容中间态。
+    /// </summary>
+    private string JoinTemplateParts(List<TemplatePart> parts)
+    {
+        var length = 0;
+        foreach (var part in parts)
+        {
+            length += part.Text?.Length ?? part.Length;
+        }
+
+        if (length == 0)
+        {
+            return "";
+        }
+
+        return string.Create(length, (_text, parts), static (dst, state) =>
+        {
+            var offset = 0;
+            foreach (var part in state.parts)
+            {
+                if (part.Text is { } text)
+                {
+                    text.AsSpan().CopyTo(dst[offset..]);
+                    offset += text.Length;
+                }
+                else if (part.Length > 0)
+                {
+                    state._text.AsSpan(part.Start, part.Length).CopyTo(dst[offset..]);
+                    offset += part.Length;
+                }
+            }
+        });
     }
 
     // ───────────────────────────── 转义序列 ─────────────────────────────
