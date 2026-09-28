@@ -20,7 +20,13 @@ public sealed class Decoder
 {
     private readonly byte[] _utf8;
     private int _position;
-    private JsonReaderState _state;
+
+    /// <summary>
+    /// Reader options 随 <see cref="JsonReaderState"/> 一起传递（<c>Utf8JsonReader</c> 只从 state 里取 options），
+    /// 所以这里显式把 <c>MaxDepth</c> 设成与写侧同一个上限：STJ 的 <c>JsonReaderOptions</c> 默认只有 64，
+    /// 而 Go 的解码侧允许 10000 量级的嵌套（本移植原先漏设 ⇒ 读深层嵌套 JSON 在 65 层就会失败）。
+    /// </summary>
+    private JsonReaderState _state = new(new JsonReaderOptions { MaxDepth = Encoder.MaxNestingDepth });
 
     private JsonKind _currentKind;
     private string? _currentString;

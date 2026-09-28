@@ -14,6 +14,13 @@ namespace TypeScript.Json;
 
 public sealed class Encoder : IDisposable
 {
+    /// <summary>
+    /// 本移植统一的 JSON 嵌套深度上限（写侧与读侧共用；Go 侧没有写死的写上限，解码侧 10000 量级）。
+    /// 见 <see cref="CreateWriterOptions"/> 的实测说明：不设它就会落到 .NET 的默认 1000，
+    /// 使 <c>ls.maxSelectionRangeDepth = 1000</c> 的响应在序列化时直接抛。
+    /// </summary>
+    internal const int MaxNestingDepth = 10000;
+
     private readonly Utf8JsonWriter _writer;
     private readonly OutputFilterStream _filter;
     private readonly JsonSettings _settings;
@@ -233,10 +240,23 @@ public sealed class Encoder : IDisposable
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Go 侧（internal/json）的写侧没有写死的嵌套深度上限（Marshal 按 Go 栈递归，只有解码侧有 10000 的
+    /// <c>maxNestingDepth</c> 量级约束）；C# 侧此前漏设 <see cref="JsonWriterOptions.MaxDepth"/>，落到
+    /// <c>Utf8JsonWriter</c> 的**默认 1000**。实测（G4 的 selectionranges 移植用例，1000 层 SelectionRange 链）：
+    /// <code>
+    /// InvalidOperationException: CurrentDepth (1000) is equal to or larger than the maximum allowed depth of 1000.
+    /// Cannot write the next JSON object or array.
+    /// </code>
+    /// 而 <c>ls.maxSelectionRangeDepth = 1000</c> 正好产出 1000 层深的响应 ⇒ lsp 服务端序列化深层嵌套文件的
+    /// selection ranges 会直接抛。这里把上限对齐到 10000（与解码侧同一常量 <c>Json.MaxNestingDepth</c>，
+    /// 远大于服务端任何真实负载），恢复 Go 的"不等价于失败"行为。
+    /// </summary>
     private static JsonWriterOptions CreateWriterOptions(in JsonSettings settings)
     {
         var options = new JsonWriterOptions
         {
+            MaxDepth = MaxNestingDepth,
             Indented = settings._hasIndent,
             NewLine = "\n",
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
