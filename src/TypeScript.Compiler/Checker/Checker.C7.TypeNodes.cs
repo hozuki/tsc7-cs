@@ -84,7 +84,7 @@ public sealed partial class Checker
                     // typeof a.b.c is normally resolved using `checkExpression` which in turn defers to `checkQualifiedName`
                     // That, in turn, ultimately uses `getPropertyOfType` on the type of the symbol, which differs slightly from
                     // the `exports` lookup process that only looks up namespace members which is used for most type references
-                    var mergedResolvedSymbol = GetMergedSymbolWorker(currentNamespace)!;
+                    var mergedResolvedSymbol = GetMergedSymbolWorker(ResolveSymbol(currentNamespace)!)!;
                     Symbol? symbolFromVariable = null;
                     Symbol? symbolFromModule = null;
                     if (n.IsTypeOf)

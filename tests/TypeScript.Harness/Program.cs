@@ -95,6 +95,40 @@ internal static class Program
             }
         }
 
+        // tsctests / tscbuild（Go: internal/execute/tsctests）同样是「用例表驱动 + 多层 baseline 根」的套件：
+        // 走 tests/TypeScript.Harness/TscTestsSuite.cs（baseline 根 reference/{tsc,tscWatch,tsbuild,tsbuildWatch}/**）。
+        var tscSuites = new List<string>();
+        foreach (var suiteName in suites)
+        {
+            if (TscTests.TscCaseRegistry.IsTscSuite(suiteName))
+            {
+                tscSuites.Add(suiteName);
+            }
+        }
+
+        if (tscSuites.Count > 0)
+        {
+            foreach (var suiteName in tscSuites)
+            {
+                suites.Remove(suiteName);
+            }
+
+            var tscExit = 0;
+            foreach (var suiteName in tscSuites)
+            {
+                tscExit = TscTestsSuite.Run(suiteName, [.. cases], limit, offset, maxDiffs, listOnly, caseTimeoutSeconds);
+                if (tscExit != 0)
+                {
+                    break;
+                }
+            }
+
+            if (suites.Count == 0)
+            {
+                return tscExit;
+            }
+        }
+
         Console.WriteLine($"TSGO_ROOT       = {Repo.RootPath()}");
         Console.WriteLine($"TestDataPath    = {Repo.TestDataPath()}");
         Console.WriteLine($"suites          = {string.Join(", ", suites)}");

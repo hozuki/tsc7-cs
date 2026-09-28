@@ -27,6 +27,11 @@
 //  2. Go 的 Parse 在语法错误时仍返回"尽力解析出的 tag"（调用点全都忽略它）；C# 的 TryParse 失败时把
 //     locale 置为 Default（= Go 的零值 Locale），因为 Go 侧的 Parse 错误分支在所有调用点都被丢弃。
 //  3. `language.MustParse`（Go 生成物里用来构造 matcher 的标签）→ C# 的 internal `FromTag`。
+//  3b. **语言子标签的"未知值"判定**：Go 的 `language.Parse` 对 2..3 字母但**不在 BCP-47 语言注册表里**的
+//      子标签返回 `ValueError`（同样是 err != nil，`locale.Parse` 因此报 false）；本移植没有 x/text 的语言注册表
+//      （getLangID/getRegionID/getScriptID 三张大表），只做语法校验 ⇒ 这类"语法合法但未知"的标签本移植会放行。
+//      已知的唯一调用点是 `--locale` 的 option 校验；TSGO 基线里只有 "whoops"（6 字母）与 "cs"/"en"/"ja-jp"
+//      （都在表里）这几例，语法规则已经覆盖它们。
 //  4. 匹配（locale → 本地化数据）不再走 language.NewMatcher，见 Diagnostics.cs 的 MatchLocale。
 //
 // **命名解析警告（跨 package 的硬约定）**：本 package 的目录名 = 命名空间 TypeScript.Locale，而类型也叫
@@ -101,8 +106,12 @@ public readonly struct Locale : IEquatable<Locale>
 
             if (first)
             {
-                // 主语言子标签：Go 允许 2..8 个字母（"en"、"fil"、"de"…）。
-                if (subtag.Length < 2)
+                // Go: x/text internal/language.parse()（parse.go:255-262）——首个子标签 n<=1 时只有 "x"（私有用法）
+                // 合法，n>=4 一律 ErrSyntax，2..3 个字母才是普通语言子标签。
+                // 取证：TSGO 的 `--locale whoops` 基线（baselines/reference/tsc/commandLine/bad-locale.js）里
+                // Go 报了 TS6048（"whoops" 是 6 个字母 ⇒ parse() 的 n>=4 分支），而本移植原先按"2..8 个字母"
+                // 放行 → 少了这条诊断。单字母标签（Go 的 "x-…" 私有用法）在本仓没有调用点，同样按语法拒绝。
+                if (subtag.Length < 2 || subtag.Length > 3)
                 {
                     return false;
                 }
