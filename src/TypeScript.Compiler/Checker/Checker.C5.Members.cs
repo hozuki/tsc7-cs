@@ -419,7 +419,10 @@ public sealed partial class Checker
         IndexInfo[]? indexInfos = null;
         var instantiated = false;
         var resolved = ResolveDeclaredMembers(source);
-        if (Same(typeParameters, typeArguments))
+        // Go: slices.Equal(typeParameters, typeArguments) —— **逐元素**比较（不是 core.Same 的"同一底层数组"）。
+        // 对未实例化的泛型类型（typeArguments 就是它自己的 typeParameters，但是另一个数组实例）这里必须为 true，
+        // 否则会对整张 declared members 表做一次恒等实例化（凭空造出上百个 transient symbol + 实例化）。
+        if (SameElements(typeParameters, typeArguments))
         {
             members = resolved._declaredMembers;
             callSignatures = resolved._declaredCallSignatures;

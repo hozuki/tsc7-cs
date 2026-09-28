@@ -240,7 +240,7 @@ public sealed partial class Relater
             }
             else if ((source._flags & TypeFlags.TemplateLiteral) != 0)
             {
-                if (Core.Same(source.AsTemplateLiteralType()!._texts, target.AsTemplateLiteralType()!._texts))
+                if (Core.SameElements(source.AsTemplateLiteralType()!._texts, target.AsTemplateLiteralType()!._texts))
                 {
                     result = Ternary.True;
                     for (var i = 0; i < source.AsTemplateLiteralType()!._types!.Length; i++)

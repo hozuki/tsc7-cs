@@ -506,11 +506,12 @@ public sealed partial class Checker
     {
         var sourceFile = GetSourceFileOfNode(node)!;
         var links = _sourceFileLinks.Get(sourceFile);
-        // Go: `links.identifierCheckNodes = append(links.identifierCheckNodes, node)`；C# 字段是数组 → 追加后重建。
-        links._identifierCheckNodes = [.. links._identifierCheckNodes ?? [], node];
+        // Go: `links.identifierCheckNodes = append(links.identifierCheckNodes, node)`
+        // （摊销 O(1)；不要写成 `[.. arr, node]`——那是每次全量拷贝，O(n²) 且每步一次分配）。
+        (links._identifierCheckNodes ??= []).Add(node);
     }
 
-    internal void CheckUnusedIdentifiers(Node[]? potentiallyUnusedIdentifiers)
+    internal void CheckUnusedIdentifiers(List<Node>? potentiallyUnusedIdentifiers)
     {
         foreach (var node in potentiallyUnusedIdentifiers ?? [])
         {

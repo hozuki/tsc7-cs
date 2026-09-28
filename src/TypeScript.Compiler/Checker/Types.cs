@@ -569,7 +569,9 @@ public sealed class SourceFileLinks
     internal Symbol? _externalHelpersModule;
     internal ExternalEmitHelpers _requestedExternalEmitHelpers;
     internal OrderedSet<Node> _deferredNodes = new();
-    internal Node[]? _identifierCheckNodes;
+    // Go: identifierCheckNodes []*ast.Node —— 只追加、最后整体读取一次（`append` 的摊销 O(1) 语义）
+    // → C# 用 `List<Node>?`（Go 的 nil 切片 ≡ null/空表）。
+    internal List<Node>? _identifierCheckNodes;
     internal string _localJsxNamespace = "";
     internal string _localJsxFragmentNamespace = "";
     internal Node? _localJsxFactory;            // Go: *ast.EntityName（Go 的 `EntityName = Node` 别名 → C# 用 Node）

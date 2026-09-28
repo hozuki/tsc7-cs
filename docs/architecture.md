@@ -506,6 +506,86 @@ Server GC **默认启用 DATAS**）在真实基准语料（TS 6.0.3 `src/compile
 "短命 + 高分配率"请自行设 `System.GC.DynamicAdaptationMode=0`。
 仪器与全部原始数字：`artifacts/parse-profile/NOTES.md`。
 
+### 3.12 Check 相位 1.4× 的两个真因（实测，2026‑09‑28）
+
+**现象**：naxiale（331 文件 / 153,020 行，含 lib + `@types/node` + `@types/vscode`，未开 `skipLibCheck`）
+上 Check 是 `tsgo 0.193–0.211 s vs 我们 0.280–0.299 s`（4 checker，1.45×）；`--checkers 1` 是 0.314–0.320 vs
+0.413–0.430（1.33×）。加 `--skipLibCheck` 后两边都是 ~0.008 s ⇒ 差距全在 **lib/`.d.ts` 检查**。
+诊断工具：**Go 的 `--generateTrace` 两侧产物格式逐字节一致**（`trace.json` + `types_0.json`）⇒ 可以拿
+`types_0.json` 做"类型级差分"（每条记录 = 一次 `newType`，含 id/symbolName/firstDeclaration/flags/display）。
+二分语料（`artifacts/check-gap/probes/*.json`，`--checkers 1` 确定性）后定位到 **两个互不相干的真因**：
+
+**真因 A（正确性 bug）：`core.Same` 被当成 `slices.Equal` 用**。Go 的 `core.Same` 比较"同一底层数组"
+（`&s1[0] == &s2[0]`），`slices.Equal` 是**逐元素**比较；本仓的 `Core.Same` 如实映射前者，但
+`resolveObjectTypeMembers`（`checker.go:19452`）里的 `slices.Equal(typeParameters, typeArguments)`
+被写成了 `Same(...)`。对**未实例化的泛型类型**（`typeArguments` 是它自己的 `typeParameters`，但是另一个
+数组实例）Go 判定相等、走"直接用 declaredMembers"分支，我们判定不等 ⇒ **对整张 declared members 表做了一次
+恒等实例化**：凭空造出数百个 transient symbol、数百次类型实例化，类型计数却不变（所以 `Types` 一直是准的）。
+同一类错误还有两处（`relater.go:2383/3385` 的模板字面量 `texts` 比较，比较 `[]string` 内容），已一并改成
+`Core.SameElements`（新增，语义 = `slices.Equal`，逐元素 + nil≡空）。
+
+| 指标（naxiale，`--checkers 1`） | tsgo | 修前 | 修后 |
+| --- | ---: | ---: | ---: |
+| Symbols | 155,019 | 157,544（+2,525） | **155,018（−1）** |
+| Instantiations | 83,059 | 84,311（+1,252） | **83,050（−9）** |
+| Types | 72,700 | 72,752（+52） | 72,752（+52，见"版本漂移"） |
+| Check 时间 | 0.312 | 0.428 | 0.347 |
+
+**真因 B（性能 bug，O(n²)）：`registerForUnusedIdentifiersCheck` 的 append 被写成整表拷贝**。
+Go 是 `append(links.identifierCheckNodes, node)`（摊销 O(1)），移植成了 `[.. arr, node]` —— **每注册一个声明
+就全量拷贝一次**，对 `lib.dom.d.ts`/`lib.es5.d.ts` 这种单文件注册上千个声明的输入是 O(n²)。
+`AllocReport` 抓 Check 相位分配调用链的头名就是它：**198.7 MB = 全部分配的 32.1%**（naxiale 全量 trace，
+618.4 MB 采样）。改成 `List<Node>` + `Add` 后同一 trace 采样降到 **418.9 MB（−32%）**。
+
+**修后结果**（AOT 产物，交错 7 次取中位；原始日志 `artifacts/check-gap/logs/*`，脚本
+`artifacts/check-gap/bench.ps1`）：
+
+| 语料 / 配置 | 指标 | tsgo | 修前 | 修后 |
+| --- | --- | ---: | ---: | ---: |
+| naxiale，默认 checker | Check | 0.199 | 0.284 | **0.198** |
+| naxiale，默认 checker | Total | 0.253 | 0.342 | **0.258** |
+| naxiale，`--checkers 4` | Check / Total | 0.201 / 0.253 | 0.284 / 0.342 | **0.202 / 0.265** |
+| naxiale，`--checkers 1` | Check | 0.312–0.314 | 0.428 | **0.346–0.347** |
+| naxiale，`--checkers 1` | Total | 0.365–0.368 | 0.483 | **0.402–0.405** |
+| lib-only（48 文件 / 75,393 行），`--checkers 1` | Check | 0.139 | 0.205 | **0.164** |
+
+⇒ Check 从 **1.40× → 1.00×**（4 checker / 默认）/ **1.37× → 1.10×**（`--checkers 1`）；Total 从 1.35× → **1.02×**
+（默认）。`--checkers 4` 下我们的 Check（0.202）与 tsgo（0.203）打平。
+
+**多 checker 并行度（OS 口径 `TotalProcessorTime / wall`，naxiale，中位 3）**：
+
+| 配置 | wall | cpu | 并行度 | parse | bind | check | emit | total |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| tsgo 默认 | 0.313 | 0.906 | 2.81 | 0.033 | 0.009 | 0.199 | 0.010 | 0.253 |
+| 我们 默认 | 0.474 | 2.406 | **5.80** | 0.025 | 0.007 | 0.198 | 0.015 | 0.258 |
+| tsgo `--checkers 4` | 0.313 | 1.359 | 4.36 | 0.033 | 0.010 | 0.201 | 0.008 | 0.253 |
+| 我们 `--checkers 4` | 0.443 | 1.922 | 4.34 | 0.027 | 0.007 | 0.202 | 0.013 | 0.265 |
+| tsgo `--checkers 1` | 0.425 | 1.047 | 2.24 | 0.032 | 0.010 | 0.314 | 0.010 | 0.368 |
+| 我们 `--checkers 1` | 0.566 | 1.859 | 3.17 | 0.028 | 0.007 | 0.346 | 0.009 | 0.402 |
+
+要点：`--checkers 1→4` 我们的 Check 是 0.346 → 0.202（**1.71×**），tsgo 是 0.314 → 0.201（1.56×）
+⇒ **任务切分/扩展性不比 Go 差**；剩下的 `wall` 差（0.474 vs 0.313）几乎全在**相位之外**
+（0.474−0.258=0.216 s vs tsgo 0.313−0.253=0.060 s：进程启动 + config + 模块解析/文件 IO + 收尾），
+而我们每 wall 秒烧的 CPU 是 tsgo 的 **2.4×**（Server GC 24 堆 + 更高的分配率），这是 Total 之外的独立课题。
+
+**剩余差距的性质（"本质"清单）**：
+
+1. **版本漂移（不可消除，除非放弃移植上游 HEAD）**：`Types` 恒定多 52 个（lib-only 多 16 个）——它们是
+   上游 commit `bb209ac1c0`"Distinguish between non-distributed and distributed type parameters (#64237)"
+   （2026‑09‑16）带来的 **distributed type parameter**（每个分配式条件类型别名多一个类型参数对象）。
+   基准二进制是 npm 上的 **typescript 7.0.2**，早于该 commit；本仓按上游 HEAD（2026‑09‑25）移植。
+   把该特性临时关掉后类型计数**逐个精确相等**（lib-only 1522=1522、DOM 语料 28,257=28,257），
+   而 `Symbols`/`Instantiations` 只差 −7/−0（对应 npm lib 比我们的 bundled lib 多 11 个 identifier/2 行的
+   既有偏差）⇒ 除散布式类型参数外，类型/符号/实例化**已经与 7.0.2 完全对齐**。
+2. **多 checker 下的 CPU 口径**：4 checker 时 `cpu/wall` 我们是 4.5、tsgo 3.3（同一 wall 我们烧更多 CPU：
+   Server GC 24 堆 + 更高分配率），wall 上 Check 已打平；`--checkers 1` 仍留 1.11×（残余在关系/实例化缓存
+   的常数因子，需更细的采样仪器才能继续下钻）。
+3. **分配量仍是 tsgo 的数十倍**（`Memory allocs` 478.9 MB vs Go 的 926,180 次 malloc，口径不可直接比）：
+   `AllocReport` 显示修后头部是 `KeyBuilder..ctor` 47 MB（Go 的 `keyBuilder` 是 192 字节 **栈上结构体**，
+   我们是含 `byte[192]` 的类）、`Dictionary.Resize` 45 MB、`LinkStore` 的 `new V()`（`CreateInstanceOfT`）
+   15 MB。这些是**已知且已文档化的移植偏离**（`Core/LinkStore.cs` 文件头 1、`Checker.C5.CacheKeys.cs`），
+   继续优化属于"分配率"而非"算法"，收益需单独度量。
+
 ## 4. 生成代码
 
 TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.json`、`internal/stringutil/_scripts` 的 Unicode 数据、`diagnostics/diagnosticMessages.json`…）。C# 侧由 `tools/TypeScript.CodeGen` 消费同一份输入生成 `*.Generated.cs`：

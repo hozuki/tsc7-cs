@@ -481,7 +481,7 @@ public sealed partial class Checker
         }
         if ((source._flags & TypeFlags.TemplateLiteral) != 0)
         {
-            if (Same(source.AsTemplateLiteralType()!._texts, target._texts))
+            if (SameElements(source.AsTemplateLiteralType()!._texts, target._texts))
             {
                 return MapIndex(source.AsTemplateLiteralType()!._types, (s, i) =>
                 {

@@ -15,6 +15,12 @@
 //
 // 3) Same：Go 比较 `&s1[0] == &s2[0]`（同一底层数组，长度也相同）；C# 的数组没有"子切片视图"概念，
 //    等价物是引用相等 ReferenceEquals（长度相同的情况下）。长度都为 0 时 Go 直接返回 true（C# 同）。
+//    **不要与 `slices.Equal` 混用**：`slices.Equal` 是逐元素比较 → `SameElements`（两者 Go 自己就分得很清，
+//    例如 `checker.go:19452` 的 `slices.Equal(typeParameters, typeArguments)` 与 `checker.go:22590` 的
+//    `core.Same(newTypeArguments, resolvedTypeArguments)`）。把 `slices.Equal` 写成 `Same` 会静默退化成
+//    "几乎永远 false"，曾导致 `resolveObjectTypeMembers` 对未实例化泛型做整表恒等实例化（详见
+//    docs/architecture.md §3.12 真因 A）。移植新调用点时：Go 写 `slices.Equal`/`slices.Compare` 的一律用
+//    `SameElements`（或 `SequenceEqual`/`SequenceCompareTo`），Go 写 `core.Same` 的才用 `Same`。
 //
 // 4) Go 的 `comparable` / `==`（MapNonNil / SameMap / UnorderedEqual / Deduplicate / OrElse / FirstNonZero /
 //    AppendIfUnique / MapFiltered 的 key 等）用 `EqualityComparer<T>.Default`（值类型字段级、引用类型引用级；
@@ -353,6 +359,32 @@ public static partial class Core
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Go: <c>slices.Equal(s1, s2)</c> —— **逐元素**比较（元素语义同 Go 的 <c>==</c>，即引用类型按引用相等，
+    /// 见文件头第 4 条）。注意与 <see cref="Same"/> 的区别：<c>Same</c> 映射的是 <c>core.Same</c>（比较
+    /// 「同一底层数组」），两者**不可互换**（Go 自己在这两个函数的选择上是有意的，例如
+    /// <c>checker.go:19452</c> 的 <c>slices.Equal(typeParameters, typeArguments)</c> 逐元素比较，而
+    /// <c>checker.go:22590</c> 的 <c>core.Same(newTypeArguments, resolvedTypeArguments)</c> 比较同一数组）。
+    /// </summary>
+    public static bool SameElements<T>(T[]? s1, T[]? s2)
+    {
+        var len1 = s1?.Length ?? 0;
+        if (len1 != (s2?.Length ?? 0))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < len1; i++)
+        {
+            if (!EqualityComparer<T>.Default.Equals(s1![i], s2![i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static bool Some<T>(T[]? slice, Func<T, bool> f)
