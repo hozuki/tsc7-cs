@@ -28,6 +28,7 @@ internal static class Program
         var cases = new List<string>();
         var limit = int.MaxValue;
         var maxDiffs = 10;
+        var listOnly = false;
         var caseTimeoutSeconds = 0;
         var offset = 0;
         for (var i = 0; i < args.Length; i++)
@@ -54,6 +55,9 @@ internal static class Program
                 case "--diff":
                     maxDiffs = int.Parse(args[++i], CultureInfo.InvariantCulture);
                     break;
+                case "--list":
+                    listOnly = true;
+                    break;
                 case "--case-timeout":
                     // 0（缺省）表示不启用，与 Go harness 行为一致；>0 时单用例超时即中止整轮（同 `go test -timeout` 语义）。
                     caseTimeoutSeconds = int.Parse(args[++i], CultureInfo.InvariantCulture);
@@ -78,6 +82,17 @@ internal static class Program
             // 健壮性（非 Go 原逻辑）：Go 侧 tracking 目录由测试基建保证存在；C# 入口自己建，避免首次运行
             // 因为"目录不存在"而在写 tracking 文件时才炸（现象是一次难看的 IOException）。
             Directory.CreateDirectory(trackingDir);
+        }
+
+        // fourslash 不是「文件型」套件（用例是代码，不是 testdata 里的文件），单独走一条路径：
+        // 见 tests/TypeScript.Harness/FourslashSuite.cs（P6 用例转写 + 对拍）。
+        if (suites.Remove("fourslash"))
+        {
+            var fsExit = FourslashSuite.Run([.. cases], limit, offset, maxDiffs, listOnly);
+            if (suites.Count == 0)
+            {
+                return fsExit;
+            }
         }
 
         Console.WriteLine($"TSGO_ROOT       = {Repo.RootPath()}");
