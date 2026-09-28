@@ -5621,8 +5621,18 @@ public sealed class InitializeError : IJsonMarshaler, IJsonUnmarshaler
 
 /// <summary>Go: <c>type InitializedParams struct</c>（lsp_generated.go:1776）。
 /// </summary>
-public sealed class InitializedParams
+public sealed class InitializedParams : IJsonMarshaler, IJsonUnmarshaler
 {
+
+    internal static readonly StructSpec Spec = new(
+    [
+    ],
+    [
+    ]);
+
+    public void UnmarshalJSONFrom(JsonDecoder dec) => UnmarshalStruct(this, Spec, dec);
+
+    public void MarshalJSONTo(JsonEncoder enc) => MarshalStruct(this, Spec, enc);
 }
 
 /// <summary>Go: <c>type DidChangeConfigurationParams struct</c>（lsp_generated.go:1779）。
@@ -7265,6 +7275,7 @@ public sealed class Hover : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (Hover)target;
+            if (!t.CanIncreaseVerbosity) { return; }
             enc.WriteToken(JsonToken.String("canIncreaseVerbosity"));
             enc.WriteToken(JsonToken.Bool(t.CanIncreaseVerbosity));
         },
@@ -13814,7 +13825,7 @@ public sealed partial class Registration : IJsonMarshaler, IJsonUnmarshaler
 /// RegisterOptions is an externally-tagged union representing the options for a capability registration.
 /// Exactly one field should be set. The set field determines the method for the registration.
 /// </summary>
-public sealed class RegisterOptions
+public sealed class RegisterOptions : IJsonMarshaler, IJsonUnmarshaler
 {
     public ImplementationRegistrationOptions? TextDocumentImplementation;
 
@@ -13911,6 +13922,880 @@ public sealed class RegisterOptions
     public TextDocumentRegistrationOptions? TextDocumentWillSave;
 
     public DidChangeWatchedFilesRegistrationOptions? WorkspaceDidChangeWatchedFiles;
+
+    internal static readonly StructSpec Spec = new(
+    [
+        new StructFieldSpec("TextDocumentImplementation", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentImplementation = null; }
+                else { (t.TextDocumentImplementation ??= new ImplementationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentTypeDefinition", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentTypeDefinition = null; }
+                else { (t.TextDocumentTypeDefinition ??= new TypeDefinitionRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDocumentColor", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDocumentColor = null; }
+                else { (t.TextDocumentDocumentColor ??= new DocumentColorRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentColorPresentation", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentColorPresentation = null; }
+                else { (t.TextDocumentColorPresentation ??= new DocumentColorRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentFoldingRange", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentFoldingRange = null; }
+                else { (t.TextDocumentFoldingRange ??= new FoldingRangeRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDeclaration", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDeclaration = null; }
+                else { (t.TextDocumentDeclaration ??= new DeclarationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentSelectionRange", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentSelectionRange = null; }
+                else { (t.TextDocumentSelectionRange ??= new SelectionRangeRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentPrepareCallHierarchy", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentPrepareCallHierarchy = null; }
+                else { (t.TextDocumentPrepareCallHierarchy ??= new CallHierarchyRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentSemanticTokens", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentSemanticTokens = null; }
+                else { (t.TextDocumentSemanticTokens ??= new SemanticTokensRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentLinkedEditingRange", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentLinkedEditingRange = null; }
+                else { (t.TextDocumentLinkedEditingRange ??= new LinkedEditingRangeRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceWillCreateFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceWillCreateFiles = null; }
+                else { (t.WorkspaceWillCreateFiles ??= new FileOperationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceWillRenameFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceWillRenameFiles = null; }
+                else { (t.WorkspaceWillRenameFiles ??= new FileOperationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceWillDeleteFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceWillDeleteFiles = null; }
+                else { (t.WorkspaceWillDeleteFiles ??= new FileOperationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentMoniker", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentMoniker = null; }
+                else { (t.TextDocumentMoniker ??= new MonikerRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentPrepareTypeHierarchy", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentPrepareTypeHierarchy = null; }
+                else { (t.TextDocumentPrepareTypeHierarchy ??= new TypeHierarchyRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentInlineValue", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentInlineValue = null; }
+                else { (t.TextDocumentInlineValue ??= new InlineValueRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentInlayHint", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentInlayHint = null; }
+                else { (t.TextDocumentInlayHint ??= new InlayHintRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDiagnostic", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDiagnostic = null; }
+                else { (t.TextDocumentDiagnostic ??= new DiagnosticRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentInlineCompletion", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentInlineCompletion = null; }
+                else { (t.TextDocumentInlineCompletion ??= new InlineCompletionRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceTextDocumentContent", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceTextDocumentContent = null; }
+                else { (t.WorkspaceTextDocumentContent ??= new TextDocumentContentRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentWillSaveWaitUntil", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentWillSaveWaitUntil = null; }
+                else { (t.TextDocumentWillSaveWaitUntil ??= new TextDocumentRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentCompletion", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentCompletion = null; }
+                else { (t.TextDocumentCompletion ??= new CompletionRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentHover", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentHover = null; }
+                else { (t.TextDocumentHover ??= new HoverRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentSignatureHelp", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentSignatureHelp = null; }
+                else { (t.TextDocumentSignatureHelp ??= new SignatureHelpRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDefinition", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDefinition = null; }
+                else { (t.TextDocumentDefinition ??= new DefinitionRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentReferences", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentReferences = null; }
+                else { (t.TextDocumentReferences ??= new ReferenceRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDocumentHighlight", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDocumentHighlight = null; }
+                else { (t.TextDocumentDocumentHighlight ??= new DocumentHighlightRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDocumentSymbol", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDocumentSymbol = null; }
+                else { (t.TextDocumentDocumentSymbol ??= new DocumentSymbolRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentCodeAction", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentCodeAction = null; }
+                else { (t.TextDocumentCodeAction ??= new CodeActionRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceSymbol", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceSymbol = null; }
+                else { (t.WorkspaceSymbol ??= new WorkspaceSymbolRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentCodeLens", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentCodeLens = null; }
+                else { (t.TextDocumentCodeLens ??= new CodeLensRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDocumentLink", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDocumentLink = null; }
+                else { (t.TextDocumentDocumentLink ??= new DocumentLinkRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentFormatting", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentFormatting = null; }
+                else { (t.TextDocumentFormatting ??= new DocumentFormattingRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentRangeFormatting", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentRangeFormatting = null; }
+                else { (t.TextDocumentRangeFormatting ??= new DocumentRangeFormattingRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentRangesFormatting", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentRangesFormatting = null; }
+                else { (t.TextDocumentRangesFormatting ??= new DocumentRangeFormattingRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentOnTypeFormatting", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentOnTypeFormatting = null; }
+                else { (t.TextDocumentOnTypeFormatting ??= new DocumentOnTypeFormattingRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentRename", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentRename = null; }
+                else { (t.TextDocumentRename ??= new RenameRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceExecuteCommand", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceExecuteCommand = null; }
+                else { (t.WorkspaceExecuteCommand ??= new ExecuteCommandRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceDidCreateFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceDidCreateFiles = null; }
+                else { (t.WorkspaceDidCreateFiles ??= new FileOperationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceDidRenameFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceDidRenameFiles = null; }
+                else { (t.WorkspaceDidRenameFiles ??= new FileOperationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceDidDeleteFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceDidDeleteFiles = null; }
+                else { (t.WorkspaceDidDeleteFiles ??= new FileOperationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceDidChangeConfiguration", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceDidChangeConfiguration = null; }
+                else { (t.WorkspaceDidChangeConfiguration ??= new DidChangeConfigurationRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDidOpen", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDidOpen = null; }
+                else { (t.TextDocumentDidOpen ??= new TextDocumentRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDidChange", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDidChange = null; }
+                else { (t.TextDocumentDidChange ??= new TextDocumentChangeRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDidClose", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDidClose = null; }
+                else { (t.TextDocumentDidClose ??= new TextDocumentRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentDidSave", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentDidSave = null; }
+                else { (t.TextDocumentDidSave ??= new TextDocumentSaveRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("TextDocumentWillSave", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.TextDocumentWillSave = null; }
+                else { (t.TextDocumentWillSave ??= new TextDocumentRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+        new StructFieldSpec("WorkspaceDidChangeWatchedFiles", false, false,
+            static (target, dec) =>
+            {
+                var t = (RegisterOptions)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceDidChangeWatchedFiles = null; }
+                else { (t.WorkspaceDidChangeWatchedFiles ??= new DidChangeWatchedFilesRegistrationOptions()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+    ],
+    [
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentImplementation"));
+            if (t.TextDocumentImplementation is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentImplementation);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentTypeDefinition"));
+            if (t.TextDocumentTypeDefinition is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentTypeDefinition);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDocumentColor"));
+            if (t.TextDocumentDocumentColor is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDocumentColor);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentColorPresentation"));
+            if (t.TextDocumentColorPresentation is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentColorPresentation);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentFoldingRange"));
+            if (t.TextDocumentFoldingRange is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentFoldingRange);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDeclaration"));
+            if (t.TextDocumentDeclaration is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDeclaration);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentSelectionRange"));
+            if (t.TextDocumentSelectionRange is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentSelectionRange);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentPrepareCallHierarchy"));
+            if (t.TextDocumentPrepareCallHierarchy is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentPrepareCallHierarchy);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentSemanticTokens"));
+            if (t.TextDocumentSemanticTokens is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentSemanticTokens);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentLinkedEditingRange"));
+            if (t.TextDocumentLinkedEditingRange is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentLinkedEditingRange);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceWillCreateFiles"));
+            if (t.WorkspaceWillCreateFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceWillCreateFiles);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceWillRenameFiles"));
+            if (t.WorkspaceWillRenameFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceWillRenameFiles);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceWillDeleteFiles"));
+            if (t.WorkspaceWillDeleteFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceWillDeleteFiles);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentMoniker"));
+            if (t.TextDocumentMoniker is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentMoniker);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentPrepareTypeHierarchy"));
+            if (t.TextDocumentPrepareTypeHierarchy is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentPrepareTypeHierarchy);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentInlineValue"));
+            if (t.TextDocumentInlineValue is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentInlineValue);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentInlayHint"));
+            if (t.TextDocumentInlayHint is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentInlayHint);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDiagnostic"));
+            if (t.TextDocumentDiagnostic is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDiagnostic);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentInlineCompletion"));
+            if (t.TextDocumentInlineCompletion is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentInlineCompletion);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceTextDocumentContent"));
+            if (t.WorkspaceTextDocumentContent is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceTextDocumentContent);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentWillSaveWaitUntil"));
+            if (t.TextDocumentWillSaveWaitUntil is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentWillSaveWaitUntil);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentCompletion"));
+            if (t.TextDocumentCompletion is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentCompletion);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentHover"));
+            if (t.TextDocumentHover is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentHover);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentSignatureHelp"));
+            if (t.TextDocumentSignatureHelp is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentSignatureHelp);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDefinition"));
+            if (t.TextDocumentDefinition is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDefinition);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentReferences"));
+            if (t.TextDocumentReferences is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentReferences);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDocumentHighlight"));
+            if (t.TextDocumentDocumentHighlight is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDocumentHighlight);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDocumentSymbol"));
+            if (t.TextDocumentDocumentSymbol is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDocumentSymbol);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentCodeAction"));
+            if (t.TextDocumentCodeAction is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentCodeAction);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceSymbol"));
+            if (t.WorkspaceSymbol is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceSymbol);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentCodeLens"));
+            if (t.TextDocumentCodeLens is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentCodeLens);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDocumentLink"));
+            if (t.TextDocumentDocumentLink is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDocumentLink);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentFormatting"));
+            if (t.TextDocumentFormatting is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentFormatting);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentRangeFormatting"));
+            if (t.TextDocumentRangeFormatting is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentRangeFormatting);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentRangesFormatting"));
+            if (t.TextDocumentRangesFormatting is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentRangesFormatting);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentOnTypeFormatting"));
+            if (t.TextDocumentOnTypeFormatting is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentOnTypeFormatting);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentRename"));
+            if (t.TextDocumentRename is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentRename);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceExecuteCommand"));
+            if (t.WorkspaceExecuteCommand is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceExecuteCommand);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceDidCreateFiles"));
+            if (t.WorkspaceDidCreateFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceDidCreateFiles);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceDidRenameFiles"));
+            if (t.WorkspaceDidRenameFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceDidRenameFiles);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceDidDeleteFiles"));
+            if (t.WorkspaceDidDeleteFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceDidDeleteFiles);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceDidChangeConfiguration"));
+            if (t.WorkspaceDidChangeConfiguration is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceDidChangeConfiguration);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDidOpen"));
+            if (t.TextDocumentDidOpen is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDidOpen);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDidChange"));
+            if (t.TextDocumentDidChange is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDidChange);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDidClose"));
+            if (t.TextDocumentDidClose is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDidClose);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentDidSave"));
+            if (t.TextDocumentDidSave is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentDidSave);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("TextDocumentWillSave"));
+            if (t.TextDocumentWillSave is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.TextDocumentWillSave);
+            }
+        },
+        static (target, enc) =>
+        {
+            var t = (RegisterOptions)target;
+            enc.WriteToken(JsonToken.String("WorkspaceDidChangeWatchedFiles"));
+            if (t.WorkspaceDidChangeWatchedFiles is null) { MarshalEncode(enc, null); }
+            else
+            {
+                MarshalEncode(enc, t.WorkspaceDidChangeWatchedFiles);
+            }
+        }
+    ]);
+
+    public void UnmarshalJSONFrom(JsonDecoder dec) => UnmarshalStruct(this, Spec, dec);
+
+    public void MarshalJSONTo(JsonEncoder enc) => MarshalStruct(this, Spec, enc);
 }
 
 /// <summary>Go: <c>type Unregistration struct</c>（lsp_generated.go:5216）。
@@ -13963,9 +14848,34 @@ public sealed class Unregistration : IJsonMarshaler, IJsonUnmarshaler
 
 /// <summary>Go: <c>type WorkspaceFoldersInitializeParams struct</c>（lsp_generated.go:5231）。
 /// </summary>
-public sealed class WorkspaceFoldersInitializeParams
+public sealed class WorkspaceFoldersInitializeParams : IJsonMarshaler, IJsonUnmarshaler
 {
     public WorkspaceFoldersOrNull? WorkspaceFolders;
+
+    internal static readonly StructSpec Spec = new(
+    [
+        new StructFieldSpec("workspaceFolders", false, false,
+            static (target, dec) =>
+            {
+                var t = (WorkspaceFoldersInitializeParams)target;
+                if (dec.PeekKind() == JsonKind.Null) { dec.ReadToken(); t.WorkspaceFolders = null; }
+                else { (t.WorkspaceFolders ??= new WorkspaceFoldersOrNull()).UnmarshalJSONFrom(dec); }
+            }
+        ),
+    ],
+    [
+        static (target, enc) =>
+        {
+            var t = (WorkspaceFoldersInitializeParams)target;
+            if (t.WorkspaceFolders is null) { return; }
+            enc.WriteToken(JsonToken.String("workspaceFolders"));
+            MarshalEncode(enc, t.WorkspaceFolders);
+        }
+    ]);
+
+    public void UnmarshalJSONFrom(JsonDecoder dec) => UnmarshalStruct(this, Spec, dec);
+
+    public void MarshalJSONTo(JsonEncoder enc) => MarshalStruct(this, Spec, enc);
 }
 
 /// <summary>Go: <c>type ServerCapabilities struct</c>（lsp_generated.go:5244）。
@@ -25375,12 +26285,14 @@ public sealed class AutoImportFix : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (AutoImportFix)target;
+            if (t.Kind == default) { return; }
             enc.WriteToken(JsonToken.String("kind"));
             enc.WriteToken(JsonToken.Number(((int)t.Kind).ToString(CultureInfo.InvariantCulture)));
         },
         static (target, enc) =>
         {
             var t = (AutoImportFix)target;
+            if (t.Name.Length == 0) { return; }
             enc.WriteToken(JsonToken.String("name"));
             enc.WriteToken(JsonToken.String(t.Name));
         },
@@ -25393,6 +26305,7 @@ public sealed class AutoImportFix : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (AutoImportFix)target;
+            if (!t.UseRequire) { return; }
             enc.WriteToken(JsonToken.String("useRequire"));
             enc.WriteToken(JsonToken.Bool(t.UseRequire));
         },
@@ -25405,6 +26318,7 @@ public sealed class AutoImportFix : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (AutoImportFix)target;
+            if (t.ModuleSpecifier.Length == 0) { return; }
             enc.WriteToken(JsonToken.String("moduleSpecifier"));
             enc.WriteToken(JsonToken.String(t.ModuleSpecifier));
         },
@@ -25424,6 +26338,7 @@ public sealed class AutoImportFix : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (AutoImportFix)target;
+            if (t.NamespacePrefix.Length == 0) { return; }
             enc.WriteToken(JsonToken.String("namespacePrefix"));
             enc.WriteToken(JsonToken.String(t.NamespacePrefix));
         }
@@ -25516,12 +26431,14 @@ public sealed class CompletionItemData : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (CompletionItemData)target;
+            if (t.FileName.Length == 0) { return; }
             enc.WriteToken(JsonToken.String("fileName"));
             enc.WriteToken(JsonToken.String(t.FileName));
         },
         static (target, enc) =>
         {
             var t = (CompletionItemData)target;
+            if (t.Position == 0) { return; }
             enc.WriteToken(JsonToken.String("position"));
             enc.WriteToken(JsonToken.Number(t.Position.ToString(CultureInfo.InvariantCulture)));
         },
@@ -25535,12 +26452,14 @@ public sealed class CompletionItemData : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (CompletionItemData)target;
+            if (t.Source.Length == 0) { return; }
             enc.WriteToken(JsonToken.String("source"));
             enc.WriteToken(JsonToken.String(t.Source));
         },
         static (target, enc) =>
         {
             var t = (CompletionItemData)target;
+            if (t.Name.Length == 0) { return; }
             enc.WriteToken(JsonToken.String("name"));
             enc.WriteToken(JsonToken.String(t.Name));
         },
@@ -25554,6 +26473,7 @@ public sealed class CompletionItemData : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (CompletionItemData)target;
+            if (!t.IsImportStatementCompletion) { return; }
             enc.WriteToken(JsonToken.String("isImportStatementCompletion"));
             enc.WriteToken(JsonToken.Bool(t.IsImportStatementCompletion));
         }
@@ -27127,180 +28047,210 @@ public sealed class PerformanceStatsTelemetryMeasurements : IJsonMarshaler, IJso
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.OpenFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("openFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.OpenFileCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.UptimeSeconds == 0) { return; }
             enc.WriteToken(JsonToken.String("uptimeSeconds"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.UptimeSeconds)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.ProjectCount == 0) { return; }
             enc.WriteToken(JsonToken.String("projectCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.ProjectCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.ConfigCount == 0) { return; }
             enc.WriteToken(JsonToken.String("configCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.ConfigCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.CachedDiskFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("cachedDiskFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.CachedDiskFileCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.MemoryUsedBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("memoryUsedBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.MemoryUsedBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GoMemLimit == 0) { return; }
             enc.WriteToken(JsonToken.String("goMemLimit"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GoMemLimit)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GoGCPercent == 0) { return; }
             enc.WriteToken(JsonToken.String("goGCPercent"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GoGCPercent)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.HeapGoalBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("heapGoalBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.HeapGoalBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.HeapLiveBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("heapLiveBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.HeapLiveBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.HeapObjectCount == 0) { return; }
             enc.WriteToken(JsonToken.String("heapObjectCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.HeapObjectCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.HeapStackBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("heapStackBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.HeapStackBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.HeapReleasedBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("heapReleasedBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.HeapReleasedBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.HeapFreeBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("heapFreeBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.HeapFreeBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GcScanHeapBytes == 0) { return; }
             enc.WriteToken(JsonToken.String("gcScanHeapBytes"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GcScanHeapBytes)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GoMaxProcs == 0) { return; }
             enc.WriteToken(JsonToken.String("goMaxProcs"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GoMaxProcs)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GoroutineCount == 0) { return; }
             enc.WriteToken(JsonToken.String("goroutineCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GoroutineCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GcCyclesTotal == 0) { return; }
             enc.WriteToken(JsonToken.String("gcCyclesTotal"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GcCyclesTotal)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.GcCPUSeconds == 0) { return; }
             enc.WriteToken(JsonToken.String("gcCPUSeconds"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.GcCPUSeconds)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.UserCPUSeconds == 0) { return; }
             enc.WriteToken(JsonToken.String("userCPUSeconds"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.UserCPUSeconds)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.SystemMemTotal == 0) { return; }
             enc.WriteToken(JsonToken.String("systemMemTotal"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.SystemMemTotal)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.SystemMemUsed == 0) { return; }
             enc.WriteToken(JsonToken.String("systemMemUsed"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.SystemMemUsed)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportProjectBucketCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportProjectBucketCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportProjectBucketCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportNodeModulesBucketCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportNodeModulesBucketCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportNodeModulesBucketCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportUniquePackageCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportUniquePackageCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportUniquePackageCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportProjectExportCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportProjectExportCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportProjectExportCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportNodeModulesExportCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportNodeModulesExportCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportNodeModulesExportCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportProjectFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportProjectFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportProjectFileCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportNodeModulesFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportNodeModulesFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportNodeModulesFileCount)));
         },
         static (target, enc) =>
         {
             var t = (PerformanceStatsTelemetryMeasurements)target;
+            if (t.AutoImportNodeModulesUnfilteredBucketCount == 0) { return; }
             enc.WriteToken(JsonToken.String("autoImportNodeModulesUnfilteredBucketCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.AutoImportNodeModulesUnfilteredBucketCount)));
         }
@@ -27532,60 +28482,70 @@ public sealed class ProjectInfoTelemetryMeasurements : IJsonMarshaler, IJsonUnma
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.JsFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("jsFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.JsFileCount)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.JsFileSize == 0) { return; }
             enc.WriteToken(JsonToken.String("jsFileSize"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.JsFileSize)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.JsxFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("jsxFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.JsxFileCount)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.JsxFileSize == 0) { return; }
             enc.WriteToken(JsonToken.String("jsxFileSize"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.JsxFileSize)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.TsFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("tsFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.TsFileCount)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.TsFileSize == 0) { return; }
             enc.WriteToken(JsonToken.String("tsFileSize"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.TsFileSize)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.TsxFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("tsxFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.TsxFileCount)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.TsxFileSize == 0) { return; }
             enc.WriteToken(JsonToken.String("tsxFileSize"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.TsxFileSize)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.DtsFileCount == 0) { return; }
             enc.WriteToken(JsonToken.String("dtsFileCount"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.DtsFileCount)));
         },
         static (target, enc) =>
         {
             var t = (ProjectInfoTelemetryMeasurements)target;
+            if (t.DtsFileSize == 0) { return; }
             enc.WriteToken(JsonToken.String("dtsFileSize"));
             enc.WriteToken(JsonToken.Number(FloatFormat.Format(t.DtsFileSize)));
         }
@@ -27813,6 +28773,7 @@ public sealed class VSClassifiedTextRun : IJsonMarshaler, IJsonUnmarshaler
         static (target, enc) =>
         {
             var t = (VSClassifiedTextRun)target;
+            if (t.Style == 0) { return; }
             enc.WriteToken(JsonToken.String("Style"));
             enc.WriteToken(JsonToken.Number(t.Style.ToString(CultureInfo.InvariantCulture)));
         },

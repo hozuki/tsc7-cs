@@ -5,3 +5,7 @@
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("TypeScript.Compiler.Tests")]
+
+// M8 fourslash harness（`tests/TypeScript.Harness`，AssemblyName 同名）用与 Go 测试相同的口径调用
+// package 内部面（例如 `ls.CompareCompletionEntries` 在 Go 里是导出的、C# 侧落成 internal）。
+[assembly: InternalsVisibleTo("TypeScript.Harness")]
