@@ -454,7 +454,8 @@ public sealed class BuildTask
         _result._exitStatus = result.Status;
         _result._statistics = statistics;
         _packageJsons = [.. _result._program.PackageJsonLookupPaths()];
-        if ((!program.Options().NoEmit.IsTrue() || result.Diagnostics.Length == 0) &&
+        // Go: buildtask.go:276-278 —— 这里读的是 `NoEmitOnError`（不是 `NoEmit`）。
+        if ((!program.Options().NoEmitOnError.IsTrue() || result.Diagnostics.Length == 0) &&
             (result.EmitResult!.EmittedFiles.Length > 0 || _status!._kind != UpToDateStatusType.OutOfDateBuildInfoWithErrors))
         {
             // Update time stamps for rest of the outputs

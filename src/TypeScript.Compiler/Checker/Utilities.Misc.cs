@@ -1,8 +1,9 @@
 // ported from: internal/checker/utilities.go:908-1330（属性名/绑定名/字面量名判定 + 声明/流程节点判定 + minAndMax）
 //
 // 与 Go 的机械改写（通用规则见 Utilities.cs 文件头）：
-// 1) Go 的 `isLateBoundName` 里 `name[0] == '\xfe'` → C# `'\u00FE'`：Go 的字节 0xFE 在移植后的 UTF-16 字符串里
-//    就是 U+00FE（与 Ast 的 `InternalSymbolNamePrefix = "\u00FE"` 同一约定，见 Ast/Symbol.cs）。
+// 1) Go 的 `isLateBoundName` 里 `name[0] == '\xfe'` → C# `'\uFFFD'`：Go 的字节 0xFE 是非法 UTF-8，
+//    凡被转成合法文本（诊断格式化 / JSON 往返）都会变成 U+FFFD；C# 的 string 恒为合法 UTF-16，
+//    故直接以 U+FFFD 作为哨兵字符（与 Ast 的 `InternalSymbolNamePrefix = "\uFFFD"` 同一约定，见 Ast/Symbol.cs）。
 // 2) `strings.HasPrefix(s, p)` → `HasPrefix(s, p, true)`（StringUtil 的 caseSensitive 版本）。
 // 3) `slices`/`min`/`max` 内建 → 手写循环 / `Math.Min`/`Math.Max`；Go 的 `(int, int)` 多返回值 → C# 命名元组。
 // 4) `node.ForEachChild(traverse)`：C# 的 `Visitor`（`delegate bool Visitor(Node node)`）用局部函数的方法组转换。
@@ -183,7 +184,7 @@ public sealed partial class Checker
     /// <summary>Go: <c>func isLateBoundName(name string) bool</c>（utilities.go:1029-1031）。</summary>
     internal static bool IsLateBoundName(string name)
     {
-        return name.Length >= 2 && name[0] == '\u00FE' && name[1] == '@';
+        return name.Length >= 2 && name[0] == '\uFFFD' && name[1] == '@';
     }
 
     /// <summary>Go: <c>func isObjectOrArrayLiteralType(t *Type) bool</c>（utilities.go:1033-1035）。</summary>

@@ -86,7 +86,7 @@ internal static class TscNoEmitOnErrorCases
         }
         TscInput[] GetTscWatchNoEmitOnErrorTestCases(TscNoEmitOnErrorScenario[] scenarios, string[] commandLineArgs)
         {
-    TscEdit[] edits = [];
+    TscEdit[] edits = null!;
     foreach (var scenario in GoIter(scenarios))
     {
         if ((edits != null))

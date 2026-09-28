@@ -358,7 +358,7 @@ public static partial class TsOptions
             return (fileNames, literalFileNamesLen);
         }
 
-        ProjectReference[] GetProjectReferences(string basePathForReferences)
+        ProjectReference[]? GetProjectReferences(string basePathForReferences)
         {
             ProjectReference[]? projectReferences = null;
             var newReferencesOfRaw = GetPropFromRaw("references", element => element is OrderedMap<string, object?>, "object");
@@ -402,7 +402,13 @@ public static partial class TsOptions
                 projectReferences = [.. references];
             }
 
-            return projectReferences ?? [];
+            // Go: `return projectReferences`（tsconfigparsing.go:1503）—— 配置里**没有** `references` 属性时是
+            // **nil 切片**（不是空切片）。这个区别是可观测的：`BuildTask.getUpToDateStatus` 用
+            // `len(FileNames)==0 && ProjectReferences() != nil` 判定"solution（只聚合引用、本身不 build）"，
+            // 若这里退化成空数组，没有 references 的空配置会被误判为 solution 而整块跳过（少写 .tsbuildinfo、
+            // 退出码从 OutputsGenerated 变 OutputsSkipped）。
+            // 注意 `references` 存在但全部非法时 Go 给的是非 nil 空切片，本函数上面的 `[.. references]` 同为非 nil。
+            return projectReferences;
         }
 
         var (fileNames0, literalFileNamesLen0) = GetFileNames(basePathForFileNames);

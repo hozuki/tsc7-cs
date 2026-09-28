@@ -391,7 +391,9 @@ public sealed partial class Checker
         string GetCandidateName(Symbol candidate)
         {
             var candidateName = SymbolName(candidate);
-            if (candidateName.Length == 0 || candidateName[0] == '"' || candidateName[0] == '\u00FE')
+            // Go: checker.go:1842 `candidateName[0] == '\xfe'` —— 见 Ast.InternalSymbolNamePrefix 的说明，
+            // C# 侧该哨兵字符是 U+FFFD。
+            if (candidateName.Length == 0 || candidateName[0] == '"' || candidateName[0] == '\uFFFD')
             {
                 return "";
             }

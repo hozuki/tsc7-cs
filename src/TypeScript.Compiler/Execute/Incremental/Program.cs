@@ -271,7 +271,11 @@ public sealed class Program : TypeScript.Compiler.ProgramLike
         PanicIfNoProgram("GetDeclarationDiagnostics");
         var result = EmitFiles(ctx, this, new EmitOptions
         {
-            TargetSourceFiles = SingleElementSlice(file!),
+            // Go: `TargetSourceFiles: core.SingleElementSlice(file)`（program.go:228）—— `file == nil` 时 Go 的
+            // `SingleElementSlice` 返回 **nil 切片**（不是空切片），而 `emitFiles`/`emitAllAffectedFiles` 正是用
+            // `options.TargetSourceFiles != nil` 区分"整个程序的声明诊断"与"单个文件"。若这里退化成空数组，
+            // `isForDtsErrors` 分支会走 `FlatMap(空) => 空诊断`，`--declaration` 下的 TS4094 等声明诊断全部丢失。
+            TargetSourceFiles = file is null ? null : [file],
         }, true);
         if (result is not null)
         {

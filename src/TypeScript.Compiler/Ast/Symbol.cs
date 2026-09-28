@@ -66,7 +66,18 @@ public sealed class SymbolTable : Dictionary<string, Symbol>
 
 public static partial class Ast
 {
-    public const string InternalSymbolNamePrefix = "\u00FE"; // Invalid UTF8 sequence, will never occur as IdentifierName
+    // Go: ast/symbol.go:47 `const InternalSymbolNamePrefix = "\xFE"` —— Go 侧是一个**非法 UTF-8 字节**，
+    // 它只保证"绝不会作为 IdentifierName 出现"。凡是 Go 把该名字变成合法 UTF-8 文本的地方，这个字节都会
+    // 被吞成 U+FFFD：
+    //   * 诊断文本：internal/diagnostics/diagnostics.go:136 `strings.ToValidUTF8(arg, "\uFFFD")`（Format 对每个参数做）；
+    //   * `.tsbuildinfo` 文本：写盘前经 `internal/json` 解码/编码往返（tsctests/fs.go:38-71），Go 的 JSON 解码器
+    //     把字符串里的非法 UTF-8 字节替换成 U+FFFD。
+    // 所以 TSGO 参考基线里出现的**唯一**形态是 U+FFFD（`testdata/baselines/reference/**` 里 0 处 U+00FE、
+    // 唯一 6 处 U+FFFD 全在 tsc/incremental/internal-symbolname-in-tsbuildInfo.js），且 TestUtil 的
+    // `Differ.SanitizeInternalSymbolName` 也是按 `\uFFFD@name@123` 写的正则。
+    // C# 的 string 恒为合法 UTF-16、没有"非法字节"这一层，故直接把前缀存成 U+FFFD：它同样绝不会作为
+    // IdentifierName 出现（U+FFFD 不是 ID_Continue），同时与 Go 的**可观测**表示逐字节一致。
+    public const string InternalSymbolNamePrefix = "\uFFFD";
 
     public const string InternalSymbolNameCall = InternalSymbolNamePrefix + "call";                                       // Call signatures
     public const string InternalSymbolNameConstructor = InternalSymbolNamePrefix + "constructor";                         // Constructor implementations

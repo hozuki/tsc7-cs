@@ -134,11 +134,12 @@ public sealed partial class Checker
 
     /// <summary>
     /// Go: <c>func isReservedMemberName(name string) bool</c>（utilities.go:1666-1668）。
-    /// 保留成员名由字节 0xFE（非法 UTF-8 编码）+ 一个非 '@'/'#' 字符开头；'@' 表示知名 ES Symbol，'#' 表示私有标识符。
+    /// 保留成员名由哨兵字符（Go 侧是非法 UTF-8 字节 0xFE，C# 侧见 Ast.InternalSymbolNamePrefix = U+FFFD）
+    /// + 一个非 '@'/'#' 字符开头；'@' 表示知名 ES Symbol，'#' 表示私有标识符。
     /// </summary>
     internal static bool IsReservedMemberName(string name)
     {
-        return name.Length >= 2 && name[0] == '\u00FE' && name[1] != '@' && name[1] != '#';
+        return name.Length >= 2 && name[0] == '\uFFFD' && name[1] != '@' && name[1] != '#';
     }
 
     /// <summary>Go: <c>func introducesArgumentsExoticObject(node *ast.Node) bool</c>（utilities.go:1670-1677）。</summary>
