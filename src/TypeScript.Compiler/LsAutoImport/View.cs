@@ -248,6 +248,10 @@ public sealed partial class View
             {
                 target = e.Target;
             }
+            // Go: view.go:205（分组键 `ambientModuleOrPackageName: core.FirstNonZero(e.AmbientModuleName(), e.PackageName)`，
+            // 分组循环见 view.go:190-217）。Go 的 FirstNonZero 按 `*new(T)` 判零 ⇒ 空串不是"非零值"。
+            // Core.FirstNonZero 的 string 重载保持该语义（否则 `pkg=""` 与 `pkg="dom7"` 的同一 target 导出会被并进
+            // 同一组，MinAllFunc 会挤掉其中一条，见 TestCompletionsImportDefaultExportCrash2 / …_addToNamedWithDifferentCacheValue）。
             var key = new ExportGroupKey(
                 target,
                 name,

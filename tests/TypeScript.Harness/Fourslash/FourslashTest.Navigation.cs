@@ -14,8 +14,11 @@
 //     `slices.Sorted(maps.Keys(m))` → `Array.Sort(keys, StringComparer.Ordinal)`（Go 的 string 比较是序数比较）。
 //  7) `core.StringifyJson(result, "", "  ")` 的 `(string, error)`：C# 的 `Core.StringifyJson` 失败时抛异常
 //     （Go 的 `t.Fatalf("Failed to stringify …")` 分支在 C# 里不可达）。
-//  8) `roundtripThroughJson[[]lsproto.Location]` → `RoundtripThroughJson<Location[]>`（失败抛 JsonException，
-//     对应 Go 的 error 分支 t.Fatalf）；返回 null 时按 Go 的零值 nil 切片处理为 `[]`。
+//  8) `roundtripThroughJson[[]lsproto.Location]` → `RoundtripThroughJson<Location[]>(value, static bytes =>
+//     Json.UnmarshalNew<LocationsOrNull>(bytes).Locations)`（失败抛 JsonException，对应 Go 的 error 分支 t.Fatalf）；
+//     返回 null 时按 Go 的零值 nil 切片处理为 `[]`。Go 的 `json.Unmarshal(bytes, &result)` 用反射按需创建
+//     目标切片，C# 的 `Json.Unmarshal<T>` 不创建实例（Json/Decode.cs 文件头），故由调用方给出解码器
+//     （fourslash.go:3873-3885 的等价物）。
 //  9) nil 切片（`*result.Locations`、`*result.DefinitionLinks` 等）→ `?? []`；Go 遍历 nil 切片不迭代。
 // 10) 元素为 `*T` 的切片在 C# 是 `T?[]`（如 `FoldingRange?[]`、`VSReferenceItem?[]`、`LocationLink?[]`），
 //     解引用处用 `!` 保持 Go 的" nil 即 panic"语义。
@@ -184,7 +187,12 @@ public sealed partial class FourslashTest
                     // commandArgs: (DocumentUri, Position, Location[])
                     if (resolvedCodeLens.Command.Arguments is not null)
                     {
-                        locations = RoundtripThroughJson<Location[]>(resolvedCodeLens.Command.Arguments[2]) ?? [];
+                        // Go: roundtripThroughJson[[]lsproto.Location]((*commandArgs)[2])。C# 的 `Json.Unmarshal<T>`
+                        // 不创建数组实例，顶层 `Location[]` 借 LSP 生成物里表示 “[]Location | null” 的联合类型
+                        // `LocationsOrNull`（其 UnmarshalJSONFrom 内部即 DecodeArray<Location>(…DecodeNew<Location>())）。
+                        locations = RoundtripThroughJson<Location[]>(
+                            resolvedCodeLens.Command.Arguments[2],
+                            static bytes => global::TypeScript.Json.Json.UnmarshalNew<LocationsOrNull>(bytes).Locations) ?? [];
                     }
                     else
                     {

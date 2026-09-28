@@ -13,7 +13,9 @@
 //    方法 → partial 类成员（Go 导出 ⇒ `public`，`provide*` 等未导出 ⇒ `internal`）。
 // 2) **`seen` 的写回语义**：Go 里 `seen` 是 `map[DocumentUri]collections.Set[Range]`，`ranges := seen[uri]` 拿到的是
 //    **Set 的副本**（Set 是 struct），改完要 `seen[uri] = ranges` 写回；C# 的 `Set<T>` 是 **class**（引用语义）⇒ 改成
-//    `TryGetValue` 取不到就 `new Set<Range>()` 放进字典，之后原地修改（等价，且不再需要写回）。
+//    `TryGetValue` 取不到就 `new Set<RangeKey>()` 放进字典，之后原地修改（等价，且不再需要写回）。
+//    另：Go 的 `Set[lsproto.Range]` 按**值**去重（Range 是可比较 struct），C# 的 `LsProto.Range` 是 class
+//    ⇒ 用值键 `RangeKey`（声明在 `CrossProject.cs`，同 `Definition.cs` 的 `LocationKey` 约定）。
 // 3) `refOptions{use: referenceUseNone}` → `new RefOptions { _use = ReferenceUse.None }`（这两个类型由本文件声明，见上）。
 // 4) `(string, *DocumentHighlight)` → `(string FileName, DocumentHighlight? Highlight)`；`&kind` → `DocumentHighlightKind?`。
 // 5) `entry.sourceFile` / `entry.kind` / `entry.node` → G1 前缀里的 `_sourceFile` / `_kind` / `_node`
@@ -73,7 +75,7 @@ public static partial class Ls
     internal static MultiDocumentHighlightsOrNull CombineMultiDocumentHighlights(List<MultiDocumentHighlightsOrNull> results)
     {
         Dictionary<DocumentUri, MultiDocumentHighlight> byURI = [];
-        Dictionary<DocumentUri, Set<Range>> seen = [];
+        Dictionary<DocumentUri, Set<RangeKey>> seen = [];
         List<MultiDocumentHighlight> combinedDocuments = [];
         foreach (var result in results)
         {
@@ -98,13 +100,13 @@ public static partial class Ls
 
                 if (!seen.TryGetValue(document.Uri, out var ranges))
                 {
-                    ranges = new Set<Range>();
+                    ranges = new Set<RangeKey>();
                     seen[document.Uri] = ranges;
                 }
 
                 foreach (var highlight in document.Highlights ?? [])
                 {
-                    if (highlight is not null && ranges.AddIfAbsent(highlight.Range))
+                    if (highlight is not null && ranges.AddIfAbsent(new RangeKey(highlight.Range)))
                     {
                         combinedDocument.Highlights = [.. combinedDocument.Highlights ?? [], highlight];
                     }

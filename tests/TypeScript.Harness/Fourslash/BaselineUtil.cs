@@ -51,7 +51,9 @@
 // 15) `markerAndItem[T]` 的 json tag `marker`/`item` → `MarkerAndItem<T> : IJsonMarshaler` 手写 `MarshalJSONTo`
 //    （C# 无反射序列化，docs/json.md §2）；调用点 Go 的 `core.StringifyJson(v, "", "  ")` 对应 C# 的
 //    `Json.MarshalIndent(v, "", "  ")`。
-// 16) `core.OrElse(options.endMarker, "|]")` → `options.EndMarker ?? "|]"`；`core.Map` → `Core.Map`。
+// 16) `core.OrElse(options.endMarker, "|]")` → `OrElse(options.EndMarker, "|]")`（Go 的 `endMarker` 是 string，
+//    零值是 ""；`??` 对空串会漏掉回退，用 Core.OrElse 的 string 重载（本文件已 `using static TypeScript.Core.Core;`，
+//    故写裸名）才与 Go 一致）；`core.Map` → `Core.Map`。
 // 17) 可空：`[]T`（nil 切片）→ `T[]?` + 使用处 `?? []`；`*T` → `T?`。`MarkerAndItem<T>[]?` 同理（Go 的
 //    `var markersAndItems []markerAndItem[T]` 可能是 nil）。
 // 18) `d1.kind == detailKindMarker` 等枚举比较照抄；`DetailKind` 的取值顺序与 Go iota 一致（Marker=0 … ContextEnd=4），
@@ -863,7 +865,7 @@ public sealed partial class FourslashTest
             }
 
             details.Add(new BaselineDetail { Pos = span.TextSpan.Start, PositionMarker = startMarker, Span = span, Kind = DetailKind.TextStart });
-            details.Add(new BaselineDetail { Pos = span.TextSpan.End, PositionMarker = options.EndMarker ?? "|]", Span = span, Kind = DetailKind.TextEnd });
+            details.Add(new BaselineDetail { Pos = span.TextSpan.End, PositionMarker = OrElse(options.EndMarker, "|]")!, Span = span, Kind = DetailKind.TextEnd });
 
             if (span.ContextSpan != null)
             {

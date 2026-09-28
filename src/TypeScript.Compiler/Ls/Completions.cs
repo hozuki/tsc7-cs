@@ -1710,7 +1710,10 @@ public sealed partial class LanguageService
                         var (displayName, _) = GetCompletionEntryDisplayNameForSymbol(file, preferences, member, null! /*origin*/, CompletionKind.ObjectPropertyDeclaration, false /*isJsxIdentifierExpected*/);
                         if (displayName != "")
                         {
-                            var originalSortText = OrElse(symbolToSortTextMap.GetValueOrDefault(symbolId, ""), SortTextLocationPriority);
+                            // Go: completions.go:1185 `originalSortText := core.OrElse(symbolToSortTextMap[symbolId], SortTextLocationPriority)`。
+                            // Go 的 map 读缺键给出零值 ""，OrElse[T comparable] 的零值判据也是 ""（*new(string)），
+                            // 两者合起来等价于 C# 的 `GetValueOrDefault(symbolId, "")` + Core.OrElse 的 string 重载。
+                            var originalSortText = OrElse(symbolToSortTextMap.GetValueOrDefault(symbolId, ""), SortTextLocationPriority)!;
                             symbolToSortTextMap[symbolId] = ObjectLiteralPropertySortText(originalSortText, displayName);
                         }
                     }

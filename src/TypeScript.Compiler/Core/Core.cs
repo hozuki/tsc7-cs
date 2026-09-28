@@ -56,11 +56,13 @@
 // 12) 导出的 Go 包级常量/类型之外没有新增 API；`DebugStackLimit` 是 internal（不算公开 API）。
 //
 // 13) 零值口径的已知落差（T = string 时）：Go 的 string 零值是 ""，而 C# 无约束泛型只能给出 default(T)
-//     （= null）。所以 FirstOrNil/LastOrNil/ElementOrNil/FirstOrNilSeq/FirstNonNil/FirstNonZero/Find/
-//     FindLast/OrElse/MapNonNil 在 **T = string** 时与 Go 不同（null 而不是 ""）。已核对 TSGO 的调用点：
+//     （= null）。所以 FirstOrNil/LastOrNil/ElementOrNil/FirstOrNilSeq/FirstNonNil/Find/
+//     FindLast/MapNonNil 在 **T = string** 时与 Go 不同（null 而不是 ""）。已核对 TSGO 的调用点：
 //     这些函数实际都用指针/引用类型（*ast.Node、*Symbol、*Type、符号对象…），nil 与 Go 的零值一致；
 //     string 特化的那个 API（GetSpellingSuggestionForStrings）已把零值补回 ""。移植新的调用点时若元素是
 //     string，请把 Go 的 `x != ""` 写成 `!string.IsNullOrEmpty(x)`。
+//     **例外：OrElse / FirstNonZero** —— 两者各有 string 专用重载（Core.cs:733-740、544-558），对 string 与
+//     Go 的零值完全一致（null/"" 都是零值），所以 string 实参的调用点直接照抄 Go 即可。
 using System.Globalization;
 using System.Text;
 using static TypeScript.Json.Json;
@@ -539,6 +541,22 @@ public static partial class Core
         return default!;
     }
 
+    // Go: `FirstNonZero[T comparable]`（core.go:295-303）取第一个**非零值**，零值判据是 `value != zero` ——
+    // `T = string` 时零值是 `""`（不是 nil）。C# 的无约束泛型只能给出 default(T)（string 为 null），会把 `""`
+    // 误判成"非零值"直接返回，故 string 单独重载（见文件头第 13 条）：null 与 "" 都算零值，全零时返回 Go 的零值 ""。
+    public static string FirstNonZero(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+        }
+
+        return "";
+    }
+
     public static T[] Concatenate<T>(T[]? s1, T[]? s2)
     {
         if (s2 == null || s2.Length == 0)
@@ -728,6 +746,15 @@ public static partial class Core
     public static T OrElse<T>(T value, T defaultValue)
     {
         return EqualityComparer<T>.Default.Equals(value, default!) ? defaultValue : value;
+    }
+
+    // Go: `OrElse[T comparable]`（core.go:409-414）判零用的是 `*new(T)`：`T = string` 时零值是 `""`（**不是** nil）。
+    // C# 的无约束泛型只能给出 `default(T)`（string 为 null），会把 `""` 误判成"有值"，故 string 单独重载以保持
+    // Go 的零值语义（见文件头第 13 条）。C# 的 null 与 Go 的 "" 是同一个"零值"（Go 的 string 没有 nil）⇒ 两者都回退。
+    // 非泛型重载在参数类型相同时优先于泛型重载，所以所有 string 实参的调用点自动落到这里；没有装箱、没有反射。
+    public static string? OrElse(string? value, string? defaultValue)
+    {
+        return string.IsNullOrEmpty(value) ? defaultValue : value;
     }
 
     // Returns `a` if `a` is not `nil`; Otherwise, returns `b`. Coalesce is roughly analogous to `??` in JS, except that it

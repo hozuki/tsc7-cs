@@ -1920,6 +1920,33 @@ public static partial class Ls
     {
         var positions = new List<int>();
 
+        // Go 的 `text[pos]` 取的是 **UTF-8 字节**（且随后 `rune(byte)` 把该字节当作 U+0000–U+00FF 码点），
+        // 而 C# 的位置是 UTF-16 下标、`text[i]` 取的是 char。为逐字复刻 Go 的"相邻字符"判定，这里显式还原
+        // Go 看到的那个字节，再交给 IsIdentifierPart（Go: `rune(text[position-1])` / `rune(text[endPosition])`）。
+        // 匹配（符号名）永远是 ASCII 或完整码点，故只在"相邻字符"这一处需要字节语义。
+        static int GoUtf8LeadByte(string s, int index)
+        {
+            // 匹配之后那个字符的首字节：<0x80 即自身；2/3 字节序列 0xC0/0xE0|…；代理对（4 字节）0xF0|…。
+            var ch = s[index];
+            if (ch < 0x80)
+            {
+                return ch;
+            }
+
+            if (char.IsHighSurrogate(ch) && index + 1 < s.Length && char.IsLowSurrogate(s[index + 1]))
+            {
+                return 0xF0 | (char.ConvertToUtf32(ch, s[index + 1]) >> 18);
+            }
+
+            return ch < 0x800 ? 0xC0 | (ch >> 6) : 0xE0 | (ch >> 12);
+        }
+
+        static int GoUtf8TrailingByte(char ch)
+        {
+            // 匹配之前那个字符的末字节：ASCII 即自身，否则恒为 0x80|(码点&0x3F)（低位代理也满足该式）。
+            return ch < 0x80 ? ch : 0x80 | (ch & 0x3F);
+        }
+
         // TODO: Cache symbol existence for files to save text search
         // Also, need to make this work for unicode escapes.
 
@@ -1935,9 +1962,13 @@ public static partial class Ls
 
         container ??= sourceFile.AsNode();
 
-        // ⚠ 1:1 复刻 Go：首次查找的偏移相对 `container.Pos()`（切片起点），之后按**绝对**偏移使用
-        //    （`text[position-1]` / 与 `container.End()` 比较）——只有 container.Pos()==0 时二者一致。
-        var position = text.IndexOf(symbolName, container.Pos(), StringComparison.Ordinal);
+        // ⚠ 1:1 复刻 Go：`position := strings.Index(text[container.Pos():], symbolName)` —— 首个匹配的偏移是
+        //    **相对 `container.Pos()`** 的（不含切片起点），之后的 `position = startIndex + foundIndex` 才是**绝对**偏移。
+        //    因此首轮用 `text[position-1]` / 与 `container.End()` 比较时用的是位移后的下标（只有 container.Pos()==0 时才一致），
+        //    这正是 Go 的行为：container 非 0 起点时首轮匹配可能被误判/落成位移位置（见 findAllRefsWithLeadingUnderscoreNames8：
+        //    函数表达式容器下声明名被丢弃）。**不要**"修正"成绝对偏移。
+        var firstMatch = text.IndexOf(symbolName, container.Pos(), StringComparison.Ordinal);
+        var position = firstMatch < 0 ? -1 : firstMatch - container.Pos();
         var endPos = container.End();
         while (position >= 0 && position < endPos)
         {
@@ -1945,8 +1976,8 @@ public static partial class Ls
             // before and after it have to be a non-identifier char).
             var endPosition = position + symbolNameLength;
 
-            if ((position == 0 || !IsIdentifierPart(text[position - 1])) &&
-                (endPosition == sourceLength || !IsIdentifierPart(text[endPosition])))
+            if ((position == 0 || !IsIdentifierPart(GoUtf8TrailingByte(text[position - 1]))) &&
+                (endPosition == sourceLength || !IsIdentifierPart(GoUtf8LeadByte(text, endPosition))))
             {
                 // Found a real match.  Keep searching.
                 positions.Add(position);
@@ -2631,7 +2662,7 @@ public sealed partial class LanguageService
     {
         // `findReferencedSymbols` except only computes the information needed to return reference locations
         var locations = new List<Location>();
-        var seenLocations = new Set<Location>();
+        var seenLocations = new Set<LocationKey>();
         foreach (var symbol in data.SymbolsAndEntries ?? [])
         {
             var symbolLocations = ConvertSymbolAndEntriesToLocations(symbol, @params.Context?.IncludeDeclaration ?? false, Feature.References);

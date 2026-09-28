@@ -1591,12 +1591,7 @@ public sealed partial class FourslashTest
     private string ApplyEditsToContent(string content, TextEdit?[] edits)
     {
         var script = GetScriptInfo(_activeFilename)!;
-        Array.Sort(edits, (a, b) =>
-        {
-            var aStart = _converters.LineAndCharacterToPosition(script, a!.Range.Start);
-            var bStart = _converters.LineAndCharacterToPosition(script, b!.Range.Start);
-            return (int)aStart - (int)bStart;
-        });
+        StableSortByStart(edits, edit => (int)_converters.LineAndCharacterToPosition(script, edit!.Range.Start));
         for (var i = edits.Length - 1; i >= 0; i--)
         {
             var edit = edits[i]!;

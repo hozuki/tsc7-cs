@@ -676,7 +676,10 @@ expected line: "{expectedContent}"
     }
 
     // ---- fourslash.go:3873-3885 roundtripThroughJson ------------------------------------------------
-    public T? RoundtripThroughJson<T>(object? value)
+    // Go 的 `json.Unmarshal(bytes, &result)` 靠反射按需创建目标（对象/切片/数组）。C# 的 `Json.Unmarshal<T>`
+    // 只解“不需要创建实例”的 T（Json/Decode.cs 文件头），需要实例的 T 由调用方给出解码器
+    // （`createInstance`，即文件头说的 “or be created by the caller”）。
+    public T? RoundtripThroughJson<T>(object? value, Func<byte[], T?>? createInstance = null)
     {
         byte[] bytes;
         try
@@ -690,6 +693,18 @@ expected line: "{expectedContent}"
 
         try
         {
+            if (createInstance is not null)
+            {
+                return createInstance(bytes);
+            }
+
+            // 数组是长度固定的目标，`Json.Unmarshal<T>` 不可能解（Json/Decode.cs 文件头）——没有解码器时显式报错，
+            // 免得退回 `Json.Unmarshal<T>` 抛“must implement IJsonUnmarshaler”这种误导性消息。
+            if (typeof(T).IsArray)
+            {
+                throw new JsonException($"failed to unmarshal value from JSON: json: cannot create {typeof(T)}; pass createInstance to RoundtripThroughJson");
+            }
+
             return global::TypeScript.Json.Json.Unmarshal<T>(bytes);
         }
         catch (JsonException e)
@@ -699,12 +714,34 @@ expected line: "{expectedContent}"
     }
 
     // ---- fourslash.go:3995-4026 applyTextEdits ------------------------------------------------------
+    /// <summary>复刻 Go 侧 <c>slices.SortFunc</c> 的可观察语义：按起始位置升序，位置相同的元素保持原序
+    /// （参考 baseline 即此顺序：codeFixClassImplementInterfaceMemberOrdering 在同一位插入 23 个成员，Go 输出 1..23）。
+    /// C# 的 <c>Array.Sort</c> 不稳定，key 相等时会打乱顺序 ⇒ 用原始下标打破并列
+    /// （先例见 FourslashTest.Navigation.cs 文件头第 6 条、FourslashTest.Completions.cs 的 SortCompletionItemsStable）。</summary>
+    private static void StableSortByStart<T>(T[] items, Func<T, int> startOf)
+    {
+        var keyed = new (T Item, int Start, int Index)[items.Length];
+        for (var i = 0; i < items.Length; i++)
+        {
+            keyed[i] = (items[i], startOf(items[i]), i);
+        }
+
+        Array.Sort(keyed, static (a, b) =>
+        {
+            var delta = a.Start - b.Start;
+            return delta != 0 ? delta : a.Index - b.Index;
+        });
+
+        for (var i = 0; i < items.Length; i++)
+        {
+            items[i] = keyed[i].Item;
+        }
+    }
+
     public int ApplyTextEdits(IHarnessTest t, TextEdit?[] edits)
     {
         var script = GetScriptInfo(_activeFilename)!;
-        Array.Sort(edits, (a, b) =>
-            (int)_converters.LineAndCharacterToPosition(script, a!.Range.Start) -
-            (int)_converters.LineAndCharacterToPosition(script, b!.Range.Start));
+        StableSortByStart(edits, edit => (int)_converters.LineAndCharacterToPosition(script, edit!.Range.Start));
 
         var totalOffset = 0;
         var currentCaretPosition = (int)_converters.LineAndCharacterToPosition(script, _currentCaretPosition);
@@ -749,7 +786,7 @@ expected line: "{expectedContent}"
     {
         // Sort changes by position (ascending) so we can apply in reverse
         var sortedChanges = (TextChange[])changes.Clone();
-        Array.Sort(sortedChanges, static (a, b) => a.Range.Pos() - b.Range.Pos());
+        StableSortByStart(sortedChanges, static change => change.Range.Pos());
 
         // Apply changes in reverse order to preserve positions of earlier changes
         for (var i = sortedChanges.Length - 1; i >= 0; i--)

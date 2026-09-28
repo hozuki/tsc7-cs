@@ -52,6 +52,27 @@ using Range = TypeScript.LsProto.Range;
 
 namespace TypeScript.Ls;
 
+/// <summary>
+/// Go 的 <c>collections.Set[lsproto.Range]</c> 去重依赖 Go 的 <c>Range</c> 是可比较 struct（字段逐一比较），
+/// 而 C# 的 <c>LsProto.Range</c> 是 class（引用相等）⇒ 用与 Go 字段一一对应的值键。
+/// 同 <c>Definition.cs:68</c> 的 <c>LocationKey</c> 约定（那里对应 <c>Set[lsproto.Location]</c>）。
+/// </summary>
+internal readonly record struct RangeKey(
+    uint StartLine,
+    uint StartCharacter,
+    uint EndLine,
+    uint EndCharacter)
+{
+    public RangeKey(Range range)
+        : this(
+            range.Start.Line,
+            range.Start.Character,
+            range.End.Line,
+            range.End.Character)
+    {
+    }
+}
+
 /// <summary>Go: <c>type projectAndTextDocumentPosition struct</c>（crossproject.go:23-30）。</summary>
 internal sealed class ProjectAndTextDocumentPosition
 {
@@ -440,12 +461,15 @@ public sealed partial class LanguageService
 
 public static partial class Ls
 {
-    internal static List<T> CombineLocationArray<T>(List<T> combined, T?[] locations, Set<Location> seen)
+    /// <summary>Go: <c>func combineLocationArray[T lsproto.HasLocation](combined []T, locations *[]T, seen *collections.Set[lsproto.Location]) []T</c>（crossproject.go:298-318）。
+    /// Go 的 <c>Set[lsproto.Location]</c> 按**值**去重（<c>lsproto.Location</c> 是可比较 struct），C# 的 <c>LsProto.Location</c> 是 class
+    /// ⇒ 用值键 <see cref="LocationKey"/> 代替（先例见 <c>Definition.cs</c> 的 <c>LocationKey</c>）。</summary>
+    internal static List<T> CombineLocationArray<T>(List<T> combined, T?[] locations, Set<LocationKey> seen)
         where T : class, HasLocation
     {
         foreach (var loc in locations)
         {
-            if (loc is not null && seen.AddIfAbsent(loc.GetLocation()))
+            if (loc is not null && seen.AddIfAbsent(new LocationKey(loc.GetLocation())))
             {
                 combined.Add(loc);
             }
@@ -458,7 +482,7 @@ public static partial class Ls
         where T : HasLocations
     {
         var combined = new List<Location>();
-        var seenLocations = new Set<Location>();
+        var seenLocations = new Set<LocationKey>();
         foreach (var resp in results)
         {
             var locations = resp.GetLocations();
@@ -535,7 +559,7 @@ public static partial class Ls
     internal static LocationOrLocationsOrDefinitionLinksOrNull CombineImplementations(IEnumerable<LocationOrLocationsOrDefinitionLinksOrNull> results)
     {
         var combined = new List<LocationLink>();
-        var seenLocations = new Set<Location>();
+        var seenLocations = new Set<LocationKey>();
         foreach (var resp in results)
         {
             if (resp.DefinitionLinks is not null)
@@ -554,7 +578,7 @@ public static partial class Ls
     internal static WorkspaceEditOrNull CombineRenameResponse(IEnumerable<WorkspaceEditOrNull> results)
     {
         var combined = new Dictionary<DocumentUri, List<TextEdit>>();
-        var seenChanges = new Dictionary<DocumentUri, Set<Range>>();
+        var seenChanges = new Dictionary<DocumentUri, Set<RangeKey>>();
         var documentChanges = new List<TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile>();
         var seenRenames = new Set<(DocumentUri OldUri, DocumentUri NewUri)>();
 
@@ -585,7 +609,7 @@ public static partial class Ls
                 {
                     if (!seenChanges.TryGetValue(doc, out var seenSet))
                     {
-                        seenSet = new Set<Range>();
+                        seenSet = new Set<RangeKey>();
                         seenChanges[doc] = seenSet;
                     }
 
@@ -597,9 +621,9 @@ public static partial class Ls
 
                     foreach (var change in changes ?? [])
                     {
-                        if (change is not null && !seenSet.Has(change.Range))
+                        if (change is not null && !seenSet.Has(new RangeKey(change.Range)))
                         {
-                            seenSet.Add(change.Range);
+                            seenSet.Add(new RangeKey(change.Range));
                             changesForDoc.Add(change);
                         }
                     }
@@ -638,14 +662,14 @@ public static partial class Ls
     internal static CallHierarchyIncomingCallsOrNull CombineIncomingCalls(IEnumerable<CallHierarchyIncomingCallsOrNull> results)
     {
         var combined = new List<CallHierarchyIncomingCall>();
-        var seenCalls = new Set<Location>();
+        var seenCalls = new Set<LocationKey>();
         foreach (var resp in results)
         {
             if (resp.CallHierarchyIncomingCalls is not null)
             {
                 foreach (var call in resp.CallHierarchyIncomingCalls)
                 {
-                    if (call is not null && seenCalls.AddIfAbsent(call.From!.GetLocation()))
+                    if (call is not null && seenCalls.AddIfAbsent(new LocationKey(call.From!.GetLocation())))
                     {
                         combined.Add(call);
                     }

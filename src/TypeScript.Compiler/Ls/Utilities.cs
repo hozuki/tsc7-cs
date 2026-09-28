@@ -507,7 +507,10 @@ public static partial class Ls
             return !(node.Kind == Kind.InterfaceDeclaration || node.Kind == Kind.TypeAliasDeclaration);
         }
 
-        if (IsVariableLike(node))
+        // ⚠ Go 的 `isImplementation` 调的是 `ast.IsVariableLike`（ast/utilities.go:3077：含 PropertyAssignment/EnumMember/…），
+        //   **不是** 同 package ls 的 `isVariableLike`（callhierarchy.go:37：只有 PropertyDeclaration/VariableDeclaration）。
+        //   C# 里两者都在 `Ls` partial 类里 ⇒ 无限定名会绑定到窄的那个，必须显式限定（先例 Completions.cs:1635）。
+        if (TypeScript.Ast.Ast.IsVariableLike(node))
         {
             return HasInitializer(node);
         }

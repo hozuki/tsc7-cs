@@ -829,8 +829,9 @@ public sealed partial class Parser
             margin += end - pos;
         }
 
-        // Go 传的是 `*string`（nil 与空串语义不同：nil = 没有初始缩进），C# 用 null 表达 nil。
-        string? initialMargin = null;
+        // Go 传的是 `*string`（nil 与空串语义不同：nil = 没有初始缩进），且此处总是传 `&initialMargin`（非 nil）。
+        // 非 nil 指针会让 ParseTagComments 进入 `state = jsdocStateSawAsterisk`，因此这里必须传非 null 的空串。
+        var initialMargin = "";
         if (margin < indentText.Length)
         {
             initialMargin = indentText[margin..];

@@ -10,7 +10,8 @@
 //    `append(all, xs...)` → `List.AddRange`。
 // 4) `panic(fmt.Sprintf(...))` → `throw new InvalidOperationException(...)`：C# 无 Go 的 `%T`，消息文本
 //    与 Go 不同；只在语料写错时可见，不进 baseline。
-// 5) `core.OrElse` → `Core.OrElse`；`core.Filter(items, pred)` 用显式循环展开（避免额外闭包/分配）。
+// 5) `core.OrElse` → `CORE.OrElse`（本文件的 `using CORE = TypeScript.Core.Core;` 别名，避免与命名空间 `Core`
+//    遮蔽）；`core.Filter(items, pred)` 用显式循环展开（避免额外闭包/分配）。
 // 6) `stringutil.CompareStringsCaseInsensitiveThenSensitive` → C# 同名函数（StringUtil/Compare.cs），
 //    经 `SortTextComparer` 适配给 LINQ。
 // 7) `switch item := item.(type)` 的联合判别：C# 的 `CompletionsExpectedItem` 是
@@ -95,8 +96,12 @@ public static partial class FourslashTestUtil
     private static string SortTextOf(F.CompletionsExpectedItem item)
     {
         var defaultSortText = LS.SortTextLocationPriority;
+        // Go: util.go:1364-1390 `var aSortText string; if a.SortText != nil { aSortText = *a.SortText }` 后
+        // `aSortText = core.OrElse(aSortText, defaultSortText)`。Go 里 item 不是 *lsproto.CompletionItem（即裸 string
+        // 条目）或 SortText == nil 时，aSortText 保持 Go string 的零值 ""，OrElse 的零值判据同样是 "" ⇒ 落回
+        // defaultSortText。C# 用 `?? ""` 补零值 + Core.OrElse 的 string 重载，与 Go 逐字对应。
         var sortText = item.Item?.SortText ?? "";
-        return CORE.OrElse(sortText, defaultSortText);
+        return CORE.OrElse(sortText, defaultSortText)!;
     }
 
     private static string LabelOf(F.CompletionsExpectedItem item)
