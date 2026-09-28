@@ -14,6 +14,10 @@
 //    （W1 的 `ParsingContexts` 是 readonly struct 包装 int，`ParsingContext` 的成员去掉 `PC` 前缀）。
 // 6) Go 的 `append(nodes[:len-1], newLast)`（JSX 错误恢复）→ 新数组 + `Array.Copy`（Go 是就地改写，长度不变）。
 // 7) `panic(...)` → `throw new DebugFailureException(...)`；Go 的 nil 解引用 → `!`（C# 抛 NRE，等价）。
+//    `parseModifiersEx` 的修饰符表：Go 是 `make([]*ast.Node, 0, 16)`（无条件 128 B），C# 的 `List<Node>(16)` 是 192 B；
+//    绝大多数调用点（interface/type 成员、形参…）一个修饰符都没有 → 改成 `List<Node>? list = null` +
+//    首次 append 才建表，`list is not null` 等价于 Go 的 `len(list) != 0`（实测 parse 相位 −1.74 B/char，见
+//    `artifacts/span-audit/NOTES.md`）。
 //    少数 W5 侧的 helper（`ParseLeftHandSideExpressionOrHigher`/`ParseSimpleUnaryExpression`）在 C# 里标了
 //    `Node?`（比 Go 的 `*ast.Expression` 保守）：Go 在这些点从不返回 nil（返回 nil 时 Go 也是 nil 解引用），
 //    所以这里用 `!` 保持与 Go 逐行一致的语义，不用 `?? 兜底`。
@@ -532,13 +536,16 @@ public sealed partial class Parser
         // It is illegal to have both leadingDecorators and trailingDecorators, but we will report that as a grammar check in the checker.
         // parse leading decorators
         var pos = NodePos();
-        var list = new List<Node>(16);
+        // Go 这里是 `make([]*ast.Node, 0, 16)`（无条件 128 B）。C# 的 `List<Node>(16)` 是 192 B（List 对象 40 B +
+        // Node[16] 152 B），而绝大多数调用点（interface/type 成员、形参…）**一个修饰符都没有** → 改成首次 append
+        // 时才建表（Go 的 nil 切片 + append 语义），空表零分配；非空表也小于 Go 的固定 16 容量。
+        List<Node>? list = null;
         while (true)
         {
             if (allowDecorators && _token == Kind.AtToken && !hasTrailingModifier)
             {
                 var decorator = ParseDecorator();
-                list.Add(decorator);
+                (list ??= new List<Node>()).Add(decorator);
                 if (hasLeadingModifier)
                 {
                     hasTrailingDecorator = true;
@@ -555,7 +562,7 @@ public sealed partial class Parser
                 {
                     hasStaticModifier = true;
                 }
-                list.Add(modifier);
+                (list ??= new List<Node>()).Add(modifier);
                 if (hasTrailingDecorator)
                 {
                     hasTrailingModifier = true;
@@ -566,8 +573,9 @@ public sealed partial class Parser
                 }
             }
         }
-        if (list.Count != 0)
+        if (list is not null)
         {
+            // list 非空 ⇔ 至少 add 过一次 ⇔ Go 的 `len(list) != 0`
             return NewModifierList(NewTextRange(pos, NodePos()), _nodeSliceArena.Clone(CollectionsMarshal.AsSpan(list)));
         }
         return null;

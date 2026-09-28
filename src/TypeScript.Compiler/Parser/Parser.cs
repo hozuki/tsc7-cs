@@ -34,6 +34,11 @@
 //      本文件用"进入列表时的起始下标"复刻 Go 的 `outerReparseList`/`p.reparseList = nil` 配对语义，
 //      因此**任何分片都不得替换 `_reparseList` 对象**（只 `Add`，清空用 `Clear()`）。
 //    - 热路径的临时集合用 `List<T>` + `CollectionsMarshal.AsSpan`（克隆/追加时不复制数组）。
+//    - **列表解析的临时表"首次 append 才分配"**（`parseListIndex`/`parseDelimitedList` 的 `make([]*ast.Node, 0, 16)`）：
+//      Go 无条件分配 128 B；C# 的 `List<Node>(16)` 是 192 B，而空列表（空 block/空 class 体/空 source file…）
+//      本该走 Go 的 `Clone(空) → nil` 零分配分支 → 写成 `List<Node>? list = null` + `(list ??= new List<Node>()).Add(...)`，
+//      返回时 `CollectionsMarshal.AsSpan(list)`（null → 默认空 span，`Clone` 仍返回 `[]`，与改动前逐字节等价）。
+//      容量刻意用 `List` 默认的 4：实测 `new List<Node>(16)` 反而使 parse 相位 +0.46 B/char（见 `artifacts/span-audit/NOTES.md`）。
 //
 // 4) `ast.`/`scanner.`/`diagnostics.`/`tspath.` 的包级函数按 Go 的裸名调用（`using static ...`）：本文件在
 //    `TypeScript.Parser` 下，写限定名 `Ast.NewDiagnostic(...)` 会先解析到同级的**命名空间** `TypeScript.Ast`
@@ -1087,12 +1092,14 @@ public sealed partial class Parser
         _parsingContexts |= 1 << (int)kind;
         var outerReparseList = _reparseList;
         var pendingStart = outerReparseList.Count;
-        var list = new List<Node>(16);
+        // Go: `list := make([]*ast.Node, 0, 16)`（无条件 128 B）。C# 的 `List<Node>(16)` 是 192 B，且空列表调用
+        // （空 class 体、空 block、空 source file…）本该走 Go 的 `Clone(空) → nil` 零分配 → 首次 append 才建表。
+        List<Node>? list = null;
         for (var i = 0; !IsListTerminator(kind); i++)
         {
             if (IsListElement(kind, false /*inErrorRecovery*/))
             {
-                var elt = parseElement(this, list.Count);
+                var elt = parseElement(this, list?.Count ?? 0);
                 if (_reparseList.Count != pendingStart)
                 {
                     var kept = pendingStart;
@@ -1107,7 +1114,7 @@ public sealed partial class Parser
                         }
                         else
                         {
-                            list.Add(e);
+                            (list ??= new List<Node>()).Add(e);
                         }
                     }
 
@@ -1117,7 +1124,7 @@ public sealed partial class Parser
                     }
                 }
 
-                list.Add(elt);
+                (list ??= new List<Node>()).Add(elt);
                 continue;
             }
 
@@ -1150,7 +1157,8 @@ public sealed partial class Parser
         var pos = NodePos();
         var saveParsingContexts = _parsingContexts;
         _parsingContexts |= 1 << (int)kind;
-        var list = new List<Node>(16);
+        // Go: `list := make([]*ast.Node, 0, 16)`（无条件 128 B）→ 同 ParseListIndex，改成首次 append 才建表。
+        List<Node>? list = null;
         while (true)
         {
             if (IsListElement(kind, false /*inErrorRecovery*/))
@@ -1165,7 +1173,7 @@ public sealed partial class Parser
                     return null;
                 }
 
-                list.Add(element);
+                (list ??= new List<Node>()).Add(element);
                 if (ParseOptional(Kind.CommaToken))
                 {
                     // No need to check for a zero length node since we know we parsed a comma

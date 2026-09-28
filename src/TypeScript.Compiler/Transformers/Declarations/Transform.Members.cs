@@ -3,8 +3,11 @@
 // 与 Go 的差异（C# 语言特性，逐条对应 docs/architecture.md §2/§3）：
 // 1) `ref` 是 C# 关键字，Go 的局部变量名 `ref`（getReferencedFiles/getLibReferences/getTypeReferences 里遍历的
 //    `*ast.FileReference`）改名为 `reference`；`ref.Preserve` → `reference.Preserve`，语义不变。
-// 2) Go 的 `setupDiagnosticContext` 返回 `(bool, func())` → C# `(bool CanProduceDiagnostic, Action Cleanup)`；
-//    闭包体逐行照抄（Go 的 `defer cleanupDiagnosticContext()` → 调用点 try/finally）。
+// 2) Go 的 `setupDiagnosticContext` 返回 `(bool, func())` → C# `(bool CanProduceDiagnostic, DiagnosticContextCleanup Cleanup)`；
+//    闭包体逐行照抄（Go 的 `defer cleanupDiagnosticContext()` → 调用点 try/finally）。返回的 `func()` **不落成
+//    `Action` 闭包**：Go 的闭包只分配一个 funcval，而 C# 的 `Action` 每次分配 `<>c__DisplayClass` + `Action`
+//    两个对象（实测 = 180.6 MB／1.67 GB，全量 TS6 src/compiler 编译）→ 改用值类型 `DiagnosticContextCleanup`
+//    （栈上、不逃逸、零分配），调用点从 `cleanupDiagnosticContext()` 改成 `cleanupDiagnosticContext.Restore()`。
 // 3) Go 的 `core.Filter(clause.Types.Nodes, func(t *ast.HeritageClauseElement) bool)` → C# 数组版
 //    `Filter(clause.Types!.Nodes, t => ...)`（`HeritageClauseElement` 就是 `Node`（别名），C# 的 `T` = `Node`）。
 // 4) Go 的切片 append → C# `List<T>` + `ToArray()`（`NewNodeList`/`NewSyntaxList`/`DeclarationEmitHost` 的返回值
@@ -161,8 +164,40 @@ public sealed partial class DeclarationTransformer : Transformer
         return result.ToArray();
     }
 
+    /// <summary>
+    /// Go: <c>setupDiagnosticContext</c> 返回的 <c>func()</c>（transform.go:551-571）。
+    /// Go 的一个闭包只分配一个 funcval；C# 的 `Action` 闭包每次调用会分配**两个**对象
+    /// （捕获三个局部量的 `&lt;&gt;c__DisplayClass` + `Action` 委托本身）。本类型把 Go 闭包捕获的四个值
+    /// （tx / oldDiag / oldName / oldWithinObjectLiteralType）装进**值类型**，由
+    /// <see cref="SetupDiagnosticContext"/> 按值返回：调用点只把它当 `defer` 用（栈上的局部量，不逃逸）
+    /// ⇒ 零堆分配。实测（TS6 src/compiler 全量编译）该闭包＝180.6 MB／1.67 GB 总分配。
+    /// </summary>
+    private readonly struct DiagnosticContextCleanup
+    {
+        private readonly DeclarationTransformer _tx;
+        private readonly GetSymbolAccessibilityDiagnostic? _oldDiag;
+        private readonly Node? _oldName;
+        private readonly bool _oldWithinObjectLiteralType;
+
+        internal DiagnosticContextCleanup(DeclarationTransformer tx, GetSymbolAccessibilityDiagnostic? oldDiag, Node? oldName, bool oldWithinObjectLiteralType)
+        {
+            _tx = tx;
+            _oldDiag = oldDiag;
+            _oldName = oldName;
+            _oldWithinObjectLiteralType = oldWithinObjectLiteralType;
+        }
+
+        /// <summary>Go 闭包体：`tx.state.getSymbolAccessibilityDiagnostic = oldDiag; tx.state.errorNameNode = oldName; tx.suppressNewDiagnosticContexts = oldWithinObjectLiteralType`。</summary>
+        internal void Restore()
+        {
+            _tx._state._getSymbolAccessibilityDiagnostic = _oldDiag;
+            _tx._state._errorNameNode = _oldName;
+            _tx._suppressNewDiagnosticContexts = _oldWithinObjectLiteralType;
+        }
+    }
+
     /// <summary>Go: <c>func (tx *DeclarationTransformer) setupDiagnosticContext(input *ast.Node) (bool, func())</c>（transform.go:551-571）。</summary>
-    private (bool CanProduceDiagnostic, Action Cleanup) SetupDiagnosticContext(Node input)
+    private (bool CanProduceDiagnostic, DiagnosticContextCleanup Cleanup) SetupDiagnosticContext(Node input)
     {
         var canProduceDiagnostic = CanProduceDiagnostics(input);
         var oldWithinObjectLiteralType = _suppressNewDiagnosticContexts;
@@ -180,13 +215,7 @@ public sealed partial class DeclarationTransformer : Transformer
             _suppressNewDiagnosticContexts = true;
         }
 
-        Action cleanup = () =>
-        {
-            _state._getSymbolAccessibilityDiagnostic = oldDiag;
-            _state._errorNameNode = oldName;
-            _suppressNewDiagnosticContexts = oldWithinObjectLiteralType;
-        };
-        return (canProduceDiagnostic, cleanup);
+        return (canProduceDiagnostic, new DiagnosticContextCleanup(this, oldDiag, oldName, oldWithinObjectLiteralType));
     }
 
     /// <summary>Go: <c>func (tx *DeclarationTransformer) visitDeclarationSubtree(input *ast.Node) *ast.Node</c>（transform.go:573-706）。</summary>
@@ -384,7 +413,7 @@ public sealed partial class DeclarationTransformer : Transformer
         }
         finally
         {
-            cleanupDiagnosticContext();
+            cleanupDiagnosticContext.Restore();
         }
     }
 

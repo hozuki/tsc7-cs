@@ -770,7 +770,7 @@ public sealed partial class DeclarationTransformer
             }
             finally
             {
-                cleanupDiagnosticContext();
+                cleanupDiagnosticContext.Restore();
             }
         }
         return null;
@@ -813,7 +813,7 @@ public sealed partial class DeclarationTransformer
             }
             finally
             {
-                cleanupDiagnosticContext();
+                cleanupDiagnosticContext.Restore();
             }
         }
         return null;
@@ -981,7 +981,7 @@ public sealed partial class DeclarationTransformer
         }
         finally
         {
-            cleanupDiagnosticContext();
+            cleanupDiagnosticContext.Restore();
         }
     }
 
@@ -1061,7 +1061,7 @@ public sealed partial class DeclarationTransformer
         }
         finally
         {
-            cleanupDiagnosticContext();
+            cleanupDiagnosticContext.Restore();
         }
     }
 

@@ -236,18 +236,18 @@ Go 的 `s[a:b]` 是**零拷贝**的（string 头 + 原底层数组），所以 T
 | 相位 | 第一批前 | 现在 | 变化 |
 | --- | --- | --- | --- |
 | scan | 3.999 | **1.945** | −51.4% |
-| parse | 11.280 | **9.777–9.83** | −12.8% |
+| parse | 11.280 | **7.403**（第三批，见 §3.8.1.2） | −34.4% |
 | jsdoc（parse + 全树 `node.JSDoc(file)`；与 parse 重叠，不计入合计） | 15.359 | **14.875** | −3.2% |
 | print | 23.140 | **18.14–18.59（中位 18.30）** | −20.9% |
 | bind | 2.812 | 2.812 | 0（未动） |
-| **四相位合计（scan+parse+bind+print）** | **41.231** | **32.84** | **−20.4%** |
+| **四相位合计（scan+parse+bind+print）** | **41.231** | **30.46**（1.945 + 7.403 + 2.812 + 18.30） | **−26.1%** |
 
 **同批测量后判定"不值得改/不能改"的项（如实记录）**：
 
 | 热点 | 依据 | 结论 |
 | --- | --- | --- |
 | `Scanner.ScanIdentifier` 的 `_tokenValue = _text[start.._pos]`（parse 相位 8.6%） | Go `scanner.go:1497/1515` 同样是切片，但值是 parser 要存进 AST 的 `tokenValue` | 物化不可避免（除非把 `tokenValue` 改成"start/end + 懒物化"，会动 `ScannerState`/`Rewind`/所有 `_tokenValue` 写入点，风险 >> 收益） |
-| `Parser.ParseModifiersEx` 的 `new List<Node>()`（parse 相位 16%） | Go `parser.go:3921` `make([]*ast.Node, 0, 16)` 恒分配 128 B | **不是** Go 移植偏差（C# 40 B 反而更省）；懒分配虽可再省，但属"超出 span 审计"的另一类改动，本轮不做 |
+| `Parser.ParseModifiersEx` 的 `new List<Node>(16)`（parse 相位当时 16%） | Go `parser.go:3921` `make([]*ast.Node, 0, 16)` 恒分配 128 B；C# 的 `List<Node>(16)` 是 192 B（此前的"40 B 反而更省"是**误判**，已更正） | **第三批处理**（改成首次 append 才建表，−1.74 B/char）⇒ 见 §3.8.1.2 |
 | `ParserJsDoc` 里 15 处存进 `List<string>` 的 `TokenText()` | Go 侧 `comments []string` 也是存 string；且 `RemoveLeadingNewlines`/`RemoveTrailingWhitespace` 要就地改元素 | 必须物化（要改就得把集合换成 `(start,len)` 视图并重写这些 helper，收益/风险不划算） |
 | printer 的 `StringBuilder.ExpandByABlock`（print 相位 23.3 B/char，全局最大） | — | 不在第一批文件范围（`Printer/**`）⇒ 见下 §3.8.1.1（已单独一轮处理：**23.140 → 18.30 B/char（中位），−20.9%**） |
 
@@ -305,9 +305,79 @@ ticks/rep 量级；字节数与"整进程采样和"≈ 精确计数器的 print 
 | --- | --- | --- |
 | `StringBuilder.set_Capacity ← Printer.Write`（trace 里 155 MB/30 reps） | `Printer.Write` 调 `Grow(len(sourceFile.Text()))`＝Go `printer.go:5099` 的同名调用 | **Go 同款**：都是"按源文件长度预留一次 + 后续翻倍增长"（.NET 翻倍 vs Go 1.25×，量级相当）。不是移植偏差，未动 |
 | `StringBuilder.ToString ← TextWriter.String`（1.9 MB/rep） | Go 的 `strings.Builder.String()` **零拷贝**（buffer 直接转 string），C# 的 `StringBuilder.ToString()` 必然复制一次 | C# 无等价物（要零拷贝就得自己管 `char[]`），且这是**产物本身**，未动 |
-| `Scanner.IterateCommentRanges`（print 期间 2.7 MB/rep：迭代器对象 + 每条注释一个 `CommentRange` 对象） | Go 是 `iter.Seq[ast.CommentRange]`（range-over-func，零分配）+ **struct 值**；我们的 `CommentRange` 是 `Ast/CommentRange` 里的 **class**（`AstTypes.cs:98`，Go 是 struct） | 要改得动 `Ast` 公开类型（`CommentRange` class→struct）或 `Scanner/**`（本轮文件范围外），风险 >> 收益，**登记给 Scanner/Ast 负责人** |
+| `Scanner.IterateCommentRanges`（print 期间 2.7 MB/rep：迭代器对象 + 每条注释一个 `CommentRange` 对象） | Go 是 `iter.Seq[ast.CommentRange]`（range-over-func，零分配）+ **struct 值**；我们的 `CommentRange` 是 `Ast/CommentRange` 里的 **class**（`AstTypes.cs:98`，Go 是 struct） | **第三批判定：不改**。真实基准语料（TS 6.0.3 的 `src/compiler`，124 文件）上 `Ast.CommentRange` 只有 **0.30 MB**（占全进程分配 0.02%）；且 `CommentRange` 是 `Ast` 公开类型、`Pragma` 还**继承**它，改 struct 必须连带改 `Printer/**`/`Ls/**` 的 `CommentRange?` 取值点 ⇒ 收益 0.02% / 风险大。见 §3.8.1.2 |
 | `NameGenerator.PushScope`（2 MB/rep） | Go `pushScope` 同样 `&nameGenerationScope{_next: …}` 每次分配 1–2 个对象 | Go 同款，未动 |
 | `EmitPropertyName`/`EmitBindingName`/`ExitNode`/`EmitListItems` 的"自身帧"归因（各 1.5–3% ） | 这些帧是**内联后的归因**（`dotnet-trace` 采样时解析不到内联帧），逐个核对代码后没找到"读却物化"的写法 | 不再追（`EmitListItems` 里原本的 `EmitTrailingCommentsOfPosition` 每次都建 List，已被第 1 项覆盖） |
+
+#### 3.8.1.2 Parse 列表暂存 / 变参 / 声明变换诊断上下文（实测，2026-09-28 第三批）
+
+第三批的三条改动都在"**Go 只有一个分配、C# 却有两个（或 Go 根本没有分配、C# 有）**"这一类，每条都用单变量回退法在同一台仪器上复测过。
+
+**仪器与口径**（沿用第二批，另加两件）：
+
+| 手段 | 为什么用它 |
+| --- | --- |
+| `artifacts/span-audit` 的 `phases`/`phase <name>`（精确分配字节，305 文件 / 2.72 M 字符 / `-n 5`） | parse 相位的 A/B |
+| `artifacts/span-allocreport` 新增 **`ALLOC_KEY=type`**（按"分配类型 + 最内层帧"分组） | `params T[]`、闭包 displayclass、数组这类"**看得见类型、看不出调用点**（ctor 被内联）"的分配，只有这个键能定位到具体方法 |
+| **真实基准语料**：`artifacts/bench-tsc6`（TS 6.0.3 的 `src/compiler`，124 文件 / 202,758 行），跑**托管** `src/tsc`（`dotnet src/tsc/bin/Release/net11.0/tsc.dll --project tsconfig.json --extendedDiagnostics`）读 **`Memory allocs`** | 进程级**精确**分配计数器，同一二进制两次跑差 0.015%（1,702,938,672 vs 1,703,193,920）⇒ 比 wall time 可靠得多；配合 `dotnet-trace --profile gc-verbose` + `AllocReport` 做完整调用链归因 |
+| AOT `tsc.exe`（`dotnet publish src/tsc -c Release -r win-x64 -p:PublishAot=true`） | 用户的 wall-time 交付表（5 次成对采样取中位） |
+
+**真实编译的调用链归因（`artifacts/span-audit/logs/ts6-before.nettrace`，采样 1668.7 MB ≈ `Memory allocs` 的 96%，
+`ALLOC_KEY=type ALLOC_FILTER=TypeScript.Transformers.`）**：
+
+```
+98.66 MB  System.Action                       ← DeclarationTransformer.SetupDiagnosticContext
+81.95 MB  <>c__DisplayClass102_0               ← DeclarationTransformer.SetupDiagnosticContext
+17.37 MB  GetSymbolAccessibilityDiagnostic     ← Declarations.WrapSimpleDiagnosticSelector
+10.87 MB  <>c__DisplayClass8_0                 ← Declarations.CreateGetSymbolAccessibilityDiagnosticForNode
+10.16 MB  <>c__DisplayClass0_0                 ← Declarations.WrapSimpleDiagnosticSelector
+```
+
+即：`setupDiagnosticContext` 那个 `Action` 闭包一个人就占 **180.6 MB**（全进程分配的 **10.8%**），远大于整个 parse 相位。
+
+**已改（每条都有 Go 依据 + A/B 数字）**：
+
+| # | 改动 | Go 依据 | A/B |
+| --- | --- | --- | --- |
+| 1 | `Ast.NodeKindIs` 的变参 `params Kind[]` → `params ReadOnlySpan<Kind>`（`Ast/Utilities.cs:253`） | `utilities.go:100-102`：`func NodeKindIs(node *Node, kinds ...Kind) bool { return slices.Contains(kinds, node.Kind) }`。调用点传字面量时 Go 把它内联成**栈上数组**（零堆分配）；C# 的 `params Kind[]` 每次都 new 一个数组 | parse **−0.101 B/char**（9.835 → 9.734；trace 里 `Ast.Kind[]` 7.8 MB／776 MB 全部逐条消失） |
+| 2 | `Parser.ParseListIndex` / `ParseDelimitedList` 的 `new List<Node>(16)` → `List<Node>? list = null` + 首次 append 才建表，返回 `_nodeSliceArena.Clone(CollectionsMarshal.AsSpan(list))`（null → 默认空 span） | `parser.go:618`、`parser.go:655` 都是 `list := make([]*ast.Node, 0, 16)`（无条件 128 B）；**空列表**（空 block/空 class 体/空 source file…）在 Go 走 `Clone(空) → nil` **零分配** | parse **−0.587 B/char**（9.734 → 9.147） |
+| 3 | `Parser.ParseModifiersEx` 同上（`list is not null` ≡ Go 的 `len(list) != 0`） | `parser.go:3921` 同款 `make([]*ast.Node, 0, 16)`；interface/type 成员、形参的绝大多数调用点一个修饰符都没有 | parse **−1.737 B/char**（9.147 → 7.410） |
+| 4 | `DeclarationTransformer.SetupDiagnosticContext` 的返回值由 `Action` 闭包改成**值类型** `DiagnosticContextCleanup`（`Transform.Members.cs`），6 个调用点 `cleanupDiagnosticContext()` → `.Restore()` | `transform.go:551-571` 返回 `(bool, func())`：Go 的闭包是**一个** funcval（捕获 tx/oldDiag/oldName/oldWithinObjectLiteralType）；C# 的 `Action` 闭包是**两个**对象（displayclass + 委托）。值类型不逃逸（调用点只把它当 `defer` 用）⇒ 零堆分配 | 该闭包 **180.6 MB → 0**；声明变换根因分配 **226.8 → 44.8 MB**；全进程 `Memory allocs` **1,703.2 → 1,512.7 MB（−11.2%）** |
+
+**净效果**（三条 parse 改动合计，单变量回退法逐条测得，与合计相符）：
+
+| 指标 | before（本批开工前） | after | 变化 |
+| --- | --- | --- | --- |
+| parse 相位（`phases both 300 0 -n 5`） | 9.835 B/char（127.7 MB） | **7.403 B/char（96.1 MB）** | **−24.7%** |
+| 真实编译 TS6 `src/compiler` 的 `Memory allocs` | 1,738.6 MB | **1,512.7 MB** | **−13.0%** |
+| scan / bind / print 相位 | 1.945 / 2.812 / 18.183 | 1.945 / 2.812 / 18.234（±1.2% 噪声内） | 0 |
+
+**AOT 交付基准（`artifacts/bench-tsc6`，同机成对采样 5 次取中位）**：
+
+| 指标 | tsgo（原生 Go） | tsc-cs(AOT) | 倍数 | （用户刊出的 tsc-cs "before"） |
+| --- | ---: | ---: | ---: | ---: |
+| Total | 0.824 s | **1.132 s** | 1.37× | 1.239 s（1.54×） |
+| Check | 0.680 s | **0.844 s** | 1.24× | 0.901 s（1.35×） |
+| Parse | 0.054 s | **0.154 s** | 2.85× | 0.180 s（3.3×） |
+| Memory used | 282.4 MB | **295.8 MB** | 1.05× | 304.5 MB |
+
+> 口径提醒：Parse 的 wall time 在共享机器上重复性只有 ±20%（本次 5 次：0.147–0.223 s），Total ±9%；
+> **判读优化以分配字节为准**（parse 相位精确计数器 −24.7%、真实编译 `Memory allocs` −13.0% 都是精确值），
+> wall 数字仅作参考。Check 也下降是因为整进程少分配 13% ⇒ GC 压力下降。
+
+**本批测过但判定"不改"的项（如实记录）**：
+
+| 热点 | 依据 | 结论 |
+| --- | --- | --- |
+| `Scanner.IterateCommentRanges` 的 `CommentRange`（第二批登记项） | 真实基准语料上 `Ast.CommentRange` 只有 **0.30 MB**（0.02%）；第二批的 3.3 MB/rep 来自 305 文件语料（含 `lib.dom.d.ts`），不是本基准的形状 | **不改**（`CommentRange` 是 `Ast` 公开类型 + `Pragma` 继承它，改 struct 要连带改 `Printer/**`/`Ls/**` 的 `CommentRange?` 取值点） |
+| 迭代器状态机 `<IterateCommentRanges>d__165`（真实语料 11.48 MB，0.76%） | Go 的 `iter.Seq` 每次调用同样分配一个闭包 | Go 同款，不改 |
+| 剩余 44.8 MB 声明变换诊断选择器（`WrapSimpleDiagnosticSelector` 的 displayclass+委托、`CreateGetSymbolAccessibilityDiagnosticForNode` 的内联闭包） | Go 的 `func` 值 = 1 个 funcval；C# "捕获闭包 + 委托字段"必然是 2 个对象 | 归零只能把 `Declarations.GetSymbolAccessibilityDiagnostic` 从**具名委托**改成接口（`Diagnostics.cs` 文件头第 1 条已把"Go `func` 类型 → C# 具名委托"写成约定）—— 为 2.9% 引入结构性偏离 ⇒ **不改** |
+| `List<Node>` 的**增长**（真实编译 parse ≈ 44 MB：`AddWithResize`/`set_Capacity`） | 与 Go 的 `append` 翻倍同阶 | 实测把懒表容量从 `List` 默认 4 提到 16 反而 **+0.455 B/char**（7.403 → 7.858，与 Go 的固定 16 容量同口径对比后仍更差）⇒ 保持默认 4 |
+| `Core.Splice` 的 `params T[]`、`PagedLinkStore.Get` 的 `?new V?[pageSize]`、`Arena.NewSlice/Clone` 的 `new T[size]` | Go 的 `splice`/`make([]V, pageSize)`/arena 切片同样是独立分配（`arena.go` 文件头第 3 条已记录退化是语言限制） | Go 同款，不改 |
+
+**留给下一个负责人的两项**（都在本任务文件范围外，是真实编译分配榜的第 1、2 名，合计 **24.6%**）：
+`Checker.KeyBuilder..ctor` 的 `Byte[]` **197.9 MB**（13.6%，`ALLOC_KEY=type` 归因）与
+`Checker.RegisterForUnusedIdentifiersCheck` 的 `Node[]` **173.6 MB**（11.9%）。
 
 ### 3.9 深度递归必须跑在大栈线程上（实测，M5 结论）
 
@@ -377,6 +447,10 @@ TSGO 里 `*_generated.go` 的输入是语言中立的（`tools/scripts/tsc/ast.j
 - 集成测试（后续）：`tests/TypeScript.Harness` 跑 TSGO `tsc/testdata`（`tests/cases/**` + `baselines/reference/**`）。TSGO 仓库根目录由环境变量 `TSGO_ROOT` 指定，默认探测 `D:\Source\GitHub\TypeScript-Go`。
 - 差分验证：本机有全局 `tsc`（TSGO 的 CLI，7.0.2）与 `node`（v24），可用它们产生期望输出交叉验证：JSON 格式用 `tsc --showConfig`/`--generateTrace` 取证（`docs/json.md` §1，`artifacts/json-oracle`），JS 数字语义用 Node/V8 交叉验证（`JsNum` 的测试里已有 10 条真实 Node 对照）。
 - 本机没有 Go 工具链，也没有 `D:\Source\GitHub\TypeScript-Go\node_modules`：任何"必须跑 Go 才能得到"的期望值，改为从 TSGO 已提交的 baseline / 测试数据里取（或用独立实现重算，如 `artifacts/gen-verify` 用 JS 重写 Go 的 `unicode.Is` 来校验生成表）。
+- **基准对拍口径（2026-09-28 实测；完整证据见 `artifacts/lines-probe/FINDING.md`）**：与全局 `tsc`（npm `typescript@7.0.2` = TS tag `v7.0.2`）对拍 `--extendedDiagnostics` 时，有三处**已知且非移植缺陷**的差异，比较前必须先对齐口径：
+  1. **lib 数据版本偏差 ⇒ `Lines` 差 2**：我们 bundle 的是 TSGO **main** 的 libs（与 TSGO 检出 `tsc/internal/bundled/libs` 108/108 逐字节一致），发布版 7.0.2 的 libs 旧一版 —— `lib.es2018.intl.d.ts:50`、`lib.es2020.intl.d.ts:468` 各**多 1 行**（`Intl.PluralRulesConstructor` 的可调用签名），上游 PR **#63608**（2026-07-27）已删掉这两行。受控实验（**同一个** `tsc.exe`，只换 lib 目录）：go+npm libs `Lines 202760`，go+**我们的** libs `Lines 202758` = 我们的输出，且 77 个语料文件逐文件逐字节一致（192,636 行）⇒ **行起始算法忠实**。做基准应**优先与 main 分支构建的 tsgo 对比**，或显式注明 lib 版本；`Lines`/lib 内容类差异不是移植缺陷。
+  2. **`Symbols`/`Types`/`Instantiations` 随 checker 池大小变化**：这三个计数器是"各 checker 内部创建次数之和"，池大小（默认 4）不同则分流不同、数字不可比。实测 4 checker 时我们低 2.8%/3.6%/4.8%，**`--checkers 1` 时两边差 ≤0.05%** ⇒ 跨实现/跨版本比较这些计数器必须固定 `--checkers 1`。
+  3. **`Identifiers` 差约 1,709（我方多）**：计数点在解析期（`Parser.newIdentifier`），两边计数点/call site 1:1，小文件与全部单构造探针相等；只在大文件上按该文件标识符数的 0.35%–2.3% 多算（`src/compiler/checker.ts` 单文件 +721）。已验证**可观测无差**：85 条诊断逐字节一致 + `--declaration` 产物 `diff -r` **0 差异** ⇒ 属"被丢弃/未进树的标识符节点计数"（推测解析、恢复路径或未缓存 JSDoc 之类），**不影响行为**；具体构造类别尚未定位（JSDoc 各种位置、34 个常见表达式/类型构造、推测解析回滚语义均已排除）。
 
 ## 6. 里程碑
 

@@ -22,6 +22,9 @@
 //     其余多返回值用具名元组（如 findImportOrRequire 的 `(int Index, int Size)`）。
 //   * 只读切片参数 → `ReadOnlySpan<T>`（§3.8），Go 的变参 → `params T[]`，返回的切片 → `T[]`
 //     （Go 的 nil 切片用空数组表达）。span 不能进字段，长期持有的切片仍是数组。
+//     例外：`NodeKindIs` 的变参用 `params ReadOnlySpan<Kind>` —— Go 的 `slices.Contains([]ast.Kind{…}, x)`
+//     会被内联成栈上数组（零堆分配），而 C# 的 `params Kind[]` 每次 new 一个数组（实测 parse 相位
+//     `Ast.Kind[]` ≈ 7.8 MB／776 MB，−1.0%）；`params ReadOnlySpan<T>` 由编译器在调用点 stackalloc，等价于 Go。
 //   * Go 的 nil 接收者/参数分支：接收者分支删掉（C# 实例方法在 null 上不可分派），参数分支保留。
 //   * Go 的位掩码类型（OuterExpressionKinds/SemanticMeaning）→ `[Flags] enum`，数值与 Go 一致，成员名去
 //     类型前缀（`OEKParentheses` → `Parentheses`）；非位掩码枚举（JSDeclarationKind/ModuleInstanceState/
@@ -246,7 +249,11 @@ public static partial class Ast
     }
 
     /// <summary>Go: <c>func NodeKindIs(node *Node, kinds ...Kind) bool</c>。</summary>
-    public static bool NodeKindIs(Node? node, params Kind[] kinds) => Array.IndexOf(kinds, node!.Kind) >= 0;
+    // Go 的 `kinds ...Kind` 在调用点构造切片字面量；Go 编译器对 `slices.Contains([]T{…}, x)` 这种形态做栈上分配
+    // （NodeKindIs 足够小、会被内联），所以 Go 侧**零堆分配**。C# 的 `params Kind[]` 每次都 new 一个数组
+    // （parse 相位实测 `Ast.Kind[]` ≈ 7.8 MB / 30 reps，全是这个函数产生的）→ 改用 C# 13 的 `params ReadOnlySpan<Kind>`，
+    // 编译器在调用点用 stackalloc 构造（同样零堆分配），语义与 Go 一致。
+    public static bool NodeKindIs(Node? node, params ReadOnlySpan<Kind> kinds) => kinds.IndexOf(node!.Kind) >= 0;
 
     /// <summary>Go: <c>func IsModifier(node *Node) bool</c>。</summary>
     public static bool IsModifier(Node? node) => IsModifierKind(node!.Kind);
