@@ -392,9 +392,18 @@ public sealed partial class Printer
         _writer.WriteParameter(text);
     }
 
-    internal void WriteComment(string text)
+    /// <summary>
+    /// Go: <c>p.writeComment(text string)</c>（实参是 <c>text[pos:end]</c> 切片）。C# 侧按 docs §3.8.1 收
+    /// <see cref="ReadOnlySpan{T}"/> 视图：写者支持 <see cref="ISpanTextWriter"/> 时零物化，否则回落 string 重载。
+    /// </summary>
+    internal void WriteComment(ReadOnlySpan<char> text)
     {
-        _writer.WriteComment(text);
+        if (_writer is ISpanTextWriter spanWriter)
+        {
+            spanWriter.WriteCommentSpan(text);
+            return;
+        }
+        _writer.WriteComment(text.ToString());
     }
 
     internal void WriteSpace()
@@ -807,17 +816,17 @@ public sealed partial class Printer
                     if (spacesToEmit > 0)
                     {
                         var numberOfSingleSpacesToEmit = spacesToEmit % indentSize;
-                        var indentSizeSpaceString = GetIndentString((spacesToEmit - numberOfSingleSpacesToEmit) / indentSize, indentSize);
 
                         // Write indent size string ( in eg 1: = "", 2: "" , 3: string with 8 spaces 4: string with 12 spaces
-                        _writer.RawWrite(indentSizeSpaceString);
+                        // Go: p.writer.RawWrite(getIndentString((spacesToEmit-numberOfSingleSpacesToEmit)/indentSize, indentSize))
+                        // —— 缩进串在 Go 里每次都要 strings.Repeat 分配；本仓改成"写 n 个空格"的零分配路径
+                        // （TextWriter.cs 文件头第 7 条），输出逐字节不变。
+                        WriteIndentSpaces(_writer, spacesToEmit - numberOfSingleSpacesToEmit);
 
                         // Emit the single spaces (in eg: 1: 3 spaces, 2: 2 spaces, 3: 1 space, 4: 3 spaces)
-                        while (numberOfSingleSpacesToEmit > 0)
-                        {
-                            _writer.RawWrite(" ");
-                            numberOfSingleSpacesToEmit--;
-                        }
+                        // Go 是 `for numberOfSingleSpacesToEmit > 0 { p.writer.RawWrite(" ") }`；一次写 n 个空格
+                        // 与 n 次写 1 个等效（lineCount/linePos 不变、lineStart 都置 false）。
+                        WriteIndentSpaces(_writer, numberOfSingleSpacesToEmit);
                     }
                     else
                     {
@@ -841,7 +850,8 @@ public sealed partial class Printer
                 var currentLineText = text.AsSpan(pos, end - pos).Trim();
                 if (currentLineText.Length > 0)
                 {
-                    WriteComment(currentLineText.ToString());
+                    // Go: p.writeComment(currentLineText) —— currentLineText 是 strings.TrimSpace(text[pos:end]) 的切片。
+                    WriteComment(currentLineText);
                     if (end != loc.End())
                     {
                         WriteLine();
@@ -859,7 +869,8 @@ public sealed partial class Printer
         else
         {
             // Single line comment of style //....
-            WriteComment(text[loc.Pos()..loc.End()]);
+            // Go: p.writeComment(text[loc.Pos():loc.End()])（切片，零拷贝）→ C# 侧传视图，不物化中间 string。
+            WriteComment(text.AsSpan(loc.Pos(), loc.End() - loc.Pos()));
         }
     }
 

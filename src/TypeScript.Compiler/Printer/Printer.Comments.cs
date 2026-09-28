@@ -7,8 +7,10 @@
 // 2) Go 的多返回值 `emitDetachedComments(textRange) (detachedCommentsInfo, bool)` → `TryEmitDetachedComments`
 //    （`out DetachedCommentsInfo`），见 ticket 契约。
 // 3) Go 的 `emitCommentsBeforeToken` 返回 `(*commentState, int)` → `(CommentState?, out int newPos)`。
-// 4) Go 的 `append(comments, comment)` → `List<CommentRange>`；`slices.Collect(seq)` → `new List<CommentRange>(seq)`；
-//    Go 的 nil 切片 `range` 不迭代 → C# 用判空表达（docs §3.2）。
+// 4) Go 的 `append(comments, comment)` → C# `List<CommentRange>`；`slices.Collect(seq)` → 同样逐个 append。
+//    Go 侧这些切片都是 `var comments []ast.CommentRange`（nil 起始）：**没有可写注释时零分配**；C# 原来无条件
+//    `new List<CommentRange>()`（每个节点一次），现已改成 `(comments ??= new List<CommentRange>()).Add(...)` 的
+//    懒分配（`EmitComments` 相应接受 null，nil 与空切片同义，docs §3.2/§3.8.1）。
 // 5) `core.LastOrNil(comments)` → `comments[^1]`：调用点都已由前一行保证非空，而 `Core.LastOrNil` 只接受数组
 //    （这里按偏离 4 用 List）。
 // 6) Go 包级 `type commentSeparator uint32` + 3 个 iota 常量 → 顶层 `internal enum CommentSeparator : uint`，
@@ -398,17 +400,19 @@ public sealed partial class Printer
             }
         }
 
-        var comments = new List<CommentRange>();
+        // Go: `var comments []ast.CommentRange`（printer.go:5563，nil 切片 + append）——没有可写注释时**不分配**；
+        // C# 原来无条件 `new List<CommentRange>()`，每个节点一次（docs §3.8.1）。
+        List<CommentRange>? comments = null;
         // Go: p.currentSourceFile.Text() —— 前面的守卫已 return（currentSourceFile == nil），Go 直接解引用，故 `!`。
         foreach (var comment in GetLeadingCommentRanges(_emitContext.Factory.AsNodeFactory(), _currentSourceFile!.Text(), pos))
         {
             if (ShouldWriteComment(comment) && ShouldEmitCommentIfTripleSlash(comment, tripleSlash))
             {
-                comments.Add(comment);
+                (comments ??= new List<CommentRange>()).Add(comment);
             }
         }
 
-        if (comments.Count > 0 && ShouldEmitNewLineBeforeLeadingCommentOfPosition(pos, comments[0].Range.Pos()))
+        if (comments is { Count: > 0 } && ShouldEmitNewLineBeforeLeadingCommentOfPosition(pos, comments[0].Range.Pos()))
         {
             WriteLine();
         }
@@ -460,12 +464,13 @@ public sealed partial class Printer
             return;
         }
 
-        var comments = new List<CommentRange>();
+        // Go: `var comments []ast.CommentRange`（printer.go:5613，nil 切片 + append）——同 emitLeadingComments。
+        List<CommentRange>? comments = null;
         foreach (var comment in GetTrailingCommentRanges(_emitContext.Factory.AsNodeFactory(), _currentSourceFile.Text(), pos))
         {
             if (ShouldWriteComment(comment))
             {
-                comments.Add(comment);
+                (comments ??= new List<CommentRange>()).Add(comment);
             }
         }
 
@@ -484,12 +489,13 @@ public sealed partial class Printer
             return;
         }
 
-        var comments = new List<CommentRange>();
+        // Go: printer.go:5632 `var comments []ast.CommentRange` + append（每个注释都 append）——空序列时 Go 不分配。
+        List<CommentRange>? comments = null;
         foreach (var comment in GetTrailingCommentRanges(_emitContext.Factory.AsNodeFactory(), _currentSourceFile.Text(), pos))
         {
-            comments.Add(comment);
+            (comments ??= new List<CommentRange>()).Add(comment);
         }
-        if (comments.Count == 0)
+        if (comments is null)
         {
             return;
         }
@@ -556,7 +562,9 @@ public sealed partial class Printer
         var text = _currentSourceFile.Text();
         var lineMap = _currentSourceFile.ECMALineMap();
 
-        List<CommentRange> leadingComments;
+        // Go: printer.go:5686 `var leadingComments []ast.CommentRange`（nil 切片；`slices.Collect` 空序列也返回 nil）
+        // —— 没有注释时不分配（docs §3.8.1）。
+        List<CommentRange>? leadingComments = null;
         if (_commentsDisabled)
         {
             // removeComments is true, only reserve pinned comment at the top of file
@@ -564,14 +572,13 @@ public sealed partial class Printer
             //      /*! Pinned Comment */
             //
             //      var x = 10;
-            leadingComments = new List<CommentRange>();
             if (textRange.Pos() == 0)
             {
                 foreach (var comment in GetLeadingCommentRanges(_emitContext.Factory.AsNodeFactory(), text, textRange.Pos()))
                 {
                     if (IsPinnedComment(text, comment))
                     {
-                        leadingComments.Add(comment);
+                        (leadingComments ??= new List<CommentRange>()).Add(comment);
                     }
                 }
             }
@@ -579,10 +586,14 @@ public sealed partial class Printer
         else
         {
             // removeComments is false, just get detached as normal and bypass the process to filter comment
-            leadingComments = new List<CommentRange>(GetLeadingCommentRanges(_emitContext.Factory.AsNodeFactory(), text, textRange.Pos()));
+            // Go: `slices.Collect(seq)` —— 逐个 append（空序列得到 nil 切片）。
+            foreach (var comment in GetLeadingCommentRanges(_emitContext.Factory.AsNodeFactory(), text, textRange.Pos()))
+            {
+                (leadingComments ??= new List<CommentRange>()).Add(comment);
+            }
         }
 
-        if (leadingComments.Count > 0)
+        if (leadingComments is { Count: > 0 })
         {
             var detachedComments = new List<CommentRange>();
             CommentRange? lastComment = null;
@@ -619,16 +630,17 @@ public sealed partial class Printer
                     // Valid detachedComments
 
                     // Filter to only comments that should be written (e.g., JSDoc-style in declaration emit)
-                    var commentsToEmit = new List<CommentRange>();
+                    // Go: printer.go:5706 `var commentsToEmit []ast.CommentRange` + 条件 append —— 无内容时不分配。
+                    List<CommentRange>? commentsToEmit = null;
                     foreach (var comment in detachedComments)
                     {
                         if (ShouldWriteComment(comment))
                         {
-                            commentsToEmit.Add(comment);
+                            (commentsToEmit ??= new List<CommentRange>()).Add(comment);
                         }
                     }
 
-                    if (commentsToEmit.Count > 0)
+                    if (commentsToEmit is not null)
                     {
                         if (ShouldEmitNewLineBeforeLeadingCommentOfPosition(textRange.Pos(), commentsToEmit[0].Range.Pos()))
                         {
@@ -645,10 +657,11 @@ public sealed partial class Printer
         return false;
     }
 
-    internal bool EmitComments(List<CommentRange> comments, CommentSeparator commentSeparator)
+    internal bool EmitComments(List<CommentRange>? comments, CommentSeparator commentSeparator)
     {
         var interveningSeparator = false;
-        if (comments.Count == 0)
+        // Go: `if len(comments) == 0 { return false }`（printer.go:5767）——nil 与空切片同义（docs §3.2）。
+        if (comments is null || comments.Count == 0)
         {
             return false;
         }

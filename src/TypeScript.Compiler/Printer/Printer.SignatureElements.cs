@@ -110,10 +110,13 @@ public sealed partial class Printer
                 }
                 if (allowDecorators || lastMode == modeModifiers)
                 {
+                    // Go: `p.emitListItems(…, modifierNodes[start:pos], …)`（切片，零拷贝）→ C# 传 (start, count)。
                     EmitListItems(
                         EmitModifierLike,
                         parentNode,
-                        modifierNodes[start..pos],
+                        modifierNodes,
+                        start,
+                        pos - start,
                         IfElse(lastMode == modeModifiers, ListFormat.Modifiers, ListFormat.Decorators),
                         false, /*hasTrailingComma*/
                         textRange);

@@ -3,11 +3,15 @@
 // Go 的未导出类型 `trailingSemicolonDeferringWriter` → C# 的 internal `TrailingSemicolonDeferringWriter`
 // （未导出类型按 C# 习惯命名）；未导出的构造函数 `getTrailingSemicolonDeferringWriter` →
 // `Printer.GetTrailingSemicolonDeferringWriter`（internal static，调用点与 Go 同形）。
+//
+// 偏离：Go 靠**值内嵌** `textWriter` 自动提升 `Grow`/`WriteComment`；C# 组合 `_inner`，故额外实现
+// `ISpanTextWriter`（TextWriter.cs 文件头第 6 条）把"写切片"的能力转发给内层写者（行为与 Go 一致）。
+using System;
 using TypeScript.Core;
 
 namespace TypeScript.Printer;
 
-internal sealed class TrailingSemicolonDeferringWriter : EmitTextWriter
+internal sealed class TrailingSemicolonDeferringWriter : EmitTextWriter, ISpanTextWriter
 {
     private readonly EmitTextWriter _inner;
     private bool _hasPendingSemicolon;
@@ -15,6 +19,29 @@ internal sealed class TrailingSemicolonDeferringWriter : EmitTextWriter
     public TrailingSemicolonDeferringWriter(EmitTextWriter writer)
     {
         _inner = writer;
+    }
+
+    /// <summary>Go: 内嵌 <c>textWriter.WriteComment</c> 的转发（先冲刷挂起的 `;`，与 <see cref="WriteComment"/> 同）。</summary>
+    void ISpanTextWriter.WriteCommentSpan(ReadOnlySpan<char> text)
+    {
+        CommitSemicolon();
+        if (_inner is ISpanTextWriter spanWriter)
+        {
+            spanWriter.WriteCommentSpan(text);
+            return;
+        }
+        _inner.WriteComment(text.ToString());
+    }
+
+    /// <summary>Go: 内嵌 <c>textWriter.RawWrite(getIndentString(...))</c> 的转发。</summary>
+    void ISpanTextWriter.RawWriteSpaces(int count)
+    {
+        if (_inner is ISpanTextWriter spanWriter)
+        {
+            spanWriter.RawWriteSpaces(count);
+            return;
+        }
+        _inner.RawWrite(count == 0 ? "" : new string(' ', count));
     }
 
     private void CommitSemicolon()

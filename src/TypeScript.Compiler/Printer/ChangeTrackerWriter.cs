@@ -12,6 +12,7 @@
 // 4) Go 的 `panic("if nodes is nil, visited should not be nil")` → `throw new DebugFailureException(...)`
 //    （docs §3.2 允许 panic → Debug.Fail/throw；这里用 throw 是因为其后要用 `nodes` 的非空收窄，
 //    TypeScript.Debug.Fail 没标 [DoesNotReturn]，写成 Debug.Fail 会让后续实参报 CS8604）。
+using System;
 using System.Collections.Generic;
 using TypeScript.Ast;
 using TypeScript.Core;
@@ -22,7 +23,7 @@ using AstNodeFactory = TypeScript.Ast.NodeFactory;
 
 namespace TypeScript.Printer;
 
-public sealed class ChangeTrackerWriter : EmitTextWriter, IGrowableTextWriter
+public sealed class ChangeTrackerWriter : EmitTextWriter, IGrowableTextWriter, ISpanTextWriter
 {
     private readonly TextWriter _textWriter;
     private int _lastNonTriviaPosition;
@@ -43,6 +44,14 @@ public sealed class ChangeTrackerWriter : EmitTextWriter, IGrowableTextWriter
 
     /// <summary>Go: <c>textWriter.Grow</c> 的转发（Go 里由内嵌提升而来）。</summary>
     public void Grow(int n) => _textWriter.Grow(n);
+
+    /// <summary>Go: 内嵌 <c>textWriter.WriteComment</c> 的转发（实参在 Go 里可以是切片，见 TextWriter.cs 文件头第 6 条）。
+    /// 显式实现：本类是 **public**，这些成员是 C# 专用优化路径（Go 的 `ChangeTrackerWriter` 没有对应导出成员），
+    /// 不能出现在公开 API 面上（docs §2 的 api-parity 检查）。</summary>
+    void ISpanTextWriter.WriteCommentSpan(ReadOnlySpan<char> text) => _textWriter.WriteCommentSpan(text);
+
+    /// <summary>Go: 内嵌 <c>textWriter.RawWrite(getIndentString(...))</c> 的转发（同上，显式实现）。</summary>
+    void ISpanTextWriter.RawWriteSpaces(int count) => _textWriter.RawWriteSpaces(count);
 
     public PrintHandlers GetPrintHandlers() => new()
     {

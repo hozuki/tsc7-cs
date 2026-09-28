@@ -9,8 +9,10 @@
 //    与 Go 的指针比较同义（docs §3.2：Go 的 *T 与 C# class 同构）。
 // 3) `children.Nodes` 在 C# 里是 `Node[]?`（Go 的 nil 切片与空切片同义，`len(nil) == 0`）→
 //    `children.Nodes?.Length ?? 0`，且只在 `children` 非 nil 时求值，与 Go 的 `len(children.Nodes)` 一致。
-// 4) Go 的 `children.Nodes[start:end]`（零拷贝切片视图）→ C# `children.Nodes![start..end]`（数组 range 会复制一次；
-//    `EmitListItems` 的契约签名要求 `Node[]`）。
+// 4) Go 的 `children.Nodes[start:end]`（零拷贝切片视图）→ C# 数组没有 "len < cap" 视图：`EmitListItems` 的签名
+//    从 `Node[] children` 改成 `(Node[] children, int start, int count)`，方法内部自行索引（等价于 Go 的
+//    `range children`/`len(children)`/`lastOrNil(children)`）。原来在调用点写 `[start..end]`，**每次列表发射都
+//    复制一个新数组**（实测占 print 相位约 2%，见 docs §3.8.1）。
 // 5) `greatestEnd(-1, parentNode)`：Go 的 `tryGetEnd(*ast.Node)` 分支就是 `node.End()`，而 C# 的
 //    `Node.End() => Loc.End()` → 直接写 `GreatestEnd(-1, parentNode.Loc)`，不为 `Node` 另加重载。
 // 6) Go 的 `skipTrailingComments := p.commentsDisabled || !p.shouldEmitTrailingComments(previousSibling)`
@@ -108,7 +110,10 @@ public sealed partial class Printer
         {
             var end = Math.Min(start + count, length);
 
-            EmitListItems(emit, parentNode, (children!.Nodes ?? [])[start..end], format, HasTrailingComma(parentNode, children), children.Loc);
+            // Go: `p.emitListItems(…, children.Nodes[start:end], …)`（printer.go:4802，零拷贝切片视图）。C# 的数组
+            // 没有 "len < cap" 视图，原来是 `[start..end]`——每次都复制一个新数组；改为把 (start,count) 交给
+            // EmitListItems 自行索引（docs §3.8.1）。
+            EmitListItems(emit, parentNode, children!.Nodes!, start, end - start, format, HasTrailingComma(parentNode, children), children.Loc);
         }
 
         OnAfterEmitNodeList?.Invoke(children);
@@ -249,10 +254,16 @@ public sealed partial class Printer
     // Emits a list without brackets or raising events.
     //
     // NOTE: You probably don't want to call this directly and should be using `emitList` instead.
+    //
+    // 偏离 Go（docs §3.8.1）：Go 收 `children []*ast.Node`（**切片视图**，调用点的 `nodes[start:end]` 零拷贝）；
+    // C# 的数组不能做视图，故签名改为 `(children, start, count)` 三个参数，由本方法自行索引 —— 与 Go 的
+    // `for _, child := range children` / `lastOrNil(children)` / `len(children)` 一一对应。
     internal void EmitListItems(
         NodeEmitter emit,
         Node parentNode,
         Node[] children,
+        int start,
+        int count,
         ListFormat format,
         bool hasTrailingComma,
         TextRange childrenTextRange)
@@ -262,9 +273,9 @@ public sealed partial class Printer
         var shouldEmitInterveningComments = mayEmitInterveningComments;
 
         var leadingLineTerminatorCount = 0;
-        if (children.Length > 0)
+        if (count > 0)
         {
-            leadingLineTerminatorCount = GetLeadingLineTerminatorCount(parentNode, children[0], format);
+            leadingLineTerminatorCount = GetLeadingLineTerminatorCount(parentNode, children[start], format);
         }
         if (leadingLineTerminatorCount > 0)
         {
@@ -290,8 +301,11 @@ public sealed partial class Printer
         // Emit each child.
         Node? previousSibling = null;
         var shouldDecreaseIndentAfterEmit = false;
-        foreach (var child in children)
+        // Go: `for _, child := range children`（children 是 [start:end] 切片）—— C# 按 (start,count) 索引同一数组。
+        var end = start + count;
+        for (var childIndex = start; childIndex < end; childIndex++)
         {
+            var child = children[childIndex];
             // Write the delimiter if this is not the first node.
             if ((format & ListFormat.AsteriskDelimited) != 0)
             {
@@ -413,7 +427,8 @@ public sealed partial class Printer
         }
 
         // Write the closing line terminator or closing whitespace.
-        var closingLineTerminatorCount = GetClosingLineTerminatorCount(parentNode, LastOrNil(children), format, childrenTextRange);
+        // Go: `core.LastOrNil(children)`；切片在此必非空（调用点 isEmpty == false）⇒ 末元素 = children[end-1]。
+        var closingLineTerminatorCount = GetClosingLineTerminatorCount(parentNode, count > 0 ? children[end - 1] : null, format, childrenTextRange);
         if (closingLineTerminatorCount > 0)
         {
             for (var i = 0; i < closingLineTerminatorCount; i++)

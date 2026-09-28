@@ -228,7 +228,19 @@ Go 的 `s[a:b]` 是**零拷贝**的（string 头 + 原底层数组），所以 T
 **-3.1%**（15.359 → 14.875 B/char，119.6 → 115.9 MB，批 4 的 `asterisk`/`whitespace` 局部量 span 化，
 用 A/B 单变量测得）。
 
-参考基线（同批未改的相位）：bind 2.812 B/char、print 23.3 B/char（printer **不在**本轮 span 审计的文件范围内，仅记录）。
+参考基线（同批未改的相位）：bind 2.812 B/char、print 23.140 B/char（printer 当时不在文件范围内，仅记录；
+已在 §3.8.1.1 单独处理）。
+
+**各相位总览（同一仪器、同一语料 305 文件 / 2.72 M 字符 / `-n 5`；"第一批前"= 两轮改动之前的基线）**：
+
+| 相位 | 第一批前 | 现在 | 变化 |
+| --- | --- | --- | --- |
+| scan | 3.999 | **1.945** | −51.4% |
+| parse | 11.280 | **9.777–9.83** | −12.8% |
+| jsdoc（parse + 全树 `node.JSDoc(file)`；与 parse 重叠，不计入合计） | 15.359 | **14.875** | −3.2% |
+| print | 23.140 | **18.14–18.59（中位 18.30）** | −20.9% |
+| bind | 2.812 | 2.812 | 0（未动） |
+| **四相位合计（scan+parse+bind+print）** | **41.231** | **32.84** | **−20.4%** |
 
 **同批测量后判定"不值得改/不能改"的项（如实记录）**：
 
@@ -237,7 +249,65 @@ Go 的 `s[a:b]` 是**零拷贝**的（string 头 + 原底层数组），所以 T
 | `Scanner.ScanIdentifier` 的 `_tokenValue = _text[start.._pos]`（parse 相位 8.6%） | Go `scanner.go:1497/1515` 同样是切片，但值是 parser 要存进 AST 的 `tokenValue` | 物化不可避免（除非把 `tokenValue` 改成"start/end + 懒物化"，会动 `ScannerState`/`Rewind`/所有 `_tokenValue` 写入点，风险 >> 收益） |
 | `Parser.ParseModifiersEx` 的 `new List<Node>()`（parse 相位 16%） | Go `parser.go:3921` `make([]*ast.Node, 0, 16)` 恒分配 128 B | **不是** Go 移植偏差（C# 40 B 反而更省）；懒分配虽可再省，但属"超出 span 审计"的另一类改动，本轮不做 |
 | `ParserJsDoc` 里 15 处存进 `List<string>` 的 `TokenText()` | Go 侧 `comments []string` 也是存 string；且 `RemoveLeadingNewlines`/`RemoveTrailingWhitespace` 要就地改元素 | 必须物化（要改就得把集合换成 `(start,len)` 视图并重写这些 helper，收益/风险不划算） |
-| printer 的 `StringBuilder.ExpandByABlock`（print 相位 23.3 B/char，全局最大） | — | 不在本轮文件范围（`Printer/**`），交由 printer 负责人 |
+| printer 的 `StringBuilder.ExpandByABlock`（print 相位 23.3 B/char，全局最大） | — | 不在第一批文件范围（`Printer/**`）⇒ 见下 §3.8.1.1（已单独一轮处理：**23.140 → 18.30 B/char（中位），−20.9%**） |
+
+#### 3.8.1.1 Printer 注释写出 / 缩进 / 列表范围（实测，2026-09-28 第二批）
+
+`Printer/**` 是本仓**单一最大分配者**（print 相位 ≈ 300 MB / 5 reps = 23.140 B/char，占总量一半以上）。本批沿用
+上一批的方法学（`artifacts/span-audit` 的 `phase print`/`phases` 精确分配字节 + `artifacts/span-allocreport` 的
+完整调用链归因，`dotnet-trace --profile gc-verbose` 采样），**逐条 A/B 单变量复测**后才保留。
+
+**调用链归因（`artifacts/span-audit/logs/print.nettrace`，30 reps，按 `TypeScript.Printer.` 过滤，283
+ticks/rep 量级；字节数与"整进程采样和"≈ 精确计数器的 print 相位总量，误差 < 0.1%）**：
+
+```
+19.5%  Printer.EmitLeadingComments（内联的 List<CommentRange> 构造 —— 每个节点一次）
+ 9.2%  StringBuilder.set_Capacity ← Printer.Write            （首次 Grow(len(text)) 的容量分配，Go 同款）
+ 9.0%  String.Ctor ← EmitComment / ← ReadOnlySpan.ToString ← WriteCommentRangeWorker（注释文本物化）
+ 5.2%  Scanner.IterateCommentRanges → （迭代器 + 每条注释一个 CommentRange 对象，见"不改"表）
+ 5.1%  Printer.EmitListItems / 3.0% EmitListRange             （列表范围切片复制）
+ 4.5%  Printer.EmitTrailingComments（同 EmitLeadingComments）
+ 2.5%  Printer.GetIndentString（每次换行 new string(' ', n)）
+ 3.6%  NameGenerator.PushScope                                （Go 也每次 new nameGenerationScope，见"不改"表）
+```
+
+**已改（每条都有 Go 依据 + A/B 数字；`phases both 300 0 -n 5`，B/char 三次一致才认）**：
+
+| # | 改动 | Go 依据 | A/B 收益（print B/char） |
+| --- | --- | --- | --- |
+| 1 | 注释列表**懒分配**：`EmitLeadingComments`/`EmitTrailingComments`/`EmitTrailingCommentsOfPosition`/`TryEmitDetachedComments` 由无条件 `new List<CommentRange>()` 改成 `(comments ??= new List<CommentRange>()).Add(...)`，`EmitComments` 收 `List<CommentRange>?` | `printer.go:5563/5613/5632/5686` 都是 `var comments []ast.CommentRange`（nil 切片 + append）：没注释可写时**零分配** | 单点回退 `EmitLeadingComments` 一处即 **+1.29**（19.98/19.84 vs 18.67/18.68）；其余三处未逐个隔离，见下方"合计" |
+| 2 | `WriteCommentRangeWorker` 不再物化注释文本：`currentLineText.ToString()` → 直接传 span；单行注释 `text[a..b]` → `text.AsSpan(a,…)` | `printer.go:719` `strings.TrimSpace(text[pos:end])` 是**切片**、`:734` `p.writeComment(text[loc.Pos():loc.End()])` 也是切片 | **−1.22**（两处写法同时回退：19.838 vs 18.62） |
+| 3 | 缩进串缓存：`TextWriter` 内置按需增长的 `' '` 串，`WriteText` 走 `Append(spaces,0,n)`、注释对齐走 `RawWriteSpaces(n)`（删掉包级 `getIndentString` 的每次 `new string`） | Go 的 `getIndentString` 源码里自己写着 `TODO: This is cached in tsc`（`textwriter.go:135` 附近），我们照做 | **−0.30…−0.60**（两次：18.92/19.22 vs 18.52/18.62；中位 −0.45） |
+| 4 | `EmitListItems` 签名改成 `(Node[] children, int start, int count)`，调用点不再 `nodes[start..end]` 复制数组 | Go `printer.go:4802` 传的是 `children.Nodes[start:end]` **切片视图**；`emitModifierList`（`printer.go:2262` 附近）同理 | **−0.47**（回退为单次复制：31.39 vs 30.92，两批各 5 次采样区间不重叠） |
+
+**净效果：print 23.140 → 18.14 / 18.30 / 18.59 B/char（三次，中位 **18.30**，−20.9%；300.4 → 235.5–241.4 MB / 5 reps）**。
+四项单独回退测得 −1.29/−1.22/−0.45/−0.47（合计 −3.43），与总量 −4.84 的差 ≈ −1.4 B/char 落在第 1 项**未逐个隔离**的
+另三处懒分配（`EmitTrailingComments`/`EmitTrailingCommentsOfPosition`/`TryEmitDetachedComments`）上。
+**scan/parse/bind 未变**（1.945 / 9.83 / 2.812，与上一轮一致）。同一改动在 `phase print`（parse+bind+print）模式下是
+**35.775 → 30.80–30.97 B/char**（±0.4% 重复性），与 print 相位 −20.9% 自洽。
+
+> 仪器说明：`phases` 模式三次采样的重复性是 ±1.2%（不是上一轮记录的 ±0.1% —— 那是同一批连续采样的口径）；
+> 判读收益时以"两批采样区间是否重叠"为准（第 3、4 项就是这样定论的），只有区间分离才认。
+
+**支撑改动（为让 span 写路径成立，行为逐字节等价）**：
+
+- `TextWriter.lastWritten` 字段删除，`HasTrailingWhitespace()` 改读 `_builder[^1]`（`TextWriter.cs` 文件头第 5 条
+  给出不变量证明：三个写入点都"写什么就把什么记进 lastWritten"，`Clear` 同时清空二者 ⇒ builder 非空时末位代码单元恒等）。
+  覆盖：`compiler` 套件 3 批（offset 0/3000/6000）共 9,539 条 baseline **逐字节一致**，另单独跑
+  `numericLiteralsWithTrailingDecimalPoints01/02.ts`、`toStringOnPrimitives.ts` 等 12 个会走
+  `MayNeedDotDotForPropertyAccess` + `HasTrailingWhitespace` 的用例（38 条 baseline 逐字节一致）。
+- 新增 `ISpanTextWriter`（internal，C# 专用，对应 `IGrowableTextWriter` 的手法）：`TextWriter` 实现、
+  `ChangeTrackerWriter`/`TrailingSemicolonDeferringWriter` 转发；不支持的写者回落 `WriteComment(string)`（仅多一次物化）。
+
+**本批测过但判定"不改"的项（如实记录）**：
+
+| 热点 | 依据 | 结论 |
+| --- | --- | --- |
+| `StringBuilder.set_Capacity ← Printer.Write`（trace 里 155 MB/30 reps） | `Printer.Write` 调 `Grow(len(sourceFile.Text()))`＝Go `printer.go:5099` 的同名调用 | **Go 同款**：都是"按源文件长度预留一次 + 后续翻倍增长"（.NET 翻倍 vs Go 1.25×，量级相当）。不是移植偏差，未动 |
+| `StringBuilder.ToString ← TextWriter.String`（1.9 MB/rep） | Go 的 `strings.Builder.String()` **零拷贝**（buffer 直接转 string），C# 的 `StringBuilder.ToString()` 必然复制一次 | C# 无等价物（要零拷贝就得自己管 `char[]`），且这是**产物本身**，未动 |
+| `Scanner.IterateCommentRanges`（print 期间 2.7 MB/rep：迭代器对象 + 每条注释一个 `CommentRange` 对象） | Go 是 `iter.Seq[ast.CommentRange]`（range-over-func，零分配）+ **struct 值**；我们的 `CommentRange` 是 `Ast/CommentRange` 里的 **class**（`AstTypes.cs:98`，Go 是 struct） | 要改得动 `Ast` 公开类型（`CommentRange` class→struct）或 `Scanner/**`（本轮文件范围外），风险 >> 收益，**登记给 Scanner/Ast 负责人** |
+| `NameGenerator.PushScope`（2 MB/rep） | Go `pushScope` 同样 `&nameGenerationScope{_next: …}` 每次分配 1–2 个对象 | Go 同款，未动 |
+| `EmitPropertyName`/`EmitBindingName`/`ExitNode`/`EmitListItems` 的"自身帧"归因（各 1.5–3% ） | 这些帧是**内联后的归因**（`dotnet-trace` 采样时解析不到内联帧），逐个核对代码后没找到"读却物化"的写法 | 不再追（`EmitListItems` 里原本的 `EmitTrailingCommentsOfPosition` 每次都建 List，已被第 1 项覆盖） |
 
 ### 3.9 深度递归必须跑在大栈线程上（实测，M5 结论）
 
