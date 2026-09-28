@@ -13,8 +13,8 @@ internal static class LinkedEditingJsxTag11Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: /customElements.tsx\nconst jsx = <fbt:enum knownProp=\"accepted\"\n    unknownProp=\"rejected\">\n</fbt:enum>;\n\nconst customElement = <custom-element></custom-element>;\n\nconst standardElement = \n   <Link href=\"/hello\" passHref>\n       <Button component=\"a\">\n           Next\n       </Button>\n   </Link>;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: /customElements.tsx\nconst jsx = <fbt:enum knownProp=\"accepted\"\n    unknownProp=\"rejected\">\n</fbt:enum>;\n\nconst customElement = <custom-element></custom-element>;\n\nconst standardElement = \n   <Link href=\"/hello\" passHref>\n       <Button component=\"a\">\n           Next\n       </Button>\n   </Link>;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineLinkedEditing(t);

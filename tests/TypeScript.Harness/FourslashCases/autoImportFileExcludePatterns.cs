@@ -1,0 +1,35 @@
+// ported from: internal/fourslash/tests/autoImportFileExcludePatterns_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using LSUP = TypeScript.LsUtil;
+using TRI = TypeScript.Core.Tristate;
+using TSU = TypeScript.TestUtil;
+using U = TypeScript.Harness.FourslashCases.FourslashTestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class AutoImportFileExcludePatternsCase
+{
+    public static void TestAutoImportFileExcludePatterns(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @Filename: foo.ts\nexport const mySymbol = 1;\n// @Filename: ignoreme.ts\nexport const ignoredSymbol = 2;\n// @Filename: bar.ts\nmySym/*1*/\nignoredSym/*2*/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.Configure(t, new LSUP.UserPreferences { AutoImportFileExcludePatterns = ["*ignoreme.ts"], IncludeCompletionsForModuleExports = TRI.TSTrue, IncludeCompletionsForImportStatements = TRI.TSTrue });
+                f.VerifyCompletions(t, "1", new F.CompletionsExpectedList { ItemDefaults = new F.CompletionsExpectedItemDefaults { CommitCharacters = U.DefaultCommitCharacters, EditRange = F.Ignored.Value }, Items = new F.CompletionsExpectedItems { Includes = ["mySymbol"] } });
+                f.VerifyCompletions(t, "2", new F.CompletionsExpectedList { ItemDefaults = new F.CompletionsExpectedItemDefaults { CommitCharacters = U.DefaultCommitCharacters, EditRange = F.Ignored.Value }, Items = new F.CompletionsExpectedItems { Excludes = ["ignoredSymbol"] } });
+                f.BaselineAutoImportsCompletions(t, ["1", "2"]);
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

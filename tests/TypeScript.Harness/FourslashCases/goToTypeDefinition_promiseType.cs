@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition_promiseTypeCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5,es2015.promise\ntype User = { name: string };\nasync function /*reference*/getUser() { return { name: \"Bob\" } satisfies User as User }\n\nconst /*reference2*/promisedBob = getUser() \n\nexport {}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5,es2015.promise\ntype User = { name: string };\nasync function /*reference*/getUser() { return { name: \"Bob\" } satisfies User as User }\n\nconst /*reference2*/promisedBob = getUser() \n\nexport {}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference", "reference2");

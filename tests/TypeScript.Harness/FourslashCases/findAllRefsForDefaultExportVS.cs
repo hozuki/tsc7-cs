@@ -14,7 +14,7 @@ internal static class FindAllRefsForDefaultExportVSCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: a.ts\nexport default function /*def*/f() {}\n// @Filename: b.ts\nimport /*deg*/g from \"./a\";\n[|/*ref*/g|]();\n// @Filename: c.ts\nimport { f } from \"./a\";";
+            var content = FourslashCaseContent.U8("// @Filename: a.ts\nexport default function /*def*/f() {}\n// @Filename: b.ts\nimport /*deg*/g from \"./a\";\n[|/*ref*/g|]();\n// @Filename: c.ts\nimport { f } from \"./a\";"u8);
             var (f, done) = F.Fourslash.NewFourslash(t, new LSP.ClientCapabilities { VSSupportsVisualStudioExtensions = true }, content);
             try
             {

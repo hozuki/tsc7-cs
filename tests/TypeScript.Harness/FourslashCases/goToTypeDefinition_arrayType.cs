@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition_arrayTypeCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5\ntype User = { name: string };\ndeclare const users: User[]\n/*reference*/users\n\ntype UsersArr = Array<User>\ndeclare const users2: UsersArr\n/*reference2*/users2\n\nclass CustomArray<T> extends Array<T> { immutableReverse() { return [...this].reverse() } }\ndeclare const users3: CustomArray<User>\n/*reference3*/users3";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5\ntype User = { name: string };\ndeclare const users: User[]\n/*reference*/users\n\ntype UsersArr = Array<User>\ndeclare const users2: UsersArr\n/*reference2*/users2\n\nclass CustomArray<T> extends Array<T> { immutableReverse() { return [...this].reverse() } }\ndeclare const users3: CustomArray<User>\n/*reference3*/users3"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference", "reference2", "reference3");

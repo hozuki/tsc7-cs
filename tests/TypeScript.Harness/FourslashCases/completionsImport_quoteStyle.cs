@@ -1,0 +1,31 @@
+// ported from: internal/fourslash/tests/completionsImport_quoteStyle_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using LSUP = TypeScript.LsUtil;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class CompletionsImport_quoteStyleCase
+{
+    public static void TestCompletionsImport_quoteStyle(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @module: esnext\n// @Filename: /a.ts\nexport const foo = 0;\n// @Filename: /b.ts\nfo/**/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.GoToMarker(t, "");
+                f.VerifyApplyCodeActionFromCompletion(t, "", new F.ApplyCodeActionFromCompletionOptions { Name = "foo", Source = "./a", Description = "Add import from \"./a\"", UserPreferences = new LSUP.UserPreferences { QuotePreference = new LSUP.QuotePreference("single") }, NewFileContent = "import { foo } from './a';\n\nfo" });
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

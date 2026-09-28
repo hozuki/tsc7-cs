@@ -13,8 +13,8 @@ internal static class JsDocDontBreakWithNamespacesCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @allowJs: true\n// @Filename: jsDocDontBreakWithNamespaces.js\n/**\n * @returns {module:@nodefuel/web~Webserver~wsServer#hello} Websocket server object\n */\nfunction foo() { }\nfoo(''/*foo*/);\n\n/**\n * @type {module:xxxxx} */\n */\nfunction bar() { }\nbar(''/*bar*/);\n\n/** @type {function(module:xxxx, module:xxxx): module:xxxxx} */\nfunction zee() { }\nzee(''/*zee*/);";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @allowJs: true\n// @Filename: jsDocDontBreakWithNamespaces.js\n/**\n * @returns {module:@nodefuel/web~Webserver~wsServer#hello} Websocket server object\n */\nfunction foo() { }\nfoo(''/*foo*/);\n\n/**\n * @type {module:xxxxx} */\n */\nfunction bar() { }\nbar(''/*bar*/);\n\n/** @type {function(module:xxxx, module:xxxx): module:xxxxx} */\nfunction zee() { }\nzee(''/*zee*/);"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineSignatureHelp(t);

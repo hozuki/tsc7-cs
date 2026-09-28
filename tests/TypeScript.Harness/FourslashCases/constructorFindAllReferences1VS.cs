@@ -14,7 +14,7 @@ internal static class ConstructorFindAllReferences1VSCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "export class C {\n    /**/public constructor() { }\n    public foo() { }\n}\n\nnew C().foo();";
+            var content = FourslashCaseContent.U8("export class C {\n    /**/public constructor() { }\n    public foo() { }\n}\n\nnew C().foo();"u8);
             var (f, done) = F.Fourslash.NewFourslash(t, new LSP.ClientCapabilities { VSSupportsVisualStudioExtensions = true }, content);
             try
             {

@@ -15,11 +15,11 @@ internal static class InlayHintsElementAccessCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "interface MySymbol {\n\treadonly \"my dispose\": unique symbol\n}\n\ndeclare var mySymbol: MySymbol;\n\nlet foo = {\n\t[mySymbol[\"my dispose\"]]: () => {}\n}\n";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("interface MySymbol {\n\treadonly \"my dispose\": unique symbol\n}\n\ndeclare var mySymbol: MySymbol;\n\nlet foo = {\n\t[mySymbol[\"my dispose\"]]: () => {}\n}\n"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
-                f.VerifyBaselineInlayHints(t, null, new LSUP.UserPreferences { InlayHints = new LSUP.InlayHintsPreferences { IncludeInlayVariableTypeHints = TRI.TSTrue } });
+                f.VerifyBaselineInlayHints(t, null!, new LSUP.UserPreferences { InlayHints = new LSUP.InlayHintsPreferences { IncludeInlayVariableTypeHints = TRI.TSTrue } });
             }
             finally
             {

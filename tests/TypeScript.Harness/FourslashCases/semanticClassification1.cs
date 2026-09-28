@@ -1,0 +1,29 @@
+// ported from: internal/fourslash/tests/semanticClassification1_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class SemanticClassification1Case
+{
+    public static void TestSemanticClassification1(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("module /*0*/M {\n    export interface /*1*/I {\n    }\n}\ninterface /*2*/X extends /*3*/M./*4*/I { }"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.VerifySemanticTokens(t, [new F.SemanticToken { Type = "namespace.declaration", Text = "M" }, new F.SemanticToken { Type = "interface.declaration", Text = "I" }, new F.SemanticToken { Type = "interface.declaration", Text = "X" }, new F.SemanticToken { Type = "namespace", Text = "M" }, new F.SemanticToken { Type = "interface", Text = "I" }]);
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

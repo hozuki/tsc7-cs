@@ -1,0 +1,29 @@
+// ported from: internal/fourslash/tests/getOutliningForBlockComments_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class GetOutliningForBlockCommentsCase
+{
+    public static void TestGetOutliningForBlockComments(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("[|/*\n    Block comment at the beginning of the file before module:\n        line one of the comment\n        line two of the comment\n        line three\n        line four\n        line five\n*/|]\nmodule Sayings[| {\n    [|/*\n    Comment before class:\n        line one of the comment\n        line two of the comment\n        line three\n        line four\n        line five\n    */|]\n    export class Greeter[| {\n        [|/*\n            Comment before a string identifier\n            line two of the comment\n        */|]\n        greeting: string;\n        [|/*\n            constructor\n            parameter message as a string\n        */|]\n        \n        [|/*\n            Multiple comments should be collapsed individually\n        */|]\n        constructor(message: string /* do not collapse this */)[| {\n            this.greeting = message;\n        }|]\n        [|/*\n            method of a class\n        */|]\n        greet()[| {\n            return \"Hello, \" + this.greeting;\n        }|]\n    }|]\n}|]\n\n[|/*\n    Block comment for interface. The ending can be on the same line as the declaration.\n*/|]interface IFoo[| {\n    [|/*\n    Multiple block comments\n    */|]\n\n    [|/*  \n    should be collapsed\n    */|]\n\n    [|/*\n    individually\n    */|]\n\n                                                                                                                              [|/*\n                                                                    this comment has trailing space before /* and after *-/ signs\n    */|]                                                                          \n\n    [|/**\n     *\n     *\n     *\n     */|]\n\n    [|/*\n    */|]\n\n    [|/*\n    */|]\n    // single line comments in the middle should not have an effect\n    [|/*\n    */|]\n\n    [|/*\n    */|]\n\n    [|/*\n    this block comment ends     \n    on the same line */|]  [|/* where the following comment starts\n        should be collapsed separately\n    */|]\n\n    getDist(): number;\n}|]\n\nvar x =[|{\n  a:1,\n  b: 2,\n  [|/*\n        Over a function in an object literal\n  */|]\n  get foo()[| {\n    return 1;\n  }|]\n}|]\n\n// Over a function expression assigned to a variable\n [|/**\n  * Return a sum\n  * @param {Number} y\n  * @param {Number} z\n  * @returns {Number} the sum of y and z\n  */|]\n const sum2 = (y, z) =>[| {\n     return y + z;\n }|];\n\n// Over a variable\n[|/**\n * foo\n */|]\nconst foo = null;\n\nfunction Foo()[| {\n   [|/**\n     * Description\n     *\n     * @param {string} param\n     * @returns\n     */|]\n    this.method = function (param)[| {\n    }|]\n\n   [|/**\n     * Description\n     *\n     * @param {string} param\n     * @returns\n     */|]\n    function method(param)[| {\n    }|]\n}|]\n\nfunction fn1()[| {\n    [|/**\n     * comment\n     */|]\n}|]\nfunction fn2()[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\nfunction fn3()[| {\n    const x = 1;\n\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\nfunction fn4()[| {\n    [|/**\n     * comment\n     */|]\n     const x = 1;\n\n    [|/**\n     * comment\n     */|]\n}|]\nfunction fn5()[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n     return 1;\n}|]\nfunction fn6()[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n    const x = 1;\n}|]\n\n[|/*\ncomment\n*/|]\n\nf6();\n\nclass C1[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\nclass C2[| {\n    private prop = 1;\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\nclass C3[| {\n    [|/**\n     * comment\n     */|]\n\n    private prop = 1;\n    [|/**\n     * comment\n     */|]\n}|]\nclass C4[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n    private prop = 1;\n}|]\n\n[|/*\ncomment\n*/|]\nnew C4();\n\nmodule M1[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\nmodule M2[| {\n    export const a = 1;\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\nmodule M3[| {\n    [|/**\n     * comment\n     */|]\n    export const a = 1;\n\n    [|/**\n     * comment\n     */|]\n}|]\nmodule M4[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n    export const a = 1;\n}|]\ninterface I1[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\ninterface I2[| {\n    x: number;\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]\ninterface I3[| {\n    [|/**\n     * comment\n     */|]\n    x: number;\n\n    [|/**\n     * comment\n     */|]\n}|]\ninterface I4[| {\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n    x: number;\n}|]\n[|{\n    [|/**\n     * comment\n     */|]\n\n    [|/**\n     * comment\n     */|]\n}|]"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.VerifyOutliningSpans(t);
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

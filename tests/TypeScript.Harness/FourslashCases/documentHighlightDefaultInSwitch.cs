@@ -13,11 +13,11 @@ internal static class DocumentHighlightDefaultInSwitchCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "const foo = 'foo';\n[|switch|] (foo) {\n   [|case|] 'foo':\n       [|break|];\n   [|default|]:\n       [|break|];\n}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("const foo = 'foo';\n[|switch|] (foo) {\n   [|case|] 'foo':\n       [|break|];\n   [|default|]:\n       [|break|];\n}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
-                f.VerifyBaselineDocumentHighlights(t, null, f.Ranges()[1], f.Ranges()[4]);
+                f.VerifyBaselineDocumentHighlights(t, null!, f.Ranges()[1], f.Ranges()[4]);
             }
             finally
             {

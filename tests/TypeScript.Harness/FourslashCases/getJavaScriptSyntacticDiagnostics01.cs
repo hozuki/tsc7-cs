@@ -13,8 +13,8 @@ internal static class GetJavaScriptSyntacticDiagnostics01Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5\n// @allowJs: true\n// @Filename: a.js\nvar ===;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5\n// @allowJs: true\n// @Filename: a.js\nvar ===;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.MarkTestAsStradaServer();

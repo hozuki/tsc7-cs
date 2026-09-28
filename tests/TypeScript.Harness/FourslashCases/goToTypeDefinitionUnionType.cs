@@ -13,8 +13,8 @@ internal static class GoToTypeDefinitionUnionTypeCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "class /*definition0*/C {\n    p;\n}\n\ninterface /*definition1*/I {\n    x;\n}\n\nnamespace M {\n    export interface /*definition2*/I {\n        y;\n    }\n}\n\nvar x: C | I | M.I;\n\n/*reference*/x;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("class /*definition0*/C {\n    p;\n}\n\ninterface /*definition1*/I {\n    x;\n}\n\nnamespace M {\n    export interface /*definition2*/I {\n        y;\n    }\n}\n\nvar x: C | I | M.I;\n\n/*reference*/x;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference");

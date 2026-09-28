@@ -14,8 +14,8 @@ internal static class CodeFixClassImplementInterface_quotePreferenceSingleCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "interface I {\n    a(): void;\n    b(x: 'x', y: 'a' | 'b'): 'b';\n\n    c: 'c';\n    d: { e: 'e'; };\n}\nclass Foo implements I {}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("interface I {\n    a(): void;\n    b(x: 'x', y: 'a' | 'b'): 'b';\n\n    c: 'c';\n    d: { e: 'e'; };\n}\nclass Foo implements I {}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyCodeFix(t, new F.VerifyCodeFixOptions { Description = "Implement interface 'I'", NewFileContent = "interface I {\n    a(): void;\n    b(x: 'x', y: 'a' | 'b'): 'b';\n\n    c: 'c';\n    d: { e: 'e'; };\n}\nclass Foo implements I {\n    a(): void {\n        throw new Error('Method not implemented.');\n    }\n    b(x: 'x', y: 'a' | 'b'): 'b' {\n        throw new Error('Method not implemented.');\n    }\n    c: 'c';\n    d: { e: 'e'; };\n}", Index = 0, UserPreferences = new LSUP.UserPreferences { QuotePreference = new LSUP.QuotePreference("single") } });

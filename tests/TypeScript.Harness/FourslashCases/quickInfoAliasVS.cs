@@ -14,7 +14,7 @@ internal static class QuickInfoAliasVSCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: /a.ts\n/**\n * Doc\n * @tag Tag text\n */\nexport const x = 0;\n// @Filename: /b.ts\nimport { x } from \"./a\";\nx/*b*/;\n// @Filename: /c.ts\n/**\n * Doc 2\n * @tag Tag text 2\n */\nimport {\n    /**\n     * Doc 3\n     * @tag Tag text 3\n     */\n    x\n} from \"./a\";\nx/*c*/;";
+            var content = FourslashCaseContent.U8("// @Filename: /a.ts\n/**\n * Doc\n * @tag Tag text\n */\nexport const x = 0;\n// @Filename: /b.ts\nimport { x } from \"./a\";\nx/*b*/;\n// @Filename: /c.ts\n/**\n * Doc 2\n * @tag Tag text 2\n */\nimport {\n    /**\n     * Doc 3\n     * @tag Tag text 3\n     */\n    x\n} from \"./a\";\nx/*c*/;"u8);
             var (f, done) = F.Fourslash.NewFourslash(t, new LSP.ClientCapabilities { VSSupportsVisualStudioExtensions = true }, content);
             try
             {

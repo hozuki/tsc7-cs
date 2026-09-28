@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition_PickCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5\ntype User = { id: number; name: string; };\ndeclare const user: Pick<User, \"name\">\n/*reference*/user\n\ntype PickedUser = Pick<User, \"name\">\ndeclare const user2: PickedUser\n/*reference2*/user2";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5\ntype User = { id: number; name: string; };\ndeclare const user: Pick<User, \"name\">\n/*reference*/user\n\ntype PickedUser = Pick<User, \"name\">\ndeclare const user2: PickedUser\n/*reference2*/user2"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference", "reference2");

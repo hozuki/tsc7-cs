@@ -13,8 +13,8 @@ internal static class AsConstRefsNoErrors1Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "class Tex {\n    type = 'Text' as /**/const;\n}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("class Tex {\n    type = 'Text' as /**/const;\n}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToDefinition(t, true, "");

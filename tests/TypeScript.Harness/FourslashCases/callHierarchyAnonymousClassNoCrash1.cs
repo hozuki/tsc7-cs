@@ -13,8 +13,8 @@ internal static class CallHierarchyAnonymousClassNoCrash1Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: /main.ts\nclass {\n    con/*1*/structor() {}\n}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: /main.ts\nclass {\n    con/*1*/structor() {}\n}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.GoToMarker(t, "1");

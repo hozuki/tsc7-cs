@@ -13,12 +13,12 @@ internal static class FindAllReferencesDynamicImport2Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: foo.ts\n[|export function /*1*/[|{| \"isWriteAccess\": true, \"isDefinition\": true, \"contextRangeIndex\": 0 |}bar|]() { return \"bar\"; }|]\nvar x = import(\"./foo\");\nx.then(foo => {\n    foo./*2*/[|bar|]();\n})";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: foo.ts\n[|export function /*1*/[|{| \"isWriteAccess\": true, \"isDefinition\": true, \"contextRangeIndex\": 0 |}bar|]() { return \"bar\"; }|]\nvar x = import(\"./foo\");\nx.then(foo => {\n    foo./*2*/[|bar|]();\n})"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineFindAllReferences(t, "1", "2");
-                f.VerifyBaselineRenameAtRangesWithText(t, null, "bar");
+                f.VerifyBaselineRenameAtRangesWithText(t, null!, "bar");
             }
             finally
             {

@@ -1,0 +1,29 @@
+// ported from: internal/fourslash/tests/completionsImportModuleAugmentationWithJS_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class CompletionsImportModuleAugmentationWithJSCase
+{
+    public static void TestCompletionsImportModuleAugmentationWithJS(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @allowJs: true\n// @checkJs: true\n// @noEmit: true\n// @Filename: /test.js\nclass Abcde {\n    x\n}\n\nmodule.exports = {\n    Abcde\n};\n// @Filename: /index.ts\nexport {};\ndeclare module \"./test\" {\n    interface Abcde { b: string }\n}\n\nAbcde/**/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.VerifyApplyCodeActionFromCompletion(t, "", new F.ApplyCodeActionFromCompletionOptions { Name = "Abcde", Source = "./test", Description = "Add import from \"./test\"", NewFileContent = "import { Abcde } from \"./test\";\n\nexport {};\ndeclare module \"./test\" {\n    interface Abcde { b: string }\n}\n\nAbcde", UserPreferences = null! });
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

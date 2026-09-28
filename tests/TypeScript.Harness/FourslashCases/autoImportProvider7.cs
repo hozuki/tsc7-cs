@@ -1,0 +1,38 @@
+// ported from: internal/fourslash/tests/autoImportProvider7_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using LS = TypeScript.Ls.Ls;
+using LSP = TypeScript.LsProto;
+using TSU = TypeScript.TestUtil;
+using U = TypeScript.Harness.FourslashCases.FourslashTestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class AutoImportProvider7Case
+{
+    public static void TestAutoImportProvider7(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @Filename: /home/src/workspaces/project/tsconfig.json\n{ \"compilerOptions\": { \"lib\": [\"es5\"], \"module\": \"commonjs\" } }\n// @Filename: /home/src/workspaces/project/package.json\n{ \"dependencies\": { \"mylib\": \"file:packages/mylib\" } }\n// @Filename: /home/src/workspaces/project/packages/mylib/package.json\n{ \"name\": \"mylib\", \"version\": \"1.0.0\", \"main\": \"index.js\", \"types\": \"index\" }\n// @Filename: /home/src/workspaces/project/packages/mylib/index.ts\nexport * from \"./mySubDir\";\n// @Filename: /home/src/workspaces/project/packages/mylib/mySubDir/index.ts\nexport * from \"./myClass\";\nexport * from \"./myClass2\";\n// @Filename: /home/src/workspaces/project/packages/mylib/mySubDir/myClass.ts\nexport class MyClass {}\n// @Filename: /home/src/workspaces/project/packages/mylib/mySubDir/myClass2.ts\nexport class MyClass2 {}\n// @link: /home/src/workspaces/project/packages/mylib -> /home/src/workspaces/project/node_modules/mylib\n// @Filename: /home/src/workspaces/project/src/index.ts\n\nconst a = new MyClass/*1*/();\nconst b = new MyClass2/*2*/();"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.MarkTestAsStradaServer();
+                f.GoToMarker(t, "1");
+                var opts1196 = f.GetOptions();
+                opts1196!.FormatCodeSettings!.NewLineCharacter = "\n";
+                f.Configure(t, opts1196);
+                f.VerifyCompletions(t, "1", new F.CompletionsExpectedList { IsIncomplete = false, ItemDefaults = new F.CompletionsExpectedItemDefaults { CommitCharacters = U.DefaultCommitCharacters, EditRange = F.Ignored.Value }, Items = new F.CompletionsExpectedItems { Includes = [new LSP.CompletionItem { Label = "MyClass", Data = new LSP.CompletionItemData { AutoImport = new LSP.AutoImportFix { ModuleSpecifier = "mylib" } }, AdditionalTextEdits = F.FourslashTest.AnyTextEdits, SortText = LS.SortTextAutoImportSuggestions }] } });
+                f.VerifyApplyCodeActionFromCompletion(t, "1", new F.ApplyCodeActionFromCompletionOptions { Name = "MyClass", Source = "mylib", Description = "Add import from \"mylib\"", AutoImportFix = new LSP.AutoImportFix {  }, UserPreferences = null!, NewFileContent = "import { MyClass } from \"mylib\";\n\nconst a = new MyClass();\nconst b = new MyClass2();" });
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

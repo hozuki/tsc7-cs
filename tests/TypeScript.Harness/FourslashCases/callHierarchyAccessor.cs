@@ -13,8 +13,8 @@ internal static class CallHierarchyAccessorCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "function foo() {\n    new C().bar;\n}\n\nclass C {\n    get /**/bar() {\n        return baz();\n    }\n}\n\nfunction baz() {\n}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("function foo() {\n    new C().bar;\n}\n\nclass C {\n    get /**/bar() {\n        return baz();\n    }\n}\n\nfunction baz() {\n}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.GoToMarker(t, "");

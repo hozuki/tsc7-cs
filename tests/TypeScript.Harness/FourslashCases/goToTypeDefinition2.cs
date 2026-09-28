@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition2Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: goToTypeDefinition2_Definition.ts\ninterface /*definition*/I1 {\n    p;\n}\ntype propertyType = I1;\ninterface I2 {\n    property: propertyType;\n}\n// @Filename: goToTypeDefinition2_Consumption.ts\nvar i2: I2;\ni2.prop/*reference*/erty;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: goToTypeDefinition2_Definition.ts\ninterface /*definition*/I1 {\n    p;\n}\ntype propertyType = I1;\ninterface I2 {\n    property: propertyType;\n}\n// @Filename: goToTypeDefinition2_Consumption.ts\nvar i2: I2;\ni2.prop/*reference*/erty;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference");

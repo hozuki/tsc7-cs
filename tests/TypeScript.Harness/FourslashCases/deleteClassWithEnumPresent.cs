@@ -13,8 +13,8 @@ internal static class DeleteClassWithEnumPresentCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "enum Foo { a, b, c }\n/**/class Bar { }";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("enum Foo { a, b, c }\n/**/class Bar { }"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.GoToMarker(t, "");

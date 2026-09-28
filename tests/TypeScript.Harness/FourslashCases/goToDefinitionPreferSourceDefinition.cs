@@ -14,8 +14,8 @@ internal static class GoToDefinitionPreferSourceDefinitionCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: /home/src/workspaces/project/a.js\nexport const /*sourceTarget*/a = \"a\";\n// @Filename: /home/src/workspaces/project/a.d.ts\nexport declare const /*dtsTarget*/a: string;\n// @Filename: /home/src/workspaces/project/index.ts\nimport { a } from \"./a\";\na/*start*/";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: /home/src/workspaces/project/a.js\nexport const /*sourceTarget*/a = \"a\";\n// @Filename: /home/src/workspaces/project/a.d.ts\nexport declare const /*dtsTarget*/a: string;\n// @Filename: /home/src/workspaces/project/index.ts\nimport { a } from \"./a\";\na/*start*/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToDefinition(t, false, "start");
@@ -35,8 +35,8 @@ internal static class GoToDefinitionPreferSourceDefinitionCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @moduleResolution: bundler\n// @Filename: /home/src/workspaces/project/node_modules/pkg/package.json\n{ \"name\": \"pkg\", \"main\": \"./index.js\", \"types\": \"./index.d.ts\" }\n// @Filename: /home/src/workspaces/project/node_modules/pkg/index.d.ts\nexport interface Config {\n    enabled: boolean;\n}\n// @Filename: /home/src/workspaces/project/node_modules/pkg/index.js\nexports.makeConfig = () => ({ enabled: true });\n// @Filename: /home/src/workspaces/project/index.ts\nimport type { Config } from \"pkg\";\nlet value: /*start*/Config;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @moduleResolution: bundler\n// @Filename: /home/src/workspaces/project/node_modules/pkg/package.json\n{ \"name\": \"pkg\", \"main\": \"./index.js\", \"types\": \"./index.d.ts\" }\n// @Filename: /home/src/workspaces/project/node_modules/pkg/index.d.ts\nexport interface Config {\n    enabled: boolean;\n}\n// @Filename: /home/src/workspaces/project/node_modules/pkg/index.js\nexports.makeConfig = () => ({ enabled: true });\n// @Filename: /home/src/workspaces/project/index.ts\nimport type { Config } from \"pkg\";\nlet value: /*start*/Config;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.Configure(t, new LSUP.UserPreferences { PreferGoToSourceDefinition = true });

@@ -13,8 +13,8 @@ internal static class SmartSelection_JSDocTags1Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "/**\n * @returns {Array<{ value: /**/string }>}\n */\nfunction foo() { return [] }";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("/**\n * @returns {Array<{ value: /**/string }>}\n */\nfunction foo() { return [] }"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineSelectionRanges(t);

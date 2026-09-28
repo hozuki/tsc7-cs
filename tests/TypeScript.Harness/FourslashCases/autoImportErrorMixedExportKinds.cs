@@ -13,8 +13,8 @@ internal static class AutoImportErrorMixedExportKindsCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: a.ts\nexport function foo(): number {\n\treturn 10\n}\n\nconst bar = 20;\nexport { bar as foo };\n\n// @Filename: b.ts\nfoo/**/\n";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: a.ts\nexport function foo(): number {\n\treturn 10\n}\n\nconst bar = 20;\nexport { bar as foo };\n\n// @Filename: b.ts\nfoo/**/\n"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.BaselineAutoImportsCompletions(t, [""]);

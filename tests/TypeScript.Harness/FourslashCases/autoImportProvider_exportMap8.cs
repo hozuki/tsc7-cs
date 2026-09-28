@@ -1,0 +1,36 @@
+// ported from: internal/fourslash/tests/autoImportProvider_exportMap8_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using LS = TypeScript.Ls.Ls;
+using LSP = TypeScript.LsProto;
+using TSU = TypeScript.TestUtil;
+using U = TypeScript.Harness.FourslashCases.FourslashTestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class AutoImportProvider_exportMap8Case
+{
+    public static void TestAutoImportProvider_exportMap8(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @Filename: /home/src/workspaces/project/tsconfig.json\n{\n  \"compilerOptions\": {\n    \"module\": \"nodenext\",\n    \"lib\": [\"es5\"]\n  }\n}\n// @Filename: /home/src/workspaces/project/package.json\n{\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"dependency\": \"^1.0.0\"\n  }\n}\n// @Filename: /home/src/workspaces/project/node_modules/dependency/package.json\n{\n  \"type\": \"module\",\n  \"name\": \"dependency\",\n  \"version\": \"1.0.0\",\n  \"exports\": {\n    \"./lol\": {\n      \"import\": \"./lib/index.js\",\n      \"require\": \"./lib/lol.js\"\n    }\n  }\n}\n// @Filename: /home/src/workspaces/project/node_modules/dependency/lib/index.d.ts\nexport function fooFromIndex(): void;\n// @Filename: /home/src/workspaces/project/node_modules/dependency/lib/lol.d.ts\nexport function fooFromLol(): void;\n// @Filename: /home/src/workspaces/project/src/bar.ts\nimport { fooFromIndex } from \"dependency\";\n// @Filename: /home/src/workspaces/project/src/foo.cts\nfooFrom/*cts*/\n// @Filename: /home/src/workspaces/project/src/foo.mts\nfooFrom/*mts*/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.MarkTestAsStradaServer();
+                f.GoToMarker(t, "cts");
+                f.VerifyCompletions(t, "cts", new F.CompletionsExpectedList { IsIncomplete = false, ItemDefaults = new F.CompletionsExpectedItemDefaults { CommitCharacters = U.DefaultCommitCharacters, EditRange = F.Ignored.Value }, Items = new F.CompletionsExpectedItems { Includes = [new LSP.CompletionItem { Label = "fooFromLol", Data = new LSP.CompletionItemData { AutoImport = new LSP.AutoImportFix { ModuleSpecifier = "dependency/lol" } }, SortText = LS.SortTextAutoImportSuggestions, AdditionalTextEdits = F.FourslashTest.AnyTextEdits }], Excludes = ["fooFromIndex"] } });
+                f.GoToMarker(t, "mts");
+                f.VerifyCompletions(t, "mts", new F.CompletionsExpectedList { IsIncomplete = false, ItemDefaults = new F.CompletionsExpectedItemDefaults { CommitCharacters = U.DefaultCommitCharacters, EditRange = F.Ignored.Value }, Items = new F.CompletionsExpectedItems { Includes = [new LSP.CompletionItem { Label = "fooFromIndex", Data = new LSP.CompletionItemData { AutoImport = new LSP.AutoImportFix { ModuleSpecifier = "dependency/lol" } }, SortText = LS.SortTextAutoImportSuggestions, AdditionalTextEdits = F.FourslashTest.AnyTextEdits }], Excludes = ["fooFromLol"] } });
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

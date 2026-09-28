@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition4Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: foo.ts\nexport type /*def0*/T = string;\nexport const /*def1*/T = \"\";\n// @Filename: bar.ts\nimport { T } from \"./foo\";\nlet x: [|/*reference*/T|];";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: foo.ts\nexport type /*def0*/T = string;\nexport const /*def1*/T = \"\";\n// @Filename: bar.ts\nimport { T } from \"./foo\";\nlet x: [|/*reference*/T|];"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference");

@@ -13,8 +13,8 @@ internal static class DocumentSymbolPrivateNameCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: first.ts\nclass A {\n  #foo() {\n    class B {\n      #bar() {   \n         function baz () {\n         }\n      }\n    }\n  }\n}\n\nclass B {\n\tconstructor(private prop: string) {}\n}\n\n// @Filename: second.ts\nclass Foo {\n\t#privateProp: string;\n}\n";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: first.ts\nclass A {\n  #foo() {\n    class B {\n      #bar() {   \n         function baz () {\n         }\n      }\n    }\n  }\n}\n\nclass B {\n\tconstructor(private prop: string) {}\n}\n\n// @Filename: second.ts\nclass Foo {\n\t#privateProp: string;\n}\n"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineDocumentSymbol(t);

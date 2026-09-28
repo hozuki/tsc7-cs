@@ -16,11 +16,11 @@ internal static class InlayHintsCrash1Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @allowJs: true\n// @checkJs: true\n// @Filename: foo.js\n/**\n * @param {function(string): boolean} f\n */\nfunction doThing(f) {\n    f(100)\n}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @allowJs: true\n// @checkJs: true\n// @Filename: foo.js\n/**\n * @param {function(string): boolean} f\n */\nfunction doThing(f) {\n    f(100)\n}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
-                f.VerifyBaselineInlayHints(t, null, new LSUP.UserPreferences { InlayHints = new LSUP.InlayHintsPreferences { IncludeInlayVariableTypeHints = TRI.TSTrue, IncludeInlayParameterNameHints = LSU.IncludeInlayParameterNameHintsAll } });
+                f.VerifyBaselineInlayHints(t, null!, new LSUP.UserPreferences { InlayHints = new LSUP.InlayHintsPreferences { IncludeInlayVariableTypeHints = TRI.TSTrue, IncludeInlayParameterNameHints = LSU.IncludeInlayParameterNameHintsAll } });
             }
             finally
             {

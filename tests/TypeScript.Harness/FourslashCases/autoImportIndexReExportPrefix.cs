@@ -15,8 +15,8 @@ internal static class AutoImportIndexReExportPrefixCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @module: nodenext\n// @Filename: /package.json\n{ \"type\": \"module\" }\n// @Filename: /utils/sum/index.ts\nexport { sum } from \"./sum.js\";\n// @Filename: /utils/sum/sum.ts\nexport const sum = 0;\n// @Filename: /utils/sumAB.ts\nsum/**/";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @module: nodenext\n// @Filename: /package.json\n{ \"type\": \"module\" }\n// @Filename: /utils/sum/index.ts\nexport { sum } from \"./sum.js\";\n// @Filename: /utils/sum/sum.ts\nexport const sum = 0;\n// @Filename: /utils/sumAB.ts\nsum/**/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyImportFixModuleSpecifiers(t, "", ["./sum/index.js", "./sum/sum.js"], new LSUP.UserPreferences { ImportModuleSpecifierEnding = (MS.ImportModuleSpecifierEndingPreference)("js") });

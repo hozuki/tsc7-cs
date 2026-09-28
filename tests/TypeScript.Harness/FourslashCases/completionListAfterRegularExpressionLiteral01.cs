@@ -16,8 +16,8 @@ internal static class CompletionListAfterRegularExpressionLiteral01Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5\nlet v = 100;\n/a/./**/";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5\nlet v = 100;\n/a/./**/"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyCompletions(t, "", new F.CompletionsExpectedList { IsIncomplete = false, ItemDefaults = new F.CompletionsExpectedItemDefaults { CommitCharacters = U.DefaultCommitCharacters, EditRange = F.Ignored.Value }, Items = new F.CompletionsExpectedItems { Unsorted = ["exec", "test", "source", "global", "ignoreCase", "multiline", "lastIndex", new LSP.CompletionItem { Label = "compile", SortText = LS.DeprecateSortText(LS.SortTextLocationPriority), Tags = [LSP.CompletionItemTag.Deprecated] }] } });

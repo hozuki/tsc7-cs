@@ -1,0 +1,29 @@
+// ported from: internal/fourslash/tests/codeFixAddMissingAttributes10_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class CodeFixAddMissingAttributes10Case
+{
+    public static void TestCodeFixAddMissingAttributes10(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @jsx: preserve\n// @filename: foo.tsx\ntype A = 'a' | 'b' | 'c' | 'd' | 'e';\ntype B = 1 | 2 | 3;\ntype C = '@' | '!';\ntype D = `${A}${Uppercase<A>}${B}${C}`;\nconst A = (props: { [K in D]: K }) =>\n   <div {...props}></div>;\n\nconst Bar = () =>\n   [|<A></A>|]"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.VerifyCodeFixNotAvailable(t, "fixMissingAttributes");
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

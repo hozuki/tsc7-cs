@@ -13,8 +13,8 @@ internal static class GoToTypeDefinitionEnumMembersCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "enum E {\n    value1,\n    /*definition*/value2\n}\nvar x = E.value2;\n\n/*reference*/x;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("enum E {\n    value1,\n    /*definition*/value2\n}\nvar x = E.value2;\n\n/*reference*/x;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference");

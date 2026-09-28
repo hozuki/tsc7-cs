@@ -281,7 +281,10 @@ public sealed partial class FourslashTest
     }
 
     /// <summary>Go: <c>func (f *FourslashTest) VerifyDiagnostics(t *testing.T, expected []*lsproto.Diagnostic)</c>（fourslash.go:5452-5454）。</summary>
-    public void VerifyDiagnostics(IHarnessTest t, LspDiagnostic[] expected)
+    /// <remarks>非 Go 源（对端缺陷修复）：Go 的 expected 是切片，nil 与空切片同义（len(nil)==0、range nil 不迭代）；
+    /// C# 的 <c>T[]</c> 形参在收到 <c>null</c> 时会 NRE。故这里把参数声明成可空，
+    /// 并在 <see cref="VerifyDiagnosticsCore"/> 里按 Go 的语义归一为 <c>[]</c>（fourslash.go:5448）。</remarks>
+    public void VerifyDiagnostics(IHarnessTest t, LspDiagnostic[]? expected)
     {
         VerifyDiagnosticsCore(t, expected, static _ => true);
     }
@@ -290,7 +293,7 @@ public sealed partial class FourslashTest
     /// Similar to `VerifyDiagnostics`, but excludes suggestion diagnostics returned from server.
     /// Go: <c>func (f *FourslashTest) VerifyNonSuggestionDiagnostics</c>（fourslash.go:5456-5459）。
     /// </summary>
-    public void VerifyNonSuggestionDiagnostics(IHarnessTest t, LspDiagnostic[] expected)
+    public void VerifyNonSuggestionDiagnostics(IHarnessTest t, LspDiagnostic[]? expected)
     {
         VerifyDiagnosticsCore(t, expected, static d => !IsSuggestionDiagnostic(d));
     }
@@ -299,14 +302,16 @@ public sealed partial class FourslashTest
     /// Similar to `VerifyDiagnostics`, but includes only suggestion diagnostics returned from server.
     /// Go: <c>func (f *FourslashTest) VerifySuggestionDiagnostics</c>（fourslash.go:5461-5464）。
     /// </summary>
-    public void VerifySuggestionDiagnostics(IHarnessTest t, LspDiagnostic[] expected)
+    public void VerifySuggestionDiagnostics(IHarnessTest t, LspDiagnostic[]? expected)
     {
         VerifyDiagnosticsCore(t, expected, IsSuggestionDiagnostic);
     }
 
     /// <summary>Go: <c>func (f *FourslashTest) verifyDiagnostics(t, expected, filterDiagnostics)</c>（fourslash.go:5466-5488）。</summary>
-    internal void VerifyDiagnosticsCore(IHarnessTest t, LspDiagnostic[] expected, Func<LspDiagnostic?, bool> filterDiagnostics)
+    internal void VerifyDiagnosticsCore(IHarnessTest t, LspDiagnostic[]? expected, Func<LspDiagnostic?, bool> filterDiagnostics)
     {
+        // Go 的 nil 切片 == 空切片（fourslash.go:5448 的  + ）。
+        expected ??= [];
         var actualDiagnostics = GetDiagnostics(t, _activeFilename);
         actualDiagnostics = Filter(actualDiagnostics, filterDiagnostics);
         var emptyRange = new Range();

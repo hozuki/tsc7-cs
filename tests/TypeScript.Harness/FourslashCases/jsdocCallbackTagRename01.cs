@@ -1,0 +1,30 @@
+// ported from: internal/fourslash/tests/jsdocCallbackTagRename01_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class JsdocCallbackTagRename01Case
+{
+    public static void TestJsdocCallbackTagRename01(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @lib: es5\n// @allowNonTsExtensions: true\n// @Filename: jsDocCallback.js\n\n/**\n * [|@callback [|{| \"contextRangeIndex\": 0 |}FooCallback|]\n * @param {string} eventName - Rename should work\n |]*/\n\n/** @type {/*1*/[|FooCallback|]} */\nvar t;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.MarkTestAsStradaServer();
+                f.VerifyBaselineRename(t, null!, f.Ranges()[1]);
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

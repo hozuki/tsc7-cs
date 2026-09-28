@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition_typedefCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @allowJs: true\n// @Filename: /a.js\n/**\n * /*def*/@typedef {object} I\n * @property {number} x\n */\n\n/** @type {I} */\nconst /*ref*/i = { x: 0 };";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @allowJs: true\n// @Filename: /a.js\n/**\n * /*def*/@typedef {object} I\n * @property {number} x\n */\n\n/** @type {I} */\nconst /*ref*/i = { x: 0 };"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "ref");

@@ -1,0 +1,30 @@
+// ported from: internal/fourslash/tests/findAllRefsOfConstructor_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class FindAllRefsOfConstructorCase
+{
+    public static void TestFindAllRefsOfConstructor(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("class A {\n    /*aCtr*/constructor(s: string) {}\n}\nclass B extends A { }\nclass C extends B {\n    /*cCtr*/constructor() {\n        super(\"\");\n    }\n}\nclass D extends B { }\nclass E implements A { }\nconst a = new A(\"a\");\nconst b = new B(\"b\");\nconst c = new C();\nconst d = new D(\"d\");\nconst e = new E();"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.VerifyNoErrors(t);
+                f.VerifyBaselineFindAllReferences(t, "aCtr", "cCtr");
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

@@ -13,8 +13,8 @@ internal static class AmbientShorthandFindAllRefsCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: declarations.d.ts\ndeclare module \"jquery\";\n// @Filename: user.ts\nimport {/*1*/x} from \"jquery\";\n// @Filename: user2.ts\nimport {/*2*/x} from \"jquery\";";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: declarations.d.ts\ndeclare module \"jquery\";\n// @Filename: user.ts\nimport {/*1*/x} from \"jquery\";\n// @Filename: user2.ts\nimport {/*2*/x} from \"jquery\";"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineFindAllReferences(t, "1", "2");

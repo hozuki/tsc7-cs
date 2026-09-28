@@ -14,7 +14,7 @@ internal static class QuickInfoCommentsFunctionDeclarationVSCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "/** This comment should appear for foo*/\nfunction f/*1*/oo() {\n}\nf/*2*/oo();\n/** This is comment for function signature*/\nfunction fo/*5*/oWithParameters(/** this is comment about a*/a: string,\n    /** this is comment for b*/\n    b: number) {\n    var /*6*/d = a;\n}\nfooWithParam/*8*/eters(\"a\",10);\n/**\n* Does something\n* @param a a string\n*/\ndeclare function fn(a: string);\nfn(\"hello\");";
+            var content = FourslashCaseContent.U8("/** This comment should appear for foo*/\nfunction f/*1*/oo() {\n}\nf/*2*/oo();\n/** This is comment for function signature*/\nfunction fo/*5*/oWithParameters(/** this is comment about a*/a: string,\n    /** this is comment for b*/\n    b: number) {\n    var /*6*/d = a;\n}\nfooWithParam/*8*/eters(\"a\",10);\n/**\n* Does something\n* @param a a string\n*/\ndeclare function fn(a: string);\nfn(\"hello\");"u8);
             var (f, done) = F.Fourslash.NewFourslash(t, new LSP.ClientCapabilities { VSSupportsVisualStudioExtensions = true }, content);
             try
             {

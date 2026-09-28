@@ -1,0 +1,30 @@
+// ported from: internal/fourslash/tests/signatureHelpJSDocTagsVS_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using LSP = TypeScript.LsProto;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class SignatureHelpJSDocTagsVSCase
+{
+    public static void TestSignatureHelpJSDocTagsVS(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("/**\n * This is class Foo.\n * @mytag comment1 comment2\n */\nclass Foo {\n    /**\n     * This is the constructor.\n     * @myjsdoctag this is a comment\n     */\n    constructor(value: number) {}\n    /**\n     * method1 documentation\n     * @mytag comment1 comment2\n     */\n    static method1() {}\n    /**\n     * @mytag\n     */\n    method2() {}\n    /**\n     * @mytag comment1 comment2\n     */\n    property1: string;\n    /**\n     * @mytag1 some comments\n     * some more comments about mytag1\n     * @mytag2\n     * here all the comments are on a new line\n     * @mytag3\n     * @mytag\n     */\n    property2: number;\n    /**\n     * @returns {number} a value\n     */\n    method3(): number { return 3; }\n    /**\n     * @param {string} foo A value.\n     * @returns {number} Another value\n     * @mytag\n     */\n    method4(foo: string): number { return 3; }\n    /** @mytag */\n    method5() {}\n    /** method documentation\n     *  @mytag a JSDoc tag\n     */\n    newMethod() {}\n}\nvar foo = new Foo(/*10*/4);\nFoo.method1(/*11*/);\nfoo.method2(/*12*/);\nfoo.method3(/*13*/);\nfoo.method4();\nfoo.property1;\nfoo.property2;\nfoo.method5();\nfoo.newMet"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, new LSP.ClientCapabilities { VSSupportsVisualStudioExtensions = true }, content);
+            try
+            {
+                f.VerifyBaselineSignatureHelp(t);
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

@@ -13,8 +13,8 @@ internal static class GoToTypeDefinition_typeReferenceCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "type User = { name: string };\ntype Box<T> = { value: T };\ndeclare const boxedUser: Box<User>\n/*reference*/boxedUser";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("type User = { name: string };\ntype Box<T> = { value: T };\ndeclare const boxedUser: Box<User>\n/*reference*/boxedUser"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference");

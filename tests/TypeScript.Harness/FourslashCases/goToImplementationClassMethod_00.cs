@@ -13,8 +13,8 @@ internal static class GoToImplementationClassMethod_00Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "class Bar {\n    [|{|\"parts\": [\"(\",\"method\",\")\",\" \",\"Bar\",\".\",\"hello\",\"(\",\")\",\":\",\" \",\"void\"], \"kind\": \"method\"|}hello|]() {}\n}\n\nnew Bar().hel/*reference*/lo;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("class Bar {\n    [|{|\"parts\": [\"(\",\"method\",\")\",\" \",\"Bar\",\".\",\"hello\",\"(\",\")\",\":\",\" \",\"void\"], \"kind\": \"method\"|}hello|]() {}\n}\n\nnew Bar().hel/*reference*/lo;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToImplementation(t, "reference");

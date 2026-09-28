@@ -1,0 +1,29 @@
+// ported from: internal/fourslash/tests/goToDefinitionDifferentFile_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class GoToDefinitionDifferentFileCase
+{
+    public static void TestGoToDefinitionDifferentFile(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @Filename: goToDefinitionDifferentFile_Definition.ts\nvar /*remoteVariableDefinition*/remoteVariable;\nfunction /*remoteFunctionDefinition*/remoteFunction() { }\nclass /*remoteClassDefinition*/remoteClass { }\ninterface /*remoteInterfaceDefinition*/remoteInterface{ }\nmodule /*remoteModuleDefinition*/remoteModule{ export var foo = 1;}\n// @Filename: goToDefinitionDifferentFile_Consumption.ts\n/*remoteVariableReference*/remoteVariable = 1;\n/*remoteFunctionReference*/remoteFunction();\nvar foo = new /*remoteClassReference*/remoteClass();\nclass fooCls implements /*remoteInterfaceReference*/remoteInterface { }\nvar fooVar = /*remoteModuleReference*/remoteModule.foo;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.VerifyBaselineGoToDefinition(t, false, "remoteVariableReference", "remoteFunctionReference", "remoteClassReference", "remoteInterfaceReference", "remoteModuleReference");
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

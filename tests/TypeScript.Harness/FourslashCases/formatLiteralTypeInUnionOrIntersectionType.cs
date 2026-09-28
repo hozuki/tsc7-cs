@@ -1,0 +1,30 @@
+// ported from: internal/fourslash/tests/formatLiteralTypeInUnionOrIntersectionType_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class FormatLiteralTypeInUnionOrIntersectionTypeCase
+{
+    public static void TestFormatLiteralTypeInUnionOrIntersectionType(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("type NumberAndString = {\n    a: number\n} & {\n    b: string\n};\n\ntype NumberOrString = {\n    a: number\n} | {\n    b: string\n};\n\ntype Complexed =\n    Foo &\n    Bar |\n    Baz;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.FormatDocument(t, "");
+                f.VerifyCurrentFileContent(t, "type NumberAndString = {\n    a: number\n} & {\n    b: string\n};\n\ntype NumberOrString = {\n    a: number\n} | {\n    b: string\n};\n\ntype Complexed =\n    Foo &\n    Bar |\n    Baz;");
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

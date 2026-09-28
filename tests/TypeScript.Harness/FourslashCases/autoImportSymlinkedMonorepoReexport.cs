@@ -1,0 +1,35 @@
+// ported from: internal/fourslash/tests/autoImportSymlinkedMonorepoReexport_test.go
+// 本文件由 artifacts/fourslash-gen/gen.mjs 机械生成（不手工编辑）。
+// 偏离清单：无（用例体逐条对应 Go 原文；`defer done()` → try/finally，`defer testutil.RecoverAndFail` → 包裹 lambda）。
+using F = TypeScript.Harness.Fourslash;
+using LSU = TypeScript.LsUtil.LsUtil;
+using TRI = TypeScript.Core.Tristate;
+using TSU = TypeScript.TestUtil;
+
+namespace TypeScript.Harness.FourslashCases;
+
+internal static class AutoImportSymlinkedMonorepoReexportCase
+{
+    public static void TestAutoImportSymlinkedMonorepoReexport(TSU.IHarnessTest t)
+    {
+        t.Parallel();
+        TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
+        {
+            var content = FourslashCaseContent.U8("// @Filename: /packages/project-b/tsconfig.json\n{\n  \"compilerOptions\": {\n    \"composite\": true,\n    \"outDir\": \"./dist\",\n    \"rootDir\": \"./src\",\n    \"declaration\": true,\n    \"module\": \"commonjs\",\n    \"strict\": true\n  },\n  \"include\": [\"src\"]\n}\n// @Filename: /packages/project-b/package.json\n{\n  \"name\": \"project-b\",\n  \"version\": \"1.0.0\",\n  \"main\": \"dist/index.js\",\n  \"types\": \"dist/index.d.ts\"\n}\n// @Filename: /packages/project-b/src/utils/foo.ts\nexport function projectBFunction(): string { return \"hello\"; }\n// @Filename: /packages/project-b/src/index.ts\nexport * from './utils/foo';\nexport const projectBValue: number = 42;\n// @Filename: /packages/project-b/dist/utils/foo.d.ts\nexport declare function projectBFunction(): string;\n// @Filename: /packages/project-b/dist/index.d.ts\nexport * from './utils/foo';\nexport declare const projectBValue: number;\n// @Filename: /packages/project-a/tsconfig.json\n{\n  \"compilerOptions\": {\n    \"module\": \"commonjs\",\n    \"strict\": true,\n    \"outDir\": \"./dist\",\n    \"rootDir\": \"./src\"\n  },\n  \"include\": [\"src\"],\n  \"references\": [{ \"path\": \"../project-b\" }]\n}\n// @Filename: /packages/project-a/package.json\n{ \"name\": \"project-a\", \"dependencies\": { \"project-b\": \"*\" } }\n// @Filename: /packages/project-a/src/index.ts\nimport { projectBValue } from \"project-b\";\nconsole.log(projectBValue);\nprojectBFunction/**/\n// @link: /packages/project-b -> /packages/project-a/node_modules/project-b"u8);
+            var prefs = LSU.NewDefaultUserPreferences();
+            prefs!.AutoImportEntrypointDirectorySearch = TRI.TSTrue;
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
+            try
+            {
+                f.Configure(t, prefs);
+                f.GoToMarker(t, "");
+                f.VerifyImportFixAtPosition(t, ["import { projectBFunction, projectBValue } from \"project-b\";\nconsole.log(projectBValue);\nprojectBFunction", "import { projectBValue } from \"project-b\";\nimport { projectBFunction } from \"project-b/src/utils/foo\";\nconsole.log(projectBValue);\nprojectBFunction"], null!);
+            }
+            finally
+            {
+                done();
+            }
+        });
+    }
+
+}

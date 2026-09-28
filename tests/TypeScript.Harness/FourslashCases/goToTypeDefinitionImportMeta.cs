@@ -13,8 +13,8 @@ internal static class GoToTypeDefinitionImportMetaCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5\n// @module: esnext\n// @Filename: foo.ts\n/// <reference path='./bar.d.ts' />\nimport.me/*reference*/ta;\n//@Filename: bar.d.ts\ninterface /*definition*/ImportMeta {\n}";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5\n// @module: esnext\n// @Filename: foo.ts\n/// <reference path='./bar.d.ts' />\nimport.me/*reference*/ta;\n//@Filename: bar.d.ts\ninterface /*definition*/ImportMeta {\n}"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference");

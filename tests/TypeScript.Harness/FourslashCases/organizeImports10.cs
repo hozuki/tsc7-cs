@@ -14,11 +14,11 @@ internal static class OrganizeImports10Case
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: /module.ts\nimport type { ZodType } from './declaration';\n\n/** Intended to be used in combination with {@link ZodType} */\nexport function fun() { /* ... */ }\n// @Filename: /declaration.ts\n type ZodType = {};\n export type { ZodType }";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: /module.ts\nimport type { ZodType } from './declaration';\n\n/** Intended to be used in combination with {@link ZodType} */\nexport function fun() { /* ... */ }\n// @Filename: /declaration.ts\n type ZodType = {};\n export type { ZodType }"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
-                f.VerifyOrganizeImports(t, "import type { ZodType } from './declaration';\n\n/** Intended to be used in combination with {@link ZodType} */\nexport function fun() { /* ... */ }", LSP.CodeActionKind.SourceOrganizeImportsTs, null);
+                f.VerifyOrganizeImports(t, "import type { ZodType } from './declaration';\n\n/** Intended to be used in combination with {@link ZodType} */\nexport function fun() { /* ... */ }", LSP.CodeActionKind.SourceOrganizeImportsTs, null!);
             }
             finally
             {

@@ -16,8 +16,8 @@ internal static class CommentsEnumsFourslashCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "/** Enum of colors*/\nenum /*1*/Colors {\n    /** Fancy name for 'blue'*/\n    /*2*/Cornflower,\n    /** Fancy name for 'pink'*/\n    /*3*/FancyPink\n}\nvar /*4*/x = /*5*/Colors./*6*/Cornflower;\nx = Colors./*7*/FancyPink;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("/** Enum of colors*/\nenum /*1*/Colors {\n    /** Fancy name for 'blue'*/\n    /*2*/Cornflower,\n    /** Fancy name for 'pink'*/\n    /*3*/FancyPink\n}\nvar /*4*/x = /*5*/Colors./*6*/Cornflower;\nx = Colors./*7*/FancyPink;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyQuickInfoAt(t, "1", "enum Colors", "Enum of colors");

@@ -13,8 +13,8 @@ internal static class GoToSource11_propertyOfAliasCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @lib: es5\n// @moduleResolution: bundler\n// @Filename: /home/src/workspaces/project/a.js\nexport const a = { /*end*/a: 'a' };\n// @Filename: /home/src/workspaces/project/a.d.ts\nexport declare const a: { a: string };\n// @Filename: /home/src/workspaces/project/b.ts\nimport { a } from './a';\na.[|a/*start*/|]";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @lib: es5\n// @moduleResolution: bundler\n// @Filename: /home/src/workspaces/project/a.js\nexport const a = { /*end*/a: 'a' };\n// @Filename: /home/src/workspaces/project/a.d.ts\nexport declare const a: { a: string };\n// @Filename: /home/src/workspaces/project/b.ts\nimport { a } from './a';\na.[|a/*start*/|]"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.MarkTestAsStradaServer();

@@ -13,8 +13,8 @@ internal static class GoToTypeDefinitionAliasesCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: goToTypeDefinitioAliases_module1.ts\ninterface /*definition*/I {\n    p;\n}\nexport {I as I2};\n// @Filename: goToTypeDefinitioAliases_module2.ts\nimport {I2 as I3} from \"./goToTypeDefinitioAliases_module1\";\nvar v1: I3;\nexport {v1 as v2};\n// @Filename: goToTypeDefinitioAliases_module3.ts\nimport {/*reference1*/v2 as v3} from \"./goToTypeDefinitioAliases_module2\";\n/*reference2*/v3;";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: goToTypeDefinitioAliases_module1.ts\ninterface /*definition*/I {\n    p;\n}\nexport {I as I2};\n// @Filename: goToTypeDefinitioAliases_module2.ts\nimport {I2 as I3} from \"./goToTypeDefinitioAliases_module1\";\nvar v1: I3;\nexport {v1 as v2};\n// @Filename: goToTypeDefinitioAliases_module3.ts\nimport {/*reference1*/v2 as v3} from \"./goToTypeDefinitioAliases_module2\";\n/*reference2*/v3;"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
                 f.VerifyBaselineGoToTypeDefinition(t, "reference1", "reference2");

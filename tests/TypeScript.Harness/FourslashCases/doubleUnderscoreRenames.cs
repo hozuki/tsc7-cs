@@ -13,11 +13,11 @@ internal static class DoubleUnderscoreRenamesCase
         t.Parallel();
         TSU.TestUtil.RecoverAndFail(t, "Panic on fourslash test", () =>
         {
-            var content = "// @Filename: fileA.ts\n[|export function [|{| \"contextRangeIndex\": 0 |}__foo|]() {\n}|]\n\n// @Filename: fileB.ts\n[|import { [|{| \"contextRangeIndex\": 2 |}__foo|] as bar } from \"./fileA\";|]\n\nbar();";
-            var (f, done) = F.Fourslash.NewFourslash(t, null, content);
+            var content = FourslashCaseContent.U8("// @Filename: fileA.ts\n[|export function [|{| \"contextRangeIndex\": 0 |}__foo|]() {\n}|]\n\n// @Filename: fileB.ts\n[|import { [|{| \"contextRangeIndex\": 2 |}__foo|] as bar } from \"./fileA\";|]\n\nbar();"u8);
+            var (f, done) = F.Fourslash.NewFourslash(t, null!, content);
             try
             {
-                f.VerifyBaselineRenameAtRangesWithText(t, null, "__foo");
+                f.VerifyBaselineRenameAtRangesWithText(t, null!, "__foo");
             }
             finally
             {
