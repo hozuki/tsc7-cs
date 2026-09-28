@@ -1,0 +1,21 @@
+{
+  "servers": {
+    "csharp": {
+      "command": "dotnet",
+      "args": [
+        "dnx",
+        "roslyn-language-server",
+        "--yes",
+        "--prerelease",
+        "--",
+        "--stdio",
+        "--daemon-mode",
+        "--autoLoadProjects"
+      ],
+      "fileTypes": [".cs"],
+      "languageId": "csharp",
+      "rootMarkers": ["*.slnx", "*.sln", "*.csproj"],
+      "warmupTimeoutMs": 180000
+    }
+  }
+}
