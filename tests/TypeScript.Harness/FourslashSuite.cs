@@ -22,7 +22,8 @@ using TypeScript.TestUtil.Baseline;
 internal static class FourslashSuite
 {
     /// <summary>返回进程退出码（0 = 全绿）。</summary>
-    public static int Run(string[] caseFilters, int limit, int offset, int maxDiffs, bool listOnly)
+    /// <param name="caseTimeoutSeconds">单用例超时秒数（0 = 不启用）；见 <see cref="HarnessProgress"/>。</param>
+    public static int Run(string[] caseFilters, int limit, int offset, int maxDiffs, bool listOnly, int caseTimeoutSeconds)
     {
         var all = FourslashCaseRegistry.All;
         var selected = new List<(string Name, Action<IHarnessTest> Body)>();
@@ -80,13 +81,19 @@ internal static class FourslashSuite
             Directory.CreateDirectory(trackingDir);
         }
 
-        HarnessProgress.Configure(0, selected.Count);
+        // 进度与单用例超时看门狗（仅集成观测；--case-timeout 0 表示不启用，与 compiler/transpile 套件共用实现）。
+        HarnessProgress.Configure(caseTimeoutSeconds, selected.Count);
         var trackingCleanup = Baseline.Track();
         try
         {
             foreach (var (name, body) in selected)
             {
+                // 逐用例进度 + 看门狗：卡死时能立刻知道是**哪个**用例（先前只有两行汇总输出，挂住就无从定位）。
+                HarnessProgress.BeginCase("fourslash", name);
+                var caseWatch = System.Diagnostics.Stopwatch.StartNew();
                 root.Run(name, body);
+                caseWatch.Stop();
+                HarnessProgress.EndCase("fourslash", name, caseWatch.Elapsed.TotalMilliseconds);
             }
         }
         finally

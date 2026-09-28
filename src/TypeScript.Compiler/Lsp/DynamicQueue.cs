@@ -26,6 +26,17 @@
 //
 // 5) Go 的 `state.items[0] = zero` + `state.items = state.items[1:]` 是"清掉引用后前移"；C# 的
 //    `Queue<T>.Dequeue()` 同样会把腾出的槽位清成 `default`，语义一致。
+//
+// 6) **`Get` 里 Register/Dispose 取消回调必须在锁外做（本文件修过的一处死锁）**。Go 的
+//    `select { case q.ready: …; case ctx.Done(): … }` 是 channel 操作，取消只是"关闭 Done channel"，
+//    任何线程都不会因为取消而阻塞在别的锁上。C# 侧的等价物是 `CancellationToken.Register` + `Monitor`，
+//    而 **`CancellationTokenSource.Cancel()` 是在取消线程上同步执行回调的**：回调要拿 `_mu` 来唤醒等待者，
+//    所以如果"等待者"是在持有 `_mu` 的情况下 Register/Dispose，就会与取消线程互相等待：
+//      取消线程：Cancel() → 执行回调 → 等 `_mu`
+//      等待者  ：持有 `_mu` → Register/Dispose → CTS 内部等"回调批次跑完"
+//    实测（fourslash 偶发死锁，`dotnet-stack report` 抓到两边栈）正是这条环。因此 `Get` 的结构改成
+//    "锁外 Register → 锁内复查 → Monitor.Wait"，且 `_mu` 内不做任何 CTS 操作。`Put` 不涉及 Register，
+//    不受影响。
 using TypeScript.Core;
 
 namespace TypeScript.Lsp;
@@ -72,31 +83,41 @@ internal sealed class DynamicQueue<T>
     /// </summary>
     internal T Get(Context ctx)
     {
-        lock (_mu)
+        var token = ctx.CancellationToken;
+        while (true)
         {
-            while (_items.Count == 0)
+            if (token.IsCancellationRequested)
             {
-                if (ctx.CancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException(token);
+            }
+
+            // **必须在锁外** Register / Dispose（见文件头第 6 条：锁内做这件事会与"取消线程正在跑回调"
+            // 形成循环等待，实测会把整个 harness 挂死）。
+            using var registration = token.Register(_pulseAll, _mu);
+
+            lock (_mu)
+            {
+                if (_items.Count > 0)
                 {
-                    throw new OperationCanceledException(ctx.CancellationToken);
+                    return _items.Dequeue();
+                }
+
+                // Register 之前/期间就已被取消时，回调已经跑过（不会再有 Pulse），必须在这里再查一次。
+                if (token.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(token);
                 }
 
                 // Go 的 `select { case <-q.ready: …; case <-ctx.Done(): … }`：等"有数据"或"取消"。
-                // 已取消时 Register 会同步调用回调（可重入地抢到同一把锁），因此下面的重查是必需的。
-                using var registration = ctx.CancellationToken.Register(
-                    static state => { lock (state!) { Monitor.PulseAll(state); } },
-                    _mu);
-                if (_items.Count > 0)
-                {
-                    break;
-                }
-
+                // `Monitor.Wait` 会原子地释放 `_mu`，所以"重查 + Wait"之间不会有丢失的 Pulse（Put/回调都要 `_mu`）。
                 Monitor.Wait(_mu);
             }
-
-            return _items.Dequeue();
         }
     }
+
+    /// <summary>取消回调：唤醒所有等待者（要拿 `_mu`，所以调用方绝不能持有 `_mu` 时 Register，见文件头第 6 条）。</summary>
+    private static readonly Action<object?> _pulseAll =
+        static state => { lock (state!) { Monitor.PulseAll(state); } };
 }
 
 /// <summary>Go 的 <c>internal/lsp</c> 包级函数（本文件只有 dynamic_queue.go 的那一个）。</summary>

@@ -1035,8 +1035,32 @@ expected line: "{expectedContent}"
 
         // Wait for the initial configuration exchange to complete
         // The server will send workspace/configuration as part of handleInitialized
-        _client.Server.InitComplete.Wait();
+        //
+        // 非 Go 源（偏离 Go）：Go 侧这里是 `<-f.client.Server.InitComplete()`，**无上限**地等一个 channel；
+        // 服务端若在 handleInitialized 之前退出/被取消，这个信号永远不来，Go 由 `go test -timeout` 的
+        // goroutine dump 兜底（10 分钟后报告"测试超时"）。C# 没有等价兜底 ⇒ 整个 harness 会永久挂死。
+        // 因此这里带一个上限，并在超时时打印**两侧的状态**（客户端是否已取消/失败、服务端的退出原因），
+        // 让"偶发死锁"变成一条可定位的用例失败。
+        using (TypeScript.TestRunner.HarnessProgress.Wait("test thread waiting for the server's InitComplete signal"))
+        {
+            if (!_client.Server.InitComplete.Wait(_initCompleteTimeout))
+            {
+                t.Fatal(
+                    $"the LSP server never signalled initComplete within {_initCompleteTimeout.TotalSeconds}s "
+                    + $"(client context cancelled={_client.Context.IsCancellationRequested}, "
+                    + $"client failure={Describe(_client.Failure)}, "
+                    + $"server exit error={Describe(_client.Server.ExitError)})");
+            }
+        }
     }
+
+    /// <summary>非 Go 源：<c>InitComplete</c> 等待的上限（见 <see cref="Initialize"/>）。单个用例正常的初始化
+    /// 只需几十毫秒，30 秒足够宽松；一旦超时说明是死锁，不是慢。</summary>
+    private static readonly TimeSpan _initCompleteTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>非 Go 源：把诊断用异常渲染成一行（异常消息里可能带换行）。</summary>
+    private static string Describe(Exception? error) =>
+        error is null ? "<none>" : $"{error.GetType().Name}: {error.Message.ReplaceLineEndings(" | ")}";
 }
 
 /// <summary>Go: <c>type scriptInfo struct</c>（fourslash.go:75-80）。LSP 侧的脚本内容 + 行表 + 版本。</summary>

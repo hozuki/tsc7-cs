@@ -13,6 +13,7 @@ namespace TypeScript.Harness;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
+using TypeScript.TestRunner;
 using TypeScript.TestUtil;
 
 /// <summary>一次运行的失败/跳过记录（父子共享）。</summary>
@@ -173,7 +174,12 @@ public sealed class HarnessTest : IHarnessTest
             {
                 captured = ExceptionDispatchInfo.Capture(ex);
             }
-        }, _stackSize);
+        }, _stackSize)
+        {
+            Name = "tsgo-harness-case",
+        };
+        // 非 Go 源：登记给 --case-timeout 的看门狗，超时时能 dump 出"卡在这个用例的哪一行"。
+        HarnessProgress.RegisterThread(thread);
         thread.Start();
         thread.Join();
         captured?.Throw();

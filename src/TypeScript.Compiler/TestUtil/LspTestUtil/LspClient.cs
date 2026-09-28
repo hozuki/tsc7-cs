@@ -208,6 +208,13 @@ public sealed class LSPClient
     private volatile Exception? _serverError;
     private volatile Exception? _routerError;
 
+    /// <summary>非 Go 源（诊断用）：本客户端的取消令牌（Go 的未导出字段 <c>c.ctx</c>）。用例在等
+    /// <c>InitComplete</c> 这类**不可取消**的信号时，用它判断"客户端这一侧是不是已经失败/被取消了"。</summary>
+    internal CancellationToken Context => _ctx;
+
+    /// <summary>非 Go 源（诊断用）：泵线程里记录下来的失败（非 null 说明会话已经不可用）。</summary>
+    internal Exception? Failure => _routerError ?? _serverError;
+
     private LSPClient()
     {
     }
@@ -253,6 +260,7 @@ public sealed class LSPClient
             catch (Exception e)
             {
                 client._serverError = e;
+                TypeScript.TestRunner.HarnessProgress.Note($"client server thread caught {e.GetType().Name}: {e.Message}");
 
                 // Go 的 errgroup.WithContext：任一 goroutine 返回非 nil error 会取消派生的 ctx，
                 // 于是等待响应的 waitForResponse 立刻走 ctx.Done() 分支（t.Fatalf）而不是永远挂住。
@@ -283,10 +291,17 @@ public sealed class LSPClient
         client._serverThread.Start();
         client._routerThread.Start();
 
+        // 非 Go 源：登记给 `--case-timeout` 的看门狗（超时时 dump 这两条泵线程的栈，见 HarnessProgress）。
+        TypeScript.TestRunner.HarnessProgress.RegisterThread(client._serverThread);
+        TypeScript.TestRunner.HarnessProgress.RegisterThread(client._routerThread);
+
         return (client, () =>
         {
+            TypeScript.TestRunner.HarnessProgress.Note("closeClient: cancelling the client context and closing the input stream");
             cts.Cancel();
             transport.CloseClientOut();
+            // 非 Go 源：超时诊断（收尾等待：泵线程退出）。
+            using var waiting = TypeScript.TestRunner.HarnessProgress.Wait("waiting for the client router/server threads to exit");
             if (!client._routerThread.Join(TimeSpan.FromSeconds(30)))
             {
                 return new TimeoutException("message router did not exit");
@@ -307,6 +322,7 @@ public sealed class LSPClient
                 return serverError;
             }
 
+            TypeScript.TestRunner.HarnessProgress.Note("closeClient: done");
             return null;
         });
     }
@@ -333,6 +349,8 @@ public sealed class LSPClient
         while (true)
         {
             LsProtoMessage msg;
+            // 非 Go 源：超时诊断（这条泵线程是"server → client"两个方向的中枢）。
+            using var reading = TypeScript.TestRunner.HarnessProgress.Wait("client router reading a message from the server");
             try
             {
                 msg = _outputReader.Read();
@@ -560,6 +578,8 @@ public sealed class LSPClient
     {
         var ctx = _ctx;
         ResponseMessage? resp;
+        // 非 Go 源：超时诊断（把"在等哪条请求的应答"登记到 HarnessProgress，超时时打印）。
+        using var wait = TypeScript.TestRunner.HarnessProgress.Wait($"client waiting for response to request {reqID}");
         try
         {
             if (!responseChan.TryTake(out resp, Timeout.Infinite, ctx))

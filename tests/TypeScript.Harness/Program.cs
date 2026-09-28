@@ -88,7 +88,7 @@ internal static class Program
         // 见 tests/TypeScript.Harness/FourslashSuite.cs（P6 用例转写 + 对拍）。
         if (suites.Remove("fourslash"))
         {
-            var fsExit = FourslashSuite.Run([.. cases], limit, offset, maxDiffs, listOnly);
+            var fsExit = FourslashSuite.Run([.. cases], limit, offset, maxDiffs, listOnly, caseTimeoutSeconds);
             if (suites.Count == 0)
             {
                 return fsExit;

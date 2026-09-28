@@ -391,6 +391,10 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
     /// <summary>Go：<c>close(s.initComplete)</c>（server.go 的 handleInitialized 末尾）。</summary>
     private void SignalInitComplete() => _initComplete.TrySetResult();
 
+    /// <summary>非 Go 源（诊断用）：Go 的 <c>lspExit(err)</c> 记下的"首个退出原因"（见 <see cref="Run"/>）。
+    /// 客户端的 <c>InitComplete</c> 等待超时时，用它说明"服务端那侧到底出了什么事"。</summary>
+    internal Exception? ExitError => _dispatchExitError;
+
     /// <summary>Go: <c>func (s *Server) Run(ctx context.Context) error</c>（server.go:900-920）；见文件头第 4 条。</summary>
     public void Run(Context ctx)
     {
@@ -398,30 +402,174 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
         var bgCtx = WithCancellation(ctx, linked.Token);
         _backgroundCtx = bgCtx;
 
-        var dispatch = new Thread(() => DispatchLoop(bgCtx), _stackSize) { IsBackground = true, Name = "tsgo-lsp-dispatch" };
-        var write = new Thread(() => WriteLoop(bgCtx), _stackSize) { IsBackground = true, Name = "tsgo-lsp-write" };
+        Exception? dispatchError = null;
+        Exception? writeError = null;
+        Exception? readError = null;
+
+        // 非 Go 源：超时诊断（把"哪条循环以什么理由退出"记进 HarnessProgress 的事件日志）。
+        TestRunner.HarnessProgress.Note("Server.Run: starting dispatch/write/read loops");
+
+        using var readDone = new ManualResetEventSlim(false);
+        using var dispatchDone = new ManualResetEventSlim(false);
+        using var writeDone = new ManualResetEventSlim(false);
+        using var cancelled = new ManualResetEventSlim(false);
+        using var cancelRegistration = ctx.CancellationToken.Register(
+            () =>
+            {
+                CancelQuietly(linked);
+                cancelled.Set();
+            });
+
+        // Go: `g.Go(func() error { return s.dispatchLoop(ctx) })` 与 writeLoop 同：**任一返回/抛错即取消整个组**。
+        // 这一点必须显式做：Go 的 errgroup 在任一 goroutine 返回错误时取消派生 ctx，C# 侧没有 errgroup，
+        // 漏掉这一步会让"writeLoop 自行退出（例如消息 marshal 失败）"变成**整条会话死锁**（见下面 readLoop 的注释）。
+        var dispatch = new Thread(
+            () =>
+            {
+                try
+                {
+                    DispatchLoop(bgCtx);
+                }
+                catch (Exception e)
+                {
+                    dispatchError = e;
+                }
+                finally
+                {
+                    TestRunner.HarnessProgress.Note("Server.Run: dispatchLoop exited" + FormatExit(dispatchError));
+                    CancelQuietly(linked);
+                    dispatchDone.Set();
+                }
+            },
+            _stackSize)
+        {
+            IsBackground = true,
+            Name = "tsgo-lsp-dispatch",
+        };
+        var write = new Thread(
+            () =>
+            {
+                try
+                {
+                    WriteLoop(bgCtx);
+                }
+                catch (Exception e)
+                {
+                    writeError = e;
+                }
+                finally
+                {
+                    TestRunner.HarnessProgress.Note("Server.Run: writeLoop exited" + FormatExit(writeError));
+                    CancelQuietly(linked);
+                    writeDone.Set();
+                }
+            },
+            _stackSize)
+        {
+            IsBackground = true,
+            Name = "tsgo-lsp-write",
+        };
+
+        // Go: `go func() { readLoopErr <- s.readLoop(ctx) }()`——readLoop **不在** errgroup 里（"it blocks on stdin
+        // read and cannot be cancelled"），因此它必须跑在自己的线程上，且 Run **不 join 它**。这里是 C# 侧与 Go 的
+        // 关键等价点：早先的实现在**调用线程上直接跑 ReadLoop**，于是 writeLoop 一旦先退出（marshal 失败）就没有
+        // 任何人取消 readLoop（它阻塞在输入上，取消不了），Run 永远回不来 ⇒ `closeServerOut` 不执行 ⇒ 客户端
+        // 的 router 永远读不到 EOF ⇒ 用例线程永远等应答。fourslash 的偶发死锁正是这条路径。
+        var read = new Thread(
+            () =>
+            {
+                try
+                {
+                    ReadLoop(bgCtx);
+                }
+                catch (Exception e)
+                {
+                    readError = e;
+                }
+                finally
+                {
+                    TestRunner.HarnessProgress.Note("Server.Run: readLoop exited" + FormatExit(readError));
+                    CancelQuietly(linked);
+                    readDone.Set();
+                }
+            },
+            _stackSize)
+        {
+            IsBackground = true,
+            Name = "tsgo-lsp-read",
+        };
+
         dispatch.Start();
         write.Start();
+        read.Start();
 
-        // Don't run readLoop in the group, as it blocks on stdin read and cannot be cancelled.
-        Exception? readError = null;
+        // 非 Go 源：登记给 `--case-timeout` 的看门狗（超时时 dump 这三条循环线程的栈，见 HarnessProgress）。
+        TestRunner.HarnessProgress.RegisterThread(dispatch);
+        TestRunner.HarnessProgress.RegisterThread(write);
+        TestRunner.HarnessProgress.RegisterThread(read);
+
+        // Go: `g.Go(func() error { select { case <-ctx.Done(): return ctx.Err(); case err := <-readLoopErr: return err } })`
+        // + `g.Wait()`：三条路径任一结束（读循环出错/EOF、dispatch/write 自行返回、外部取消）就取消其余循环。
+        WaitHandle.WaitAny([readDone.WaitHandle, dispatchDone.WaitHandle, writeDone.WaitHandle, cancelled.WaitHandle]);
+        CancelQuietly(linked);
+
+        // Go 的 `g.Wait()` 会等 dispatch/write 退出（两者都会在取消后立刻返回）；readLoop 不在组里，不 join。
+        if (!dispatchDone.Wait(_loopExitTimeout))
+        {
+            throw new TimeoutException("LSP dispatch loop did not exit after cancellation");
+        }
+
+        if (!writeDone.Wait(_loopExitTimeout))
+        {
+            throw new TimeoutException("LSP write loop did not exit after cancellation");
+        }
+
+        // Go: `if err := g.Wait(); err != nil && !errors.Is(err, io.EOF) && ctx.Err() != nil { return err }`
+        // （C# 里 `(T, error)` → 异常，所以这里"返回 err" = 抛；客户端据此取消自己的 ctx，让等待应答的
+        //   测试线程立刻失败而不是永远挂着——见 LspClient 的注释。）
+        var error = FirstSeriousError(dispatchError, writeError, _dispatchExitError, readError);
+        TestRunner.HarnessProgress.Note("Server.Run: returning" + FormatExit(error));
+        if (error is not null)
+        {
+            throw error;
+        }
+    }
+
+    /// <summary>非 Go 源：给超时诊断的事件日志把"退出原因"格式化成一行。</summary>
+    private static string FormatExit(Exception? error) =>
+        error is null ? " (no error)" : $" with {error.GetType().Name}: {error.Message}";
+
+    /// <summary>循环退出后的 join 上限：与 Go 的"取消后立即退出"等价，但绝不允许无界等待。</summary>
+    private static readonly TimeSpan _loopExitTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>Go 的 `cancel()` 在已释放的 CTS 上仍然是安全的 no-op；C# 的 `CancellationTokenSource.Cancel`
+    /// 在释放后抛 <see cref="ObjectDisposedException"/>。因为 Run 可能在 readLoop 线程退出**之前**返回
+    /// （Go 语义：readLoop 不在 errgroup 里，不 join），那条线程的 finally 会晚于 `Run` 的 `using` 释放，
+    /// 所以这里必须静默忽略"已释放"。</summary>
+    private static void CancelQuietly(CancellationTokenSource cts)
+    {
         try
         {
-            ReadLoop(bgCtx);
+            cts.Cancel();
         }
-        catch (Exception e)
+        catch (ObjectDisposedException)
         {
-            readError = e;
+        }
+    }
+
+    /// <summary>Go 的 errgroup 会把"第一个非 nil 错误"带出来；`io.EOF`（读到流尾）与 `context.Canceled`
+    /// （正常收尾）不算错误，需要过滤掉。</summary>
+    private static Exception? FirstSeriousError(params Exception?[] errors)
+    {
+        foreach (var e in errors)
+        {
+            if (e is not null && e is not EndOfStreamException && e is not OperationCanceledException)
+            {
+                return e;
+            }
         }
 
-        linked.Cancel();
-        dispatch.Join();
-        write.Join();
-
-        if (readError is not null && readError is not EndOfStreamException && ctx.CancellationToken.IsCancellationRequested)
-        {
-            throw readError;
-        }
+        return null;
     }
 
     /// <summary>Go: <c>func (s *Server) readLoop(ctx context.Context) error</c>（server.go:922-993）。</summary>
@@ -437,6 +585,8 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
             LspMessage msg;
             try
             {
+                // 非 Go 源：超时诊断（server 的读循环）。
+                using var reading = TestRunner.HarnessProgress.Wait("server readLoop reading a message from the transport");
                 msg = Read();
             }
             catch (MessageReadException e)
@@ -541,6 +691,8 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
             RequestMessage req;
             try
             {
+                // 非 Go 源：超时诊断。
+                using var waitingForRequest = TestRunner.HarnessProgress.Wait("server dispatchLoop waiting for the next queued request");
                 req = _requestQueue.Get(loopCtx);
             }
             catch (OperationCanceledException)
@@ -632,6 +784,8 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
                     IsBackground = true,
                     Name = "tsgo-lsp-request",
                 };
+                // 非 Go 源：登记给 `--case-timeout` 的看门狗（超时诊断）。
+                TestRunner.HarnessProgress.RegisterThread(thread);
                 thread.Start();
             }
             else
@@ -658,6 +812,8 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
             LspMessage msg;
             try
             {
+                // 非 Go 源：超时诊断。
+                using var waitingForMessage = TestRunner.HarnessProgress.Wait("server writeLoop waiting for the next outgoing message");
                 msg = _outgoingQueue.Get(ctx);
             }
             catch (OperationCanceledException)
@@ -669,9 +825,13 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
             {
                 _w.Write(msg);
             }
-            catch (MessageMarshalError marshalErr)
+            catch (Exception writeFailure)
             {
-                if (msg.Kind == MessageKind.Response)
+                // Go 的 `if err := s.w.Write(msg); err != nil`：**任何**写失败都走这条分支（不只是 marshal 失败），
+                // 因为 `_w.Write` 还可能因为"对端已关闭"而抛（C# 的 BlockingPipeStream 在写侧关闭后 Add 抛
+                // InvalidOperationException，Go 的 io.Pipe 返回 io.ErrClosedPipe）。不捕获会让写线程带着未处理
+                // 异常死掉——.NET 里那是**进程崩溃**，比这里的"记录错误并退出循环"糟糕得多。
+                if (writeFailure is MessageMarshalError marshalErr && msg.Kind == MessageKind.Response)
                 {
                     var resp = msg.AsResponse();
                     if (resp.ID is not null && resp.Error is null)
@@ -690,7 +850,10 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
                     }
                 }
 
-                RecordExitError(new IOException("failed to write message", marshalErr));
+                // Go: `return fmt.Errorf("failed to write message: %w", err)`——%w 会把内层错误文本也带进
+                // 消息（"failed to write message: failed to marshal message: …"），这里照抄同样的文本，
+                // 否则 harness 只看到一句无信息量的 "failed to write message"。
+                RecordExitError(new IOException($"failed to write message: {writeFailure.Message}", writeFailure));
                 return;
             }
         }
@@ -717,6 +880,8 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
 
             try
             {
+                // 非 Go 源：超时诊断（server 等客户端应答；应答丢了就永远等下去）。
+                using var waiting = TestRunner.HarnessProgress.Wait($"server waiting for client response to {id}");
                 if (!responseChan.TryTake(out var resp, Timeout.Infinite, ctx.CancellationToken))
                 {
                     return (default, new OperationCanceledException(ctx.CancellationToken));
@@ -926,6 +1091,7 @@ public sealed partial class Server : global::TypeScript.Project.Client, global::
     {
         var method = req.Method.Value;
         var stack = Environment.StackTrace;
+        try { System.IO.File.AppendAllText(@"D:\Source\VS\TEMP\tsc-cs-go\artifacts\probe-hover-stacks.txt", $"\n===== {method} =====\n{error}\n===== Environment.StackTrace =====\n{stack}\n"); } catch { }
         _logger.Errorf("panic handling request {0}: {1}\n{2}", method, error.Message, stack);
         if (req.ID is not null)
         {

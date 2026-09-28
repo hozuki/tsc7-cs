@@ -271,6 +271,8 @@ public sealed partial class Server
     /// <summary>Go: <c>func (s *Server) handleInitialized(ctx, params) error</c>（server.go:1675-1785）。</summary>
     private Exception? HandleInitialized(Context ctx, InitializedParams? _)
     {
+        // 非 Go 源：超时诊断（这条通知的完成 = 客户端的 InitComplete 信号）。
+        TypeScript.TestRunner.HarnessProgress.Note("handleInitialized: begin");
         var disablePushDiagnostics = false;
         var enableTelemetry = false;
         if (_initializationOptions.DisablePushDiagnostics is { } dpd)
@@ -371,6 +373,7 @@ public sealed partial class Server
         });
 
         var userPreferences = RequestConfiguration(ctx);
+        TypeScript.TestRunner.HarnessProgress.Note("handleInitialized: RequestConfiguration returned");
         _session.InitializeWithUserConfig(userPreferences);
 
         var (_, registerError) = SendClientRequest(ctx, ClientRegisterCapabilityInfo, new RegistrationParams
@@ -408,6 +411,7 @@ public sealed partial class Server
 
         _session.StartPerformanceTelemetry();
 
+        TypeScript.TestRunner.HarnessProgress.Note("handleInitialized: signalling InitComplete");
         SignalInitComplete();
         return null;
     }
