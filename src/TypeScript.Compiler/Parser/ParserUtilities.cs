@@ -108,4 +108,12 @@ public sealed partial class Parser
     /// <summary>Go: <c>func isJSDocLikeText(text string) bool</c>。</summary>
     internal static bool IsJSDocLikeText(string text) =>
         text.Length >= 4 && text[1] == '*' && text[2] == '*' && text[3] != '/';
+
+    /// <summary>
+    /// Go: <c>isJSDocLikeText(p.sourceText[start:])</c>（jsdoc.go:144）的零拷贝等价物：Go 的切片不复制，
+    /// C# 的 <c>text[start..]</c> 会复制整段剩余文本（ParserJsDoc.ParseJSDocComment 每次解析一个 JSDoc 注释
+    /// 就复制数百 KB，见那里的说明），故按索引判定。
+    /// </summary>
+    internal static bool IsJSDocLikeText(string text, int start) =>
+        text.Length - start >= 4 && text[start + 1] == '*' && text[start + 2] == '*' && text[start + 3] != '/';
 }

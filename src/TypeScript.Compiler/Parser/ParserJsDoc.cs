@@ -239,13 +239,13 @@ public sealed partial class Parser
         }
 
         // Check for /** (JSDoc opening part)
-        if (!IsJSDocLikeText(_sourceText[start..]))
+        // Go: `!isJSDocLikeText(p.sourceText[start:])`（jsdoc.go:144）——用带下标的零拷贝重载（见 ParserUtilities）。
+        if (!IsJSDocLikeText(_sourceText, start))
         {
             // Go 的注释：这里本该是 panic（parseSingleJSDocComment 尚未移植）；C# 保持与 Go 相同的"返回 nil"。
             return null;
         }
 
-        var saveSourceText = _sourceText;
         var saveToken = _token;
         var saveContextFlags = _contextFlags;
         var saveParsingContexts = _parsingContexts;
@@ -259,8 +259,12 @@ public sealed partial class Parser
         // if there is no \n before start, -1 is one index before the first character in the string
         var initialIndent = start + 4 - (_sourceText.AsSpan(0, start).LastIndexOf('\n') + 1);
         // -2 for trailing `*/`
-        _sourceText = _sourceText[..(end - 2)];
-        _scanner.SetText(_sourceText);
+        // Go: `p.sourceText = p.sourceText[:end-2]`（jsdoc.go:163）是**零拷贝切片**：它同时把 `len(p.sourceText)`
+        // 与 scanner 的 `s.end` 收窄到 end-2，使 JSDoc 扫描在注释末尾就当 EOF。C# 的 string 不能做视图，
+        // 原来的 `_sourceText = _sourceText[..(end - 2)]` 每解析一个注释就复制一遍前缀（lib.dom.d.ts 的
+        // 113k 节点里带 JSDoc 的节点会逐个走这里 ⇒ 数十 GB 的 memcpy，见 Scanner.SetText 的说明）⇒
+        // 改为只收窄 scanner 的扫描边界（_text 仍是全文，Go 的 `len(p.sourceText)` 语义由 _end 承担）。
+        _scanner.SetText(_sourceText, end - 2);
         // +3 for leading `/**`
         _scanner.ResetPos(start + 3);
         SetContextFlags(NodeFlags.JSDoc, true);
@@ -279,7 +283,8 @@ public sealed partial class Parser
 
         _diagnostics.RemoveRange(saveDiagnosticsLength, _diagnostics.Count - saveDiagnosticsLength);
 
-        _sourceText = saveSourceText;
+        // Go: `p.sourceText = saveSourceText; p.scanner.SetText(p.sourceText)`（jsdoc.go:177-178）：C# 侧
+        // `_sourceText` 从未被改（见上面 SetText(text, end) 的说明），这里是"把扫描边界放宽回全文"。
         _scanner.SetText(_sourceText);
         _parsingContexts = saveParsingContexts;
         _contextFlags = saveContextFlags;
@@ -1367,7 +1372,9 @@ public sealed partial class Parser
     // ported from: internal/parser/jsdoc.go:906-915
     private Node ParseSeeTag(int start, Node tagName, int indent, string indentText)
     {
-        var hasNameReference = IsIdentifier() && !_sourceText.AsSpan(_scanner.TokenEnd()).StartsWith("://") ||
+        // Go: `!strings.HasPrefix(p.sourceText[p.scanner.TokenEnd():], "://")`（jsdoc.go:908）——JSDoc 解析期间
+        // Go 的 `p.sourceText` 是 [:end-2] 的切片，故用 scanner 的零拷贝有界视图（`TextFrom`）等价表达。
+        var hasNameReference = IsIdentifier() && !_scanner.TextFrom(_scanner.TokenEnd()).StartsWith("://") ||
             _token == Kind.OpenBraceToken && LookAhead(static p => p.NextTokenIsIdentifierOrKeyword());
         Node? nameExpression = null;
         if (hasNameReference)

@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/TypeScript.Compiler/TypeScript.Compiler.csproj" />
+    <Project Path="src/tsc/tsc.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TypeScript.Compiler.Tests/TypeScript.Compiler.Tests.csproj" />

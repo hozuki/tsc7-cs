@@ -87,7 +87,9 @@ public sealed partial class Scanner
     {
         _fullStartPos = _pos;
         _tokenFlags = TokenFlags.None;
-        if (_pos >= _text.Length)
+        // Go: `s.pos >= len(s.text)`（scanner.go:1359）——Go 里 `len(s.text) == s.end`（SetText），C# 的
+        // `_text` 可以是全文而 `_end` 被调用方收窄（见 Scanner.SetText(string, int)）⇒ 边界一律用 `_end`。
+        if (_pos >= _end)
         {
             _token = Kind.EndOfFile;
             return _token;
@@ -95,7 +97,7 @@ public sealed partial class Scanner
 
         _tokenStart = _pos;
         var (ch, size) = CharAndSize();
-        while (_pos < _text.Length && !IsLineBreak(ch) && ch != '`')
+        while (_pos < _end && !IsLineBreak(ch) && ch != '`')
         {
             if (!inBackticks)
             {
@@ -137,7 +139,8 @@ public sealed partial class Scanner
     // Whitespace, newlines, and EOF are also accepted to support incomplete tags for code completion.
     public bool CanFollowJSDocAt()
     {
-        if (_pos >= _text.Length)
+        // Go: `s.pos >= len(s.text)`（scanner.go:1393），见 ScanJSDocCommentTextToken 的说明。
+        if (_pos >= _end)
         {
             return true;
         }
@@ -150,7 +153,8 @@ public sealed partial class Scanner
     {
         _fullStartPos = _pos;
         _tokenFlags = TokenFlags.None;
-        if (_pos >= _text.Length)
+        // Go: `s.pos >= len(s.text)`（scanner.go:1403），见 ScanJSDocCommentTextToken 的说明。
+        if (_pos >= _end)
         {
             _token = Kind.EndOfFile;
             return _token;

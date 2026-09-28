@@ -10,12 +10,18 @@
 // 4) `map[K]V` 的有序遍历用 `OrderBy(StringComparer.Ordinal)`（Go 的 `slices.Sorted(maps.Keys(...))` 也是序数序）。
 // 5) 未导出的 `table`/`tableRow` → `Table`/`TableRow`；未导出方法 → internal + PascalCase。
 // 6) `fmt.Sprint(value)` → `Convert.ToString(value, CultureInfo.InvariantCulture)`（避免跟随当前区域的数字形状）。
+// 7) **JSON**：Go 侧 `Statistics` 只有 `Projects`/`ProjectsBuilt`/`TimestampUpdates` 是导出字段
+//    （其余字段未导出 → 不进 JSON），且都没有 json tag（键名就是 Go 字段名、永远写出）。字段级映射由
+//    `artifacts/api-codegen/gen-core-json.mjs` 生成到 `Execute/Tsc/TscJson.Generated.cs`
+//    （本类据此声明为 partial 并实现 IJsonMarshaler/IJsonUnmarshaler）。ExitStatus 是 `type ExitStatus int`，
+//    走 Json 包的枚举路径（底层整数），无需生成代码。
 using global::System;
 using global::System.Collections.Generic;
 using global::System.Globalization;
 using global::System.IO;
 using global::System.Linq;
 using TypeScript.Compiler;
+using TypeScript.Json;
 
 namespace TypeScript.Execute.Tsc;
 
@@ -105,7 +111,7 @@ public static partial class Tsc
 }
 
 /// <summary>Go: <c>type Statistics struct</c>（statistics.go:56-70）。</summary>
-public sealed class Statistics
+public sealed partial class Statistics : IJsonMarshaler, IJsonUnmarshaler
 {
     internal bool _isAggregate;
 

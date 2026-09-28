@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- CLI 前端工程：Go `tsc/cmd/tsc/**`（main.go 33 + sys.go 138 + lsp.go 115 + api.go 82 + 平台文件 82 行）
+       的 1:1 移植。用户要求把 tsc[.exe]（进程级 CLI 前端）与 TypeScript.Compiler（API 库）**分成两个工程**
+       —— 与 Go 自己的结构一致：Go 里 `cmd/tsc` 也是独立 package main，而 `internal/execute/**`（CLI 逻辑）
+       是可被 import 的库 package，留在库里不动（见 docs/architecture.md §2 的"CLI 前端工程"）。
+
+       - AssemblyName 必须是 `tsc`：产物叫 tsc.exe / tsc.dll，与 Go 产物的可执行文件名一致。
+       - RootNamespace=TypeScript：与库同一套命名空间根（Go 的 package main → 本工程的 `TypeScript.Tsc`）。
+       - 不打包：`tsc` 是进程入口（dotnet tool 形态是另一件事），只发布可执行产物。
+       - Server GC 由 Directory.Build.targets 的 `OutputType == 'Exe'` 条件自动给（本工程是 Exe）。
+       - InternalsVisibleTo：见 src/TypeScript.Compiler/Properties/AssemblyInfo.cs 的注释（按需，不预先添加）。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>tsc</AssemblyName>
+    <RootNamespace>TypeScript</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../TypeScript.Compiler/TypeScript.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

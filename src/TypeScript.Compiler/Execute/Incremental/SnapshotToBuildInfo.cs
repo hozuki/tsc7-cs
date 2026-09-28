@@ -203,9 +203,13 @@ public static partial class Incremental
                 Source = d.Source(),
                 MessageText = d.MessageText(),
                 MessageKey = d.MessageKey(),
-                MessageArgs = ToListOrNull(d.MessageArgs()),
-                MessageChain = ToBuildInfoDiagnosticsFromDiagnostics(filePath, d.MessageChain()),
-                RelatedInformation = ToBuildInfoDiagnosticsFromDiagnostics(filePath, d.RelatedInformation()),
+                // Go 侧这三个字段都是 `omitzero` 的 nil-able 切片（buildInfo.go:209-211），空值一律是 nil →
+                // 整个字段被省略。C# 的 `params`/`List.ToArray()`/字段初始值 `[]` 会造出**空数组**，
+                // 直接透传就会写成 `"messageArgs":[]`/`"relatedInformation":[]`/`"messageChain":[]`。
+                // 与上面的 `d._messageChain.Count == 0 ? null : …` 保持同一口径（reference 里从不出现这些空数组）。
+                MessageArgs = d.MessageArgs() is { Length: > 0 } messageArgs ? [.. messageArgs] : null,
+                MessageChain = ToBuildInfoDiagnosticsFromDiagnostics(filePath, d.MessageChain() is { Length: > 0 } chain ? chain : null),
+                RelatedInformation = ToBuildInfoDiagnosticsFromDiagnostics(filePath, d.RelatedInformation() is { Length: > 0 } relatedInfo ? relatedInfo : null),
                 ReportsUnnecessary = d.ReportsUnnecessary(),
                 ReportsDeprecated = d.ReportsDeprecated(),
                 SkippedOnNoEmit = d.SkippedOnNoEmit(),
@@ -372,7 +376,11 @@ public static partial class Incremental
         {
             var keys = _snapshot._referencedMap.GetPathsWithReferences();
             Array.Sort(keys, static (a, b) => string.CompareOrdinal(a.Value, b.Value));
-            _buildInfo.ReferencedMap = MapListOrNull(ToListOrNull(keys), filePath =>
+            // Go: `t.snapshot.referencedMap.getPathsWithReferences()` 是 `slices.Collect(...)`，**空时返回 nil**，
+            // 经 `core.Map(nil, …)`（core/core.go:80-83）仍是 nil → `json:"referencedMap,omitzero"`（buildInfo.go:482）
+            // 直接省略该字段。C# 的 `GetPathsWithReferences()` 空时返回空数组，若不摊平就会写成 `"referencedMap":[]`
+            // （并在 readable baseline 里渲染成 `{}`，文件也因此多出 19 字节，`size` 字段对不上）。
+            _buildInfo.ReferencedMap = keys.Length == 0 ? null : MapListOrNull(ToListOrNull(keys), filePath =>
             {
                 var (references, _) = _snapshot._referencedMap.GetReferences(filePath);
                 return new BuildInfoReferenceMapEntry

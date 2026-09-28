@@ -47,11 +47,11 @@
 //
 // 8) `(*Server).Session()`（Go 的方法）→ C# 的只读属性 `Session`（Go 的方法体只读一个字段）。
 //
-// 9) `handleInitializeAPISession` / `generateAPIPipePath` / `removeAPISession` / `apiSessions` **未移植**：
-//    Go 用 `internal/api.NewLSPSession`，而 `internal/api`（≈8,226 行）不在本切片（计划 §P7），C# 侧尚不存在。
-//    因此 `CustomInitializeAPISessionInfo` 也**不在** handler 表里注册（客户端会收到 method-not-found，
-//    与"该功能尚未移植"这一事实一致；注册一个必然失败的空 handler 会更糟）。
-//    这一项与 `internal/api` 一起在计划的 P7 补齐；`Server` 侧要改的只有：加 `apiSessions` 字段 + 该 handler。
+// 9) `handleInitializeAPISession` / `generateAPIPipePath` / `removeAPISession` / `apiSessions` **已移植**
+//    （曾在本切片缺席，随 `internal/api` → `TypeScript.Api` 一起补齐）：实现见 `Server.ApiSession.cs`，
+//    注册见 `Server.Handlers.cs` 的 `CustomInitializeAPISessionInfo`（Go server.go:1294）。`apiSessions`
+//    在 C# 侧是 `Dictionary<string, Api.Session> _apiSessions`（Go 的惰性 `make` 由字段初始化承担），
+//    与该字典的保护锁 `_apiSessionsMu` 一起在 `Server.ApiSession.cs` 声明。
 using System.Collections.Concurrent;
 using System.Text;
 using TypeScript.Collections;

@@ -7,10 +7,14 @@
 //    （TSGO 当前没有任何调用点，见移植报告。）
 // 3) Go 里 WatchOptions 以 `*core.WatchOptions` 使用（tsoptions 用 `&core.WatchOptions{}` 解析配置）→ C# class。
 // 4) JSON tag 见 CompilerOptions.cs 文件头（Interval → "watchInterval"、FileKind → "watchFile"、
-//    SyncWatchDir → "synchronousWatchDirectory"…），本轮不实现映射。
+//    SyncWatchDir → "synchronousWatchDirectory"…）：这些字段都**不带** omitzero/omitempty，所以永远写出
+//    （nil 指针/切片 → null、Tristate Unknown → null）。字段级映射由 `artifacts/api-codegen/gen-core-json.mjs`
+//    生成到 `Core/BuildOptionsJson.Generated.cs`（本类据此声明为 partial 并实现 IJsonMarshaler/IJsonUnmarshaler）。
+using TypeScript.Json;
+
 namespace TypeScript.Core;
 
-public sealed class WatchOptions
+public sealed partial class WatchOptions : IJsonMarshaler, IJsonUnmarshaler
 {
     public int? Interval;
     public WatchFileKind FileKind;

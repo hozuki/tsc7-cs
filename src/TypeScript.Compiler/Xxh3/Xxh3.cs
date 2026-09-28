@@ -11,7 +11,9 @@
 //      xxh3.Hash128([]byte)          → Hash128(ReadOnlySpan<byte>)
 //      xxh3.Hash128Seed(b, seed)     → Hash128(ReadOnlySpan<byte>, ulong seed)
 //      xxh3.HashString128(string)    → HashString128(string)
-//      xxh3.Uint128.Bytes() [16]byte → Bytes(UInt128)（小端 16 字节：低 64 位在前，与 Go 的 Bytes() 逐字节一致）
+//      xxh3.Uint128.Bytes() [16]byte → Bytes(UInt128)（**规范大端** 16 字节：Hi 大端在前、Lo 大端在后，
+//        与 Go 的 Bytes() 逐字节一致——zeebo/xxh3 utils.go 的注释是 "canonical form (big-endian encoded)"，
+//        不是小端，见 `Bytes` 方法上的注释）
 //
 // 2) **XXH3-64**（internal/tracing/tracing.go 的 stableTraceThreadID）：
 //      xxh3.New() + WriteString(...) + Sum64() → Hash64(ReadOnlySpan<byte>)
@@ -334,12 +336,17 @@ public static class Xxh3
         }
     }
 
-    /// <summary>Go: <c>func (u Uint128) Bytes() [16]byte</c>（小端：低 64 位在前）。</summary>
+    /// <summary>
+    /// Go: <c>func (u Uint128) Bytes() [16]byte</c>（zeebo/xxh3 utils.go）——**规范大端**：
+    /// <c>Hi</c> 的 8 字节大端在前，<c>Lo</c> 的 8 字节大端在后（Go 源码注释 "canonical form (big-endian encoded)"）。
+    /// 调用点 <c>incremental.ComputeHash</c>（incremental/snapshot.go:32）把结果 hex 化后写进 <c>.tsbuildinfo</c>
+    /// 的 <c>version</c>/<c>signature</c> 字段，所以字节序必须与 Go 一致。
+    /// </summary>
     public static byte[] Bytes(UInt128 hash)
     {
         var bytes = new byte[16];
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes, (ulong)hash);
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(8), (ulong)(hash >> 64));
+        BinaryPrimitives.WriteUInt64BigEndian(bytes, (ulong)(hash >> 64));
+        BinaryPrimitives.WriteUInt64BigEndian(bytes.AsSpan(8), (ulong)hash);
         return bytes;
     }
 

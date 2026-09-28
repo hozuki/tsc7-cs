@@ -113,8 +113,13 @@ internal sealed class BuildInfoEntry
 /// <summary>Go: <c>type taskResult struct</c>（buildtask.go:44-54）。</summary>
 internal sealed class TaskResult
 {
-    /// <summary>Go: <c>builder strings.Builder</c>（§6：→ <c>StringWriter</c>）。</summary>
-    internal StringWriter _builder = new();
+    /// <summary>
+    /// Go: <c>builder strings.Builder</c>（buildtask.go:45）（§6：→ <c>StringWriter</c>）。
+    /// Go 的 <c>fmt.Fprintln(&amp;builder, …)</c> 恒写 "\n"；C# 的 <c>StringWriter</c> 默认 <c>NewLine</c> 是
+    /// 平台相关的 "\r\n"，会把 <c>-b</c> 路径下的 <c>--explainFiles</c>/<c>--listEmittedFiles</c>/<c>-v</c>
+    /// 输出写成分隔 CRLF（tsc CLI/日志换行恒 "\n"），故显式固定为 "\n"。
+    /// </summary>
+    internal StringWriter _builder = new() { NewLine = "\n" };
 
     /// <summary>Go: <c>reportStatus tsc.DiagnosticReporter</c>。</summary>
     internal Tsc.DiagnosticReporter _reportStatus = null!;

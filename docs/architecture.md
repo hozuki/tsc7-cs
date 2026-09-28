@@ -24,6 +24,15 @@
 | `tsc/internal/jsnum` | `src/TypeScript.Compiler/JsNum/` | `TypeScript.JsNum` |
 | `tsc/internal/debug` | `src/TypeScript.Compiler/Debug/` | `TypeScript`（根，见下） |
 
+**CLI 前端是一个独立工程**（用户要求：`tsc[.exe]` 与 `TypeScript.Compiler` 分开成两个工程，与 Go 的结构一致）：
+
+| TSGO 路径 | C# 落点 | 说明 |
+| --- | --- | --- |
+| `tsc/cmd/tsc/**`（main.go、sys.go、lsp.go、api.go、平台文件，519 行） | **`src/tsc/tsc.csproj`**（`OutputType=Exe`、`AssemblyName=tsc`、`RootNamespace=TypeScript`、`IsPackable=false`；文件命名空间 `TypeScript.Tsc`） | **进程级**的 CLI 前端：读 `osutil.Args()`、`--lsp`/`--api` 分派、真实 stdout/stderr/环境/cwd/`vfs.FS`、`spawnProcess`、信号与大栈线程。Go 的 `package main` 没有包名，故命名空间取目录名（`tsc`）。 |
+| `tsc/internal/execute/**` | `src/TypeScript.Compiler/Execute/`（`TypeScript.Execute`） | CLI 的**逻辑**（`CommandLine`/`TscCompilation`/`build`/`watch`/`statistics`/`Pprof`…）：Go 里它是**可 import 的库 package**，所以**留在库里不动**（`--version`/`--help`/编译/`--init` 的实现在这里）。 |
+
+两者的边界只走**公开 API**（`Execute.CommandLine`、`Tsc.System`/`ExitStatus`、`Bundled.WrapFS`/`LibPath`、`Osvfs.FS`/`GetGlobalTypingsCacheLocation`、`Lsp.Server`、`Api.StdioServer`、`Pprof.BeginProfiling`、`ContentMapper.Spawner`/`IProcessExitState`），**没有**用到任何 `internal` 成员 ⇒ 库里**不需要** `InternalsVisibleTo("tsc")`（`Properties/AssemblyInfo.cs` 里那两条 IVT 只服务测试与 harness）。三条只在 CLI 侧成立的约定：主流程跑在显式 64 MiB 栈线程上（§3.9）；stdout/stderr 的 `NewLine` 固定 `"\n"` + UTF-8（Go 的 `fmt.Fprintln` 恒 LF，而 .NET 在 Windows 上默认 CRLF，逐字节对拍会全红）；`System.Diagnostics` 只以别名引入（§2 的 `Debug.Fail` 坑）。
+
 命名规则：
 
 - 文件名 = Go 文件名去扩展名后转 PascalCase：`js_case.go` → `JsCase.cs`，`identifier_parts_generated.go` → `IdentifierParts.Generated.cs`。

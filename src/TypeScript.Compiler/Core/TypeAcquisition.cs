@@ -7,10 +7,14 @@
 //    只保留 `ReferenceEquals(this, other)` 与 `other is null`；调用点若 ta 可能为 nil，写
 //    `ta?.Equals(other) ?? (other is null)`。
 // 3) Go 里 TypeAcquisition 以 `*core.TypeAcquisition` 使用（api/proto.go 有 nil 判断）→ C# class。
-// 4) JSON tag 见 CompilerOptions.cs 文件头（Enable → "enable,omitzero"、Include → "include,omitzero"…）。
+// 4) JSON tag 见 CompilerOptions.cs 文件头（Enable → "enable,omitzero"、Include → "include,omitzero"…）；
+//    字段级映射由 `artifacts/api-codegen/gen-core-json.mjs` 生成到 `Core/BuildOptionsJson.Generated.cs`
+//    （本类据此声明为 partial 并实现 IJsonMarshaler/IJsonUnmarshaler）。
+using TypeScript.Json;
+
 namespace TypeScript.Core;
 
-public sealed class TypeAcquisition
+public sealed partial class TypeAcquisition : IJsonMarshaler, IJsonUnmarshaler
 {
     public Tristate Enable;
     public string[]? Include;

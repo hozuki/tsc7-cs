@@ -168,6 +168,13 @@ public sealed partial class Scanner
 
     public string Text() => _text;
 
+    /// <summary>
+    /// Go: <c>s.text[pos:]</c>（例如 scanner.go:999 的 <c>strings.HasPrefix(s.text[pos:], …)</c>）。C# 的
+    /// <c>_text[pos..]</c> 既会复制、又不受 <c>_end</c> 收窄约束（Go 的 <c>s.text</c> 可能已被调用方截断）⇒
+    /// 这里返回以 <c>_end</c> 为界的零拷贝视图，与 Go 的切片逐字相同。
+    /// </summary>
+    internal ReadOnlySpan<char> TextFrom(int pos) => _text.AsSpan(pos, _end - pos);
+
     public Kind Token() => _token;
 
     // Go: func (s *Scanner) TokenFlags() ast.TokenFlags → C# 属性（名字与类型名相同，见文件头第 7 条）。
@@ -254,10 +261,21 @@ public sealed partial class Scanner
 
     public bool HasPrecedingJSDocWithSeeOrLink() => (_tokenFlags & TokenFlags.PrecedingJSDocWithSeeOrLink) != 0;
 
-    public void SetText(string text)
+    // Go: func (s *Scanner) SetText(text string)（scanner.go:396-400）。
+    public void SetText(string text) => SetText(text, text.Length);
+
+    /// <summary>
+    /// Go: <c>s.SetText(text[:end])</c> 的零拷贝等价物：Go 的 <c>s.text</c> 与 <c>s.end</c> 是**两个**字段
+    /// （scanner.go:398，以及 436/444 的 <c>s.pos &lt; s.end</c> 边界检查），而 C# 的 <c>string</c> 不能做视图，
+    /// <c>text[..end]</c> 必然 O(end) 复制。调用方只想"把扫描限制在 [0, end)"时，把 <c>_end</c> 收窄即可得到与
+    /// "传入截断后的字符串"逐字节相同的扫描结果（<c>_text</c> 保持全文，越界读取全由 <c>_end</c> 挡住）。
+    /// 仓内先例：正则子解析的 <c>_end = endOfRegExpBody</c>（Scanner.cs 的 ReScanSlashToken，与 Go 的
+    /// <c>s.end = endOfRegExpBody</c>（scanner.go:1193）逐行对应）。
+    /// </summary>
+    internal void SetText(string text, int end)
     {
         _text = text;
-        _end = text.Length;
+        _end = end;
         // Go: s.ScannerState = ScannerState{} → C# 逐字段清空（见文件头第 3 条）。
         _pos = 0;
         _fullStartPos = 0;
@@ -1057,7 +1075,10 @@ public sealed partial class Scanner
                         // C# 的 string 已经是解码结果，不存在非法 UTF-8 字节，所以这条分支只对源文本里**字面量**
                         // U+FFFD 生效（文件头第 11 条）。
                         ErrorAt(File_appears_to_be_binary, 0, 0);
-                        _pos = _text.Length;
+                        // Go: `s.pos = len(s.text)`（scanner.go:934）。C# 的 `_text` 始终是全文，而
+                        // `len(s.text)` 在"调用方收窄了扫描范围"时等于收窄后的边界（正则子解析的 _end、
+                        // JSDoc 子解析的 _end，见 SetText(string, int)）⇒ 用 _end，两种收窄下都不会越界。
+                        _pos = _end;
                         _token = Kind.NonTextFileMarkerTrivia;
                         break;
                     }

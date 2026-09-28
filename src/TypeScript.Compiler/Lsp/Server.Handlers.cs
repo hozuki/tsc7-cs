@@ -114,7 +114,9 @@ public sealed partial class Server
         handlers.RegisterRequestHandler(CustomStartCPUProfileInfo, static (s, ctx, @params, req) => s.HandleStartCPUProfile(ctx, @params, req));
         handlers.RegisterRequestHandler(CustomStopCPUProfileInfo, static (s, ctx, @params, req) => s.HandleStopCPUProfile(ctx, @params, req));
 
-        // Go 的 CustomInitializeAPISessionInfo 不注册：见 Server.cs 文件头第 9 条（internal/api 尚未移植）。
+        // Go: handlers.registerRequestHandler(lsproto.CustomInitializeAPISessionInfo, (*Server).handleInitializeAPISession)（server.go:1294）。
+        // `internal/api` 已移植（`TypeScript.Api`），实现见 Server.ApiSession.cs。
+        handlers.RegisterRequestHandler(CustomInitializeAPISessionInfo, static (s, ctx, @params, req) => s.HandleInitializeAPISession(ctx, @params, req));
         handlers.RegisterRequestHandler(CustomProjectInfoInfo, static (s, ctx, @params, req) => s.HandleProjectInfo(ctx, @params, req));
         handlers.RegisterRequestHandler(CustomSetContentMapperContributionsInfo, static (s, ctx, @params, req) => s.HandleSetContentMapperContributions(ctx, @params, req));
         return handlers;

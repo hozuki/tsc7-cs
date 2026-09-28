@@ -21,19 +21,24 @@
 //    Core 的扩展方法（调用点保留 Go 的 `x.String()`）。别名常量（ScriptTargetLatest/LatestStandard、
 //    ResolutionMode 系列）是 `Core` 的 const，因为 C# enum 的别名成员会污染 ToString；`type ResolutionMode
 //    = ModuleKind` 是类型别名，C# 没有别名，所有出现 `ResolutionMode` 的地方一律写 `ModuleKind`。
+// 7) **JSON**：Go 用 `encoding/json/v2` 按 struct tag 反射映射这两个类型；C# 禁反射，所以
+//    这里是 `partial` 类 + `IJsonMarshaler`/`IJsonUnmarshaler`，字段级映射由生成器
+//    `artifacts/api-codegen/gen-core-json.mjs` 产出到 `Core/CompilerOptionsJson.Generated.cs`
+//    （字段名/顺序/omitzero 逐条照抄 Go 的 tag，实证见该文件头与 artifacts/api-codegen/oracle/）。
 using TypeScript.Collections;
+using TypeScript.Json;
 using static TypeScript.TSPath.TSPath;
 
 namespace TypeScript.Core;
 
 // Go: type PluginImport struct { Name string `json:"name"` }
-public sealed class PluginImport
+public sealed partial class PluginImport : IJsonMarshaler, IJsonUnmarshaler
 {
     public string Name = "";
 }
 
 // CompilerOptions contains the compiler options exposed by the API.
-public sealed class CompilerOptions
+public sealed partial class CompilerOptions : IJsonMarshaler, IJsonUnmarshaler
 {
     public Tristate AllowJs;
     public Tristate AllowArbitraryExtensions;

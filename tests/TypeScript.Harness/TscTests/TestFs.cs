@@ -115,7 +115,10 @@ public sealed class TestFs : FS
                 }
 
                 // Write readable build info version
-                Inner.WriteFile(
+                // Go: `f.WriteFile(path+".readable.baseline.txt", …)`（fs.go:74-76）——注意是**包装器**自身，
+                // 不是底层 FS：这样 sidecar 也会进 `writtenFiles`，FSDiffer 才能把它标成
+                // `*rewrite with same content*`（走 `Inner.WriteFile` 会绕过跟踪 → 落成 `*mTime changed*`）。
+                WriteFile(
                     path + ".readable.baseline.txt",
                     ReadableBuildInfo.ToReadableBuildInfo(buildInfo, FSDiffer.SanitizeInternalSymbolName(data)));
             }

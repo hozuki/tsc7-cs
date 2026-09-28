@@ -53,6 +53,7 @@ using TypeScript.LsUtil;
 using TypeScript.Vfs;
 using Loc = TypeScript.Locale.Locale;
 using Path = TypeScript.TSPath.Path;
+using TSOpts = TypeScript.TsOptions.TsOptions;
 using static TypeScript.ContentMapper.ContentMapper;
 using static TypeScript.LsUtil.LsUtil;
 using static TypeScript.Project.UpdateReason;
@@ -60,8 +61,13 @@ using static TypeScript.TSPath.TSPath;
 
 namespace TypeScript.Project;
 
-/// <summary>Go 的 <c>SnapshotHost</c>（snapshothost.go:17-36）：一组不可变快照共享的服务。</summary>
-public class SnapshotHost
+/// <summary>Go 的 <c>SnapshotHost</c>（snapshothost.go:17-36）：一组不可变快照共享的服务。
+/// 类声明上的 <c>TSOpts.ParseConfigHost</c> 是**非 Go 源的必要写法**：Go 的 `*project.SnapshotHost` 只靠
+/// `FS()` + `GetCurrentDirectory()` **结构性**满足 `tsoptions.ParseConfigHost`（`internal/api` 的
+/// `handleParseCommandLine`/`handleParseJsonConfigFileContent` 直接把 snapshotHost 传进去），C# 的接口是名义的，
+/// 必须显式列出（先例：Compiler/Host.cs 文件头第 6 条、Execute/Tsc/Compile.cs 的 `System : Spawner, ParseConfigHost`、
+/// Project/ConfigFileRegistryBuilder.cs:71）。</summary>
+public class SnapshotHost : TSOpts.ParseConfigHost
 {
     internal SessionOptions _options = null!;
 

@@ -218,13 +218,16 @@ public static partial class Diagnostics
         });
     }
 
-    /// <summary>Go 的 <c>func StringifyArgs(args ...any) []string</c>（args 为 nil = 空，同 Go 的 len() 判断）。</summary>
-    public static string[] StringifyArgs(params object?[]? args)
+    /// <summary>Go 的 <c>func StringifyArgs(args ...any) []string</c>（core: `if len(args) == 0 { return nil }`）。</summary>
+    public static string[]? StringifyArgs(params object?[]? args)
     {
         if (args is null || args.Length == 0)
         {
-            // Go 返回 nil slice；C# 侧按 docs/architecture.md §3.2 用空数组（两者只参与 len()/range）。
-            return [];
+            // Go 返回 **nil** slice（diagnostics/diagnostics.go:148-151）。这个 nil 会被 buildinfo 序列化观察到：
+            // `BuildInfoDiagnostic.MessageArgs` 的标签是 `json:"messageArgs,omitzero"`（buildInfo.go:209），
+            // nil 时整个字段被省略，空数组则会写成 `"messageArgs":[]`。若这里返回空数组，
+            // `.tsbuildinfo` 就与 reference 逐字节不符（参见 SnapshotToBuildInfo 的同款处理）。
+            return null;
         }
 
         var result = new string[args.Length];

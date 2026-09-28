@@ -71,8 +71,12 @@ using Logger = TypeScript.Project.Logging.Logger;
 
 namespace TypeScript.Project;
 
-/// <summary>Go 的 <c>Snapshot</c>（snapshot.go:27-60）：所有项目的不可变状态 + 它的引用计数。</summary>
-public sealed class Snapshot : Ls.Host
+/// <summary>Go 的 <c>Snapshot</c>（snapshot.go:27-60）：所有项目的不可变状态 + 它的引用计数。
+/// 基类列表里的 <c>TypeScript.Module.ResolutionHost</c> 是**非 Go 源的必要写法**：Go 的 `*project.Snapshot`
+/// 只靠 <c>FS()</c> + <c>GetCurrentDirectory()</c> **结构性**满足 `module.ResolutionHost`
+/// （`internal/api/module_resolution.go:363` 的 `Host: sd.snapshot`、以及 module 包内多处），C# 的接口是名义的，
+/// 必须显式列出（先例：Compiler/Host.cs 文件头第 6 条、Execute/Tsc/Compile.cs 的 `System : Spawner, ParseConfigHost`）。</summary>
+public sealed class Snapshot : Ls.Host, Module.ResolutionHost
 {
     internal SnapshotHost _host = null!;
 

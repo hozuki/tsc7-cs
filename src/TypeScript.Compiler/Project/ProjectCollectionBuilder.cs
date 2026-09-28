@@ -1793,7 +1793,9 @@ public sealed class ProjectCollectionBuilder
                 contentMappers,
                 this,
                 logger);
-            syntheticProject.CommandLine!.Errors = configFileParsingDiagnostics!;
+            // Go: p.Errors 是 `[]*ast.Diagnostic`（nil 合法，消费方 len/range 安全）；C# 的 Errors 字段是
+            // 非空 `Diagnostic[]`（`= []` 不变式）⇒ 在写入点把 Go 的 nil 归一成空数组，避免下游解引用 null。
+            syntheticProject.CommandLine!.Errors = configFileParsingDiagnostics ?? [];
             syntheticProject._moduleResolverFactory = moduleResolverFactory;
             syntheticProject._moduleResolverID = moduleResolverID;
             return _syntheticProjects.LoadOrStore(projectID, syntheticProject).Entry!;
@@ -1813,7 +1815,7 @@ public sealed class ProjectCollectionBuilder
             new TSPath.ComparePathsOptions(
                 useCaseSensitiveFileNames: _fs._fs.UseCaseSensitiveFileNames(),
                 currentDirectory: currentProject._currentDirectory));
-        newCommandLine.Errors = configFileParsingDiagnostics!;
+        newCommandLine.Errors = configFileParsingDiagnostics ?? [];
         project.ChangeIf(
             p => !SequenceEqual(p.CommandLine!.FileNames(), newCommandLine.FileNames())
                 || !CompilerOptionsDeepEqual(p.CommandLine!.CompilerOptions(), compilerOptions)
@@ -1895,7 +1897,7 @@ public sealed class ProjectCollectionBuilder
                 contentMappers,
                 this,
                 logger);
-            project.CommandLine!.Errors = configFileParsingDiagnostics!;
+            project.CommandLine!.Errors = configFileParsingDiagnostics ?? [];
             _inferredProject.Set(project);
             return true;
         }
@@ -1913,7 +1915,7 @@ public sealed class ProjectCollectionBuilder
             new TSPath.ComparePathsOptions(
                 useCaseSensitiveFileNames: _fs._fs.UseCaseSensitiveFileNames(),
                 currentDirectory: project._currentDirectory));
-        newCommandLine.Errors = configFileParsingDiagnostics!;
+        newCommandLine.Errors = configFileParsingDiagnostics ?? [];
         var changed = _inferredProject.ChangeIf(
             p => !SequenceEqual(p.CommandLine!.FileNames(), newCommandLine.FileNames())
                 || !CompilerOptionsDeepEqual(p.CommandLine!.CompilerOptions(), compilerOptions)
