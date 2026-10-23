@@ -1,3 +1,9 @@
+注：本项目基于 TS7（tsgo）移植。基于 TS6（TS）的移植见 <https://github.com/hozuki/tsc6-cs>。
+
+全程使用 DeepSeek 4.0 Flash，无人工代码。目的是测试成本和AI代码产出质量，以群友为基准。这个repo从零到当前状态总计使用了大约400元的API开销，直接使用官方API。
+
+在小项目上可以追平 tsgo 的表现，但是在实测大型项目（~900k行代码）上编译时间大约是 tsgo 的1.8倍。
+
 # tsc-cs
 
 Porting the TypeScript compiler (TSGO, the Go implementation at `D:\Source\GitHub\TypeScript-Go`) to C#, with the Go package/API structure preserved as-is.
